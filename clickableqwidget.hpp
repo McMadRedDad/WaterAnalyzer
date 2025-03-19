@@ -8,7 +8,11 @@ class ClickableQWidget : public QWidget {
 public:
     explicit ClickableQWidget(QWidget *parent = nullptr);
 
+protected:
+    void mousePressEvent(QMouseEvent *) override;
+
 signals:
+    void clicked();
 };
 
 #endif // CLICKABLEQWIDGET_HPP

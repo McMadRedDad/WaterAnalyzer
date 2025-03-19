@@ -11,11 +11,13 @@ CONFIG += c++17
 SOURCES += \
     clickableqwidget.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    uibuilder.cpp
 
 HEADERS += \
     clickableqwidget.hpp \
-    mainwindow.hpp
+    mainwindow.hpp \
+    uibuilder.hpp
 
 FORMS += \
     mainwindow.ui
