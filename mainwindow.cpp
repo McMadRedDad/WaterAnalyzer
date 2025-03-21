@@ -8,13 +8,20 @@ MainWindow::MainWindow(QWidget* parent)
     ui->setupUi(this);
 
     state.pages.append(UiBuilder::build_import_page(ui->widget_main));
-    state.page = STATE::CurrPage::IMPORT;
+    state.pages.append(UiBuilder::build_selection_page(ui->widget_main));
+    state.pages.append(UiBuilder::build_results_page(ui->widget_main));
+    foreach (QWidget* w, state.pages) {
+        w->hide();
+    }
 
     ui->widget_main->layout()->addWidget(state.pages[0]);
-    ui->plainTextEdit_log->hide();
-
+    state.pages[0]->show();
     connect(state.pages[0], &ClickableQWidget::clicked, this, &MainWindow::import_clicked);
+    // ui->plainTextEdit_log->hide();
+
     connect(&timer_status, &QTimer::timeout, this, &MainWindow::clear_status);
+
+    state.page = STATE::CurrPage::IMPORT;
 }
 
 MainWindow::~MainWindow() {
@@ -50,11 +57,10 @@ void MainWindow::on_pushButton_back_clicked() {
         break;
     }
     case STATE::CurrPage::SELECTION: {
-        if (state.pages.isEmpty()) {
-            state.pages.append(UiBuilder::build_import_page(ui->widget_main));
-        }
+        state.pages[1]->hide();
+        ui->widget_main->layout()->removeWidget(state.pages[1]);
         ui->widget_main->layout()->addWidget(state.pages[0]);
-        ui->widget_main->layout()->itemAt(0)->widget()->show();
+        state.pages[0]->show();
         connect(state.pages[0], &ClickableQWidget::clicked, this, &MainWindow::import_clicked);
 
         state.page = STATE::CurrPage::IMPORT;
@@ -80,8 +86,12 @@ void MainWindow::on_pushButton_showLog_clicked() {
 }
 
 void MainWindow::import_clicked() {
-    ui->widget_main->layout()->itemAt(0)->widget()->hide();
+    // while (item) => hide()
+    state.pages[0]->hide();
     ui->widget_main->layout()->removeWidget(state.pages[0]);
+    ui->widget_main->layout()->addWidget(state.pages[1]);
+    state.pages[1]->show();
     disconnect(state.pages[0], &ClickableQWidget::clicked, this, &MainWindow::import_clicked);
+
     state.page = STATE::CurrPage::SELECTION;
 }

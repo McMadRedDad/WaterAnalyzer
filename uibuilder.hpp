@@ -1,8 +1,11 @@
 #ifndef UIBUILDER_HPP
 #define UIBUILDER_HPP
 
+#include <QCheckBox>
+#include <QComboBox>
 #include <QLabel>
 #include <QLayout>
+#include <QPushButton>
 #include "clickableqwidget.hpp"
 
 class UiBuilder : public ClickableQWidget {
