@@ -86,7 +86,6 @@ void MainWindow::on_pushButton_showLog_clicked() {
 }
 
 void MainWindow::import_clicked() {
-    // while (item) => hide()
     state.pages[0]->hide();
     ui->widget_main->layout()->removeWidget(state.pages[0]);
     ui->widget_main->layout()->addWidget(state.pages[1]);
