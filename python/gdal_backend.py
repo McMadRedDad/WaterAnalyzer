@@ -1,0 +1,16 @@
+import socket as sock
+
+HOST = '127.0.0.1'
+PORT = 42069
+with sock.socket(sock.AF_INET, sock.SOCK_STREAM) as s:
+    s.bind((HOST, PORT))
+    s.listen(0)
+    conn, addr = s.accept()
+    with conn:
+        print('connected by', addr)
+        while True:
+            data = conn.recv(1024)
+            if not data: break
+            # print('recieved:', data)
+            # conn.sendall(data)
+            # print('sent:', data)
