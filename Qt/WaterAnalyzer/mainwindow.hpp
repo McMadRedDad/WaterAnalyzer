@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QMessageBox>
+#include <QProcess>
 #include <QTcpSocket>
 #include <QTimer>
 #include "clickableqwidget.hpp"
@@ -30,23 +31,30 @@ private slots:
     void on_pushButton_showLog_clicked();
 
 private:
+    STATE state;
+
+    QProcess    *backend;
+    QTcpSocket  *json_sock;
+    QTcpSocket  *http_sock;
+    QHostAddress backend_host;
+    quint16      json_port;
+    quint16      http_port;
+
     Ui::MainWindow *ui;
-    STATE           state;
     QTimer          timer_status;
-    QTcpSocket     *json_sock;
-    QTcpSocket     *http_sock;
-    QHostAddress    backend_host;
-    quint16         json_port;
-    quint16         http_port;
+
+    void prepare_backend();
+    void backend_stdout();
+    void init_connections();
+    void _connect_socket(QAbstractSocket *socket, QHostAddress address, quint16 port);
+    void socket_error();
+    void socket_read();
 
     void set_status_message(bool good, QString message, short msec);
     void clear_status();
     void append_log(QString line);
-    void init_connection(QAbstractSocket *socket, QHostAddress address, quint16 port);
-    void socket_error();
-    void socket_connection();
-    void socket_read();
 
+    void closeEvent(QCloseEvent *) override;
     void import_clicked();
 };
 #endif // MAINWINDOW_HPP

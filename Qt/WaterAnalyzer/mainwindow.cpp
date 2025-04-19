@@ -23,23 +23,32 @@ MainWindow::MainWindow(QWidget* parent)
 
     state.page = STATE::CurrPage::IMPORT;
 
-    json_sock = new QTcpSocket();
-    http_sock = new QTcpSocket();
-    backend_host = QHostAddress::LocalHost;
-    json_port = 42069;
-    http_port = 42070;
-    init_connection(json_sock, backend_host, json_port);
-    // init_connection(http_sock, backend_host, http_port);
+    prepare_backend();
+    QStringList args;
+    // args << QString(QCoreApplication::applicationDirPath() + "...");
+    args << "-u" // "-u" for unbuffered stdout
+         << "/home/tim/Учёба/5 семестр/Дешифрирование аэкрокосмических снимков/Курсовая/code/python/gdal_backend.py";
+    backend->start("python", args);
+    // init_connections();
 }
 
 MainWindow::~MainWindow() {
     delete ui;
 
+    if (backend) {
+        backend->waitForFinished();
+        delete backend;
+        backend = nullptr;
+    }
     if (json_sock) {
         json_sock->disconnectFromHost();
+        delete json_sock;
+        json_sock = nullptr;
     }
     if (http_sock) {
         http_sock->disconnectFromHost();
+        delete http_sock;
+        http_sock = nullptr;
     }
 }
 
@@ -66,7 +75,43 @@ void MainWindow::append_log(QString line) {
     ui->plainTextEdit_log->appendHtml(line);
 }
 
-void MainWindow::init_connection(QAbstractSocket* socket, QHostAddress address, quint16 port) {
+void MainWindow::prepare_backend() {
+    backend = new QProcess(this);
+    json_sock = new QTcpSocket(this);
+    http_sock = new QTcpSocket(this);
+
+    backend_host = QHostAddress::LocalHost;
+    json_port = 42069;
+    http_port = 42070;
+
+    connect(backend, &QProcess::started, this, [=] { append_log("<span style=\"color: lightgreen;\">Процесс бэкенда запущен</span>"); });
+    connect(backend, &QProcess::finished, this, [=] { append_log("Процесс бэкенда остановлен"); });
+    connect(backend, &QProcess::errorOccurred, this, [=] {
+        append_log(QString("<span style=\"color: tomato;\">Ошибка запуска бэкенда - %1</span>").arg(backend->errorString()));
+        // QMessageBox::critical(this, "Критическая ошибка", "Не удалось запустить бэкенд, пожалуйста, перезапустите программу.");
+        // close();
+    });
+    connect(backend, &QProcess::readyReadStandardError, this, [=] {
+        append_log(QString("<span style=\"color: tomato;\">Ошибка на бэкенде: %1</span>").arg(backend->readAllStandardError()));
+    });
+    connect(backend, &QProcess::readyReadStandardOutput, this, &MainWindow::backend_stdout);
+}
+
+void MainWindow::backend_stdout() {
+    QString stdout = QString(backend->readAllStandardOutput());
+    append_log(stdout);
+
+    if (stdout.contains("Backend listening on")) {
+        init_connections();
+    }
+}
+
+void MainWindow::init_connections() {
+    _connect_socket(json_sock, backend_host, json_port);
+    // _connect_socket(http_sock, backend_host, http_port);
+}
+
+void MainWindow::_connect_socket(QAbstractSocket* socket, QHostAddress address, quint16 port) {
     if (!socket) {
         return;
     }
@@ -75,8 +120,12 @@ void MainWindow::init_connection(QAbstractSocket* socket, QHostAddress address, 
     }
 
     socket->connectToHost(address, port);
+    connect(socket, &QAbstractSocket::connected, this, [=] {
+        QAbstractSocket* sock = qobject_cast<QAbstractSocket*>(sender());
+        append_log(QString("<span style=\"color: lightgreen;\">Успешное подключение к %1 по порту %2</span>")
+                       .arg(sock->peerAddress().toString(), QString::number(sock->peerPort())));
+    });
     connect(socket, &QAbstractSocket::errorOccurred, this, &MainWindow::socket_error);
-    connect(socket, &QAbstractSocket::connected, this, &::MainWindow::socket_connection);
     connect(socket, &QAbstractSocket::readyRead, this, &MainWindow::socket_read);
 }
 
@@ -88,6 +137,7 @@ void MainWindow::socket_error() {
     switch (sock->error()) {
     case QAbstractSocket::ConnectionRefusedError: {
         QMessageBox::critical(this, "Критическая ошибка", "Не удалось подключиться к бэкенду, пожалуйста, перезапустите программу.");
+        // close();
         break;
     }
     default:
@@ -101,12 +151,6 @@ void MainWindow::socket_read() {
         // QByteArray ba = sock->readAll();
         // append_log(QString("Recieved: " + ba));
     }
-}
-
-void MainWindow::socket_connection() {
-    QAbstractSocket* sock = qobject_cast<QAbstractSocket*>(sender());
-    append_log(QString("<span style=\"color: lightgreen;\">Успешное подключение к %1 по порту %2</span>")
-                   .arg(sock->peerAddress().toString(), QString::number(sock->peerPort())));
 }
 
 void MainWindow::on_pushButton_back_clicked() {
@@ -145,6 +189,15 @@ void MainWindow::on_pushButton_showLog_clicked() {
         ui->plainTextEdit_log->show();
         ui->pushButton_showLog->setText("▴");
     }
+}
+
+void MainWindow::closeEvent(QCloseEvent*) {
+    json_sock->disconnectFromHost();
+    // http_sock->disconnectFromHost();
+    // backend.send_shutdown
+    backend->waitForFinished();
+    delete backend;
+    backend = nullptr;
 }
 
 void MainWindow::import_clicked() {
