@@ -52,7 +52,7 @@ private:
 
     void set_status_message(bool good, QString message, short msec);
     void clear_status();
-    void append_log(QString line);
+    void append_log(QString type, QString line);
 
     void closeEvent(QCloseEvent *) override;
     void import_clicked();

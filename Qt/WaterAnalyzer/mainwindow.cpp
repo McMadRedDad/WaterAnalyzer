@@ -29,7 +29,6 @@ MainWindow::MainWindow(QWidget* parent)
     args << "-u" // "-u" for unbuffered stdout
          << "/home/tim/Учёба/5 семестр/Дешифрирование аэкрокосмических снимков/Курсовая/code/python/gdal_backend.py";
     backend->start("python", args);
-    // init_connections();
 }
 
 MainWindow::~MainWindow() {
@@ -71,8 +70,18 @@ void MainWindow::clear_status() {
     ui->label_status->clear();
 }
 
-void MainWindow::append_log(QString line) {
-    ui->plainTextEdit_log->appendHtml(line);
+void MainWindow::append_log(QString type, QString line) {
+    QString html;
+    if (type == "good") {
+        html = "<span style=\"color: lightgreen;\">" + line + "</span>";
+    } else if (type == "bad") {
+        html = "<span style=\"color: tomato;\">" + line + "</span>";
+    } else if (type == "info") {
+        html = "<span style=\"color: dimgray;\">" + line + "</span>";
+    } else {
+        html = "<span style=\"color: black;\">" + line + "</span>";
+    }
+    ui->plainTextEdit_log->appendHtml(html);
 }
 
 void MainWindow::prepare_backend() {
@@ -84,22 +93,22 @@ void MainWindow::prepare_backend() {
     json_port = 42069;
     http_port = 42070;
 
-    connect(backend, &QProcess::started, this, [=] { append_log("<span style=\"color: lightgreen;\">Процесс бэкенда запущен</span>"); });
-    connect(backend, &QProcess::finished, this, [=] { append_log("Процесс бэкенда остановлен"); });
+    connect(backend, &QProcess::started, this, [=] { append_log("good", "Процесс бэкенда запущен"); });
+    connect(backend, &QProcess::finished, this, [=] { append_log("info", "Процесс бэкенда остановлен"); });
     connect(backend, &QProcess::errorOccurred, this, [=] {
-        append_log(QString("<span style=\"color: tomato;\">Ошибка запуска бэкенда - %1</span>").arg(backend->errorString()));
+        append_log("bad", QString("Ошибка запуска бэкенда - %1").arg(backend->errorString()));
         // QMessageBox::critical(this, "Критическая ошибка", "Не удалось запустить бэкенд, пожалуйста, перезапустите программу.");
         // close();
     });
     connect(backend, &QProcess::readyReadStandardError, this, [=] {
-        append_log(QString("<span style=\"color: tomato;\">Ошибка на бэкенде: %1</span>").arg(backend->readAllStandardError()));
+        append_log("bad", QString("Ошибка на бэкенде: %1").arg(backend->readAllStandardError()));
     });
     connect(backend, &QProcess::readyReadStandardOutput, this, &MainWindow::backend_stdout);
 }
 
 void MainWindow::backend_stdout() {
     QString stdout = QString(backend->readAllStandardOutput());
-    append_log(stdout);
+    append_log("info", stdout);
 
     if (stdout.contains("Backend listening on")) {
         init_connections();
@@ -122,8 +131,8 @@ void MainWindow::_connect_socket(QAbstractSocket* socket, QHostAddress address, 
     socket->connectToHost(address, port);
     connect(socket, &QAbstractSocket::connected, this, [=] {
         QAbstractSocket* sock = qobject_cast<QAbstractSocket*>(sender());
-        append_log(QString("<span style=\"color: lightgreen;\">Успешное подключение к %1 по порту %2</span>")
-                       .arg(sock->peerAddress().toString(), QString::number(sock->peerPort())));
+        append_log("good",
+                   QString("Успешное подключение к %1 по порту %2").arg(sock->peerAddress().toString(), QString::number(sock->peerPort())));
     });
     connect(socket, &QAbstractSocket::errorOccurred, this, &MainWindow::socket_error);
     connect(socket, &QAbstractSocket::readyRead, this, &MainWindow::socket_read);
@@ -131,8 +140,8 @@ void MainWindow::_connect_socket(QAbstractSocket* socket, QHostAddress address, 
 
 void MainWindow::socket_error() {
     QAbstractSocket* sock = qobject_cast<QAbstractSocket*>(sender());
-    append_log(QString("<span style=\"color: tomato;\">Ошибка на %1:%2 - %3</span>")
-                   .arg(sock->peerAddress().toString(), QString::number(sock->peerPort()), sock->errorString()));
+    append_log("bad",
+               QString("Ошибка на %1:%2 - %3").arg(sock->peerAddress().toString(), QString::number(sock->peerPort()), sock->errorString()));
 
     switch (sock->error()) {
     case QAbstractSocket::ConnectionRefusedError: {
@@ -145,11 +154,39 @@ void MainWindow::socket_error() {
     }
 }
 
+QByteArray _read_exact(QAbstractSocket* socket, int num_bytes) {
+    QByteArray ba;
+    while (ba.size() < num_bytes) {
+        QByteArray chunk = socket->read(num_bytes - ba.size());
+        if (chunk.isEmpty()) {
+            return chunk;
+        }
+        ba.append(chunk);
+    }
+    return ba;
+}
+
 void MainWindow::socket_read() {
     QAbstractSocket* sock = qobject_cast<QAbstractSocket*>(sender());
     while (sock->bytesAvailable() > 0) {
-        // QByteArray ba = sock->readAll();
-        // append_log(QString("Recieved: " + ba));
+        QByteArray header_ba = _read_exact(sock, 4);
+        if (header_ba.isEmpty()) {
+            append_log("bad", "Не получилось прочитать заголовок сообщения от бэкенда");
+            return;
+        }
+        QDataStream header(header_ba);
+        header.setByteOrder(QDataStream::BigEndian);
+        quint32 size = 0;
+        header >> size;
+
+        QByteArray message_ba = _read_exact(sock, size);
+        if (message_ba.isEmpty()) {
+            append_log("bad", "Не получилось прочитать тело сообщения от бэкенда");
+            return;
+        }
+        QString message = QString::fromUtf8(message_ba);
+
+        append_log("info", QString("Ответ: " + message));
     }
 }
 
@@ -209,7 +246,16 @@ void MainWindow::import_clicked() {
 
     state.page = STATE::CurrPage::SELECTION;
 
-    // QByteArray ba("sdfsdfsdfs");
-    // json_sock->write(ba);
-    // append_log(QString("Sent: " + ba));
+    QString data("yo nigga черножопый урод?\n一个堕落的同性恋男人/''\"\"\\");
+
+    QByteArray data_ba(data.toUtf8());
+    QByteArray message;
+
+    QDataStream out(&message, QIODevice::WriteOnly);
+    out.setByteOrder(QDataStream::BigEndian);
+
+    out << static_cast<quint32>(data_ba.size());
+    message.append(data_ba);
+
+    json_sock->write(message);
 }
