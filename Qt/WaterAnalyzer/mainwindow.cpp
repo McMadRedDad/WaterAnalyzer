@@ -27,7 +27,7 @@ MainWindow::MainWindow(QWidget* parent)
     QStringList args;
     // args << QString(QCoreApplication::applicationDirPath() + "...");
     args << "-u" // "-u" for unbuffered stdout
-         << "/home/tim/Учёба/5 семестр/Дешифрирование аэкрокосмических снимков/Курсовая/code/python/gdal_backend.py";
+         << "/home/tim/Учёба/5 семестр/Дешифрирование аэкрокосмических снимков/Курсовая/code/python/server.py";
     backend->start("python", args);
 }
 
@@ -77,9 +77,9 @@ void MainWindow::append_log(QString type, QString line) {
     } else if (type == "bad") {
         html = "<span style=\"color: tomato;\">" + line + "</span>";
     } else if (type == "info") {
-        html = "<span style=\"color: dimgray;\">" + line + "</span>";
+        html = line;
     } else {
-        html = "<span style=\"color: black;\">" + line + "</span>";
+        html = line;
     }
     ui->plainTextEdit_log->appendHtml(html);
 }
@@ -166,6 +166,8 @@ QByteArray _read_exact(QAbstractSocket* socket, int num_bytes) {
     return ba;
 }
 
+#include <QJsonDocument>
+#include <QJsonObject>
 void MainWindow::socket_read() {
     QAbstractSocket* sock = qobject_cast<QAbstractSocket*>(sender());
     while (sock->bytesAvailable() > 0) {
@@ -184,9 +186,13 @@ void MainWindow::socket_read() {
             append_log("bad", "Не получилось прочитать тело сообщения от бэкенда");
             return;
         }
-        QString message = QString::fromUtf8(message_ba);
+        QJsonObject json_obj = QJsonDocument::fromJson(message_ba).object();
 
-        append_log("info", QString("Ответ: " + message));
+        append_log("info", QString("Ответ смотреть в консоли"));
+        qDebug() << json_obj.keys();
+        foreach (QString key, json_obj.keys()) {
+            qDebug() << QString(key + ": ") << json_obj.value(key);
+        }
     }
 }
 
@@ -246,14 +252,19 @@ void MainWindow::import_clicked() {
 
     state.page = STATE::CurrPage::SELECTION;
 
-    QString data("yo nigga черножопый урод?\n一个堕落的同性恋男人/''\"\"\\");
+    // QString       data("yo nigga черножопый урод?\n一个堕落的同性恋男人/''\"\"\\");
+    // QJsonObject   json{{"from", "frontend"}, {"data", data}};
+    QJsonObject   json{{"proto_version", "1.2.0"},
+                       {"server_version", "1.0.0"},
+                       {"id", 152},
+                       {"operation", "PING"},
+                       {"parameters", QJsonObject()}};
+    QJsonDocument jdoc(json);
+    QByteArray    data_ba(jdoc.toJson());
 
-    QByteArray data_ba(data.toUtf8());
-    QByteArray message;
-
+    QByteArray  message;
     QDataStream out(&message, QIODevice::WriteOnly);
     out.setByteOrder(QDataStream::BigEndian);
-
     out << static_cast<quint32>(data_ba.size());
     message.append(data_ba);
 
