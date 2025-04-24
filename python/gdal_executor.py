@@ -47,6 +47,10 @@ class GdalExecutor:
         
         if operation == 'PING':
             return _response(0, {"data": "PONG"})
+
+        if operation == 'SHUTDOWN':
+            # errors 20200 and 20201
+            return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})
     

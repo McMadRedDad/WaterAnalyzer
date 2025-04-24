@@ -9,8 +9,7 @@ ClickableQWidget* UiBuilder::build_import_page(QWidget* parent_with_layout) {
     QVBoxLayout*      lyt = new QVBoxLayout();
     QLabel*           capt = new QLabel();
 
-    capt->setText("Нажмите, чтобы открыть директорию со снимком.\nНазвание директории должно быть "
-                  "оригинальным (соответствовать правилам именования снимка).");
+    capt->setText("Нажмите, чтобы открыть директорию со снимком.");
     capt->setAlignment(Qt::AlignCenter);
 
     lyt->addWidget(capt);

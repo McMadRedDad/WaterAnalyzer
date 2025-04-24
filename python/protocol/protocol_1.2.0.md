@@ -98,7 +98,7 @@ Below are specifics for requests and responses for each supported command. Commo
     - `result` - {"data": "PONG"}
 2. Non-empty `parameters`:
     - `status` - 10100
-    - `result` - { "error": "'`parameters`' must be an empty JSON object for 'PING' and 'SHUTDOWN' requests" }
+    - `result` - { "error": "'`parameters`' must be an empty JSON object for 'PING'request" }
 
 ### shutdown
 
@@ -113,7 +113,7 @@ Below are specifics for requests and responses for each supported command. Commo
     - `result` - {}
 2. Non-empty `parameters`:
     - `status` - 10200
-    - `result` - { "error": "`parameters` must be an empty object for 'PING' and 'SHUTDOWN' requests" }
+    - `result` - { "error": "`parameters` must be an empty object for 'SHUTDOWN' request" }
 3. Server busy:
     - `status` - 20200
     - `result` - { "error": "server is busy, performing request `request id`" }

@@ -7,6 +7,7 @@
 #include <QTcpSocket>
 #include <QTimer>
 #include "clickableqwidget.hpp"
+#include "jsonprotocol.hpp"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -39,6 +40,7 @@ private:
     QHostAddress backend_host;
     quint16      json_port;
     quint16      http_port;
+    JsonProtocol proto;
 
     Ui::MainWindow *ui;
     QTimer          timer_status;
@@ -54,7 +56,7 @@ private:
     void clear_status();
     void append_log(QString type, QString line);
 
-    void closeEvent(QCloseEvent *) override;
+    void closeEvent(QCloseEvent *e) override;
     void import_clicked();
 };
 #endif // MAINWINDOW_HPP

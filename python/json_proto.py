@@ -102,26 +102,28 @@ class Protocol:
         if type(proto_version) is not str:
             ok = False
         digits = proto_version.split('.')
-        if len(digits) != 3:
+        if len(digits) == 3:
+            for i in range(3):
+                try:
+                    digits[i] = int(digits[i])
+                except ValueError:
+                    ok = False
+        else:
             ok = False
-        for i in range(3):
-            try:
-                digits[i] = int(digits[i])
-            except TypeError:
-                ok = False
         if not ok:
             return _response(10002, {"error": f"invalid protocol version string: '{proto_version}'"})
 
         if type(server_version) is not str:
             ok = False
         digits = server_version.split('.')
-        if len(digits) != 3:
+        if len(digits) == 3:
+            for i in range(3):
+                try:
+                    digits[i] = int(digits[i])
+                except ValueError:
+                    ok = False
+        else:
             ok = False
-        for i in range(3):
-            try:
-                digits[i] = int(digits[i])
-            except TypeError:
-                ok = False
         if not ok:
             return _response(10003, {"error": f"invalid server version string: '{server_version}'"})
                     
@@ -140,9 +142,16 @@ class Protocol:
         ### PING ###
         if operation == 'PING':
             if len(parameters) != 0:
-                return _response(10100, {"error": "'parameters' must be an empty JSON object for 'PING' and 'SHUTDOWN' requests"})
+                return _response(10100, {"error": "'parameters' must be an empty JSON object for 'PING' request"})
             else:
                 return _response(0, {"data": "PONG"})
+
+        ### SHUTDOWN ###
+        if operation == 'SHUTDOWN':
+            if len(parameters) != 0:
+                return _response(10200, {"error": "'parameters' must be an empty JSON object for 'SHUTDOWN' request"})
+            else:
+                return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})
 
@@ -177,5 +186,5 @@ class Protocol:
     def get_supported_operations(self) -> tuple:
         return self.SUPPORTED_OPERATIONS
 
-    def get_header_size(self):
+    def get_header_size(self) -> int:
         return self.HEADER_SIZE

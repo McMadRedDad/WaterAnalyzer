@@ -17,15 +17,17 @@ MainWindow::MainWindow(QWidget* parent)
     ui->widget_main->layout()->addWidget(state.pages[0]);
     state.pages[0]->show();
     connect(state.pages[0], &ClickableQWidget::clicked, this, &MainWindow::import_clicked);
-    // ui->plainTextEdit_log->hide();
 
     connect(&timer_status, &QTimer::timeout, this, &MainWindow::clear_status);
 
     state.page = STATE::CurrPage::IMPORT;
 
+    backend = nullptr;
+    json_sock = nullptr;
+    http_sock = nullptr;
+
     prepare_backend();
     QStringList args;
-    // args << QString(QCoreApplication::applicationDirPath() + "...");
     args << "-u" // "-u" for unbuffered stdout
          << "/home/tim/Учёба/5 семестр/Дешифрирование аэкрокосмических снимков/Курсовая/code/python/server.py";
     backend->start("python", args);
@@ -34,20 +36,17 @@ MainWindow::MainWindow(QWidget* parent)
 MainWindow::~MainWindow() {
     delete ui;
 
-    if (backend) {
-        backend->waitForFinished();
-        delete backend;
-        backend = nullptr;
-    }
     if (json_sock) {
-        json_sock->disconnectFromHost();
         delete json_sock;
         json_sock = nullptr;
     }
     if (http_sock) {
-        http_sock->disconnectFromHost();
         delete http_sock;
         http_sock = nullptr;
+    }
+    if (backend) {
+        delete backend;
+        backend = nullptr;
     }
 }
 
@@ -85,20 +84,25 @@ void MainWindow::append_log(QString type, QString line) {
 }
 
 void MainWindow::prepare_backend() {
-    backend = new QProcess(this);
-    json_sock = new QTcpSocket(this);
-    http_sock = new QTcpSocket(this);
+    if (!backend) {
+        backend = new QProcess(this);
+    }
+    if (!json_sock) {
+        json_sock = new QTcpSocket(this);
+    }
+    if (!http_sock) {
+        http_sock = new QTcpSocket(this);
+    }
 
     backend_host = QHostAddress::LocalHost;
     json_port = 42069;
     http_port = 42070;
+    proto = JsonProtocol(json_sock, "1.0.0");
 
-    connect(backend, &QProcess::started, this, [=] { append_log("good", "Процесс бэкенда запущен"); });
+    connect(backend, &QProcess::started, this, [=] { append_log("info", "Процесс бэкенда запущен"); });
     connect(backend, &QProcess::finished, this, [=] { append_log("info", "Процесс бэкенда остановлен"); });
     connect(backend, &QProcess::errorOccurred, this, [=] {
         append_log("bad", QString("Ошибка запуска бэкенда - %1").arg(backend->errorString()));
-        // QMessageBox::critical(this, "Критическая ошибка", "Не удалось запустить бэкенд, пожалуйста, перезапустите программу.");
-        // close();
     });
     connect(backend, &QProcess::readyReadStandardError, this, [=] {
         append_log("bad", QString("Ошибка на бэкенде: %1").arg(backend->readAllStandardError()));
@@ -133,66 +137,43 @@ void MainWindow::_connect_socket(QAbstractSocket* socket, QHostAddress address, 
         QAbstractSocket* sock = qobject_cast<QAbstractSocket*>(sender());
         append_log("good",
                    QString("Успешное подключение к %1 по порту %2").arg(sock->peerAddress().toString(), QString::number(sock->peerPort())));
+        sock = nullptr;
     });
     connect(socket, &QAbstractSocket::errorOccurred, this, &MainWindow::socket_error);
     connect(socket, &QAbstractSocket::readyRead, this, &MainWindow::socket_read);
+    connect(socket, &QAbstractSocket::disconnected, this, [=] {
+        QAbstractSocket* sock = qobject_cast<QAbstractSocket*>(sender());
+        append_log("info", QString("Подключение к %1:%2 закрыто").arg(sock->peerAddress().toString(), QString::number(sock->peerPort())));
+        sock = nullptr;
+    });
 }
 
 void MainWindow::socket_error() {
     QAbstractSocket* sock = qobject_cast<QAbstractSocket*>(sender());
-    append_log("bad",
-               QString("Ошибка на %1:%2 - %3").arg(sock->peerAddress().toString(), QString::number(sock->peerPort()), sock->errorString()));
-
     switch (sock->error()) {
     case QAbstractSocket::ConnectionRefusedError: {
-        QMessageBox::critical(this, "Критическая ошибка", "Не удалось подключиться к бэкенду, пожалуйста, перезапустите программу.");
-        // close();
+        append_log("bad", "Критическая ошибка! Не удалось подключиться к бэкенду, пожалуйста, перезапустите программу.");
+        break;
+    }
+    case QAbstractSocket::RemoteHostClosedError: {
+        append_log("info", QString("Бэкенд разорвал соединение: %1").arg(sock->errorString()));
         break;
     }
     default:
+        append_log("bad",
+                   QString("Ошибка на %1:%2 - %3")
+                       .arg(sock->peerAddress().toString(), QString::number(sock->peerPort()), sock->errorString()));
         break;
     }
+    sock = nullptr;
 }
 
-QByteArray _read_exact(QAbstractSocket* socket, int num_bytes) {
-    QByteArray ba;
-    while (ba.size() < num_bytes) {
-        QByteArray chunk = socket->read(num_bytes - ba.size());
-        if (chunk.isEmpty()) {
-            return chunk;
-        }
-        ba.append(chunk);
-    }
-    return ba;
-}
-
-#include <QJsonDocument>
-#include <QJsonObject>
 void MainWindow::socket_read() {
-    QAbstractSocket* sock = qobject_cast<QAbstractSocket*>(sender());
-    while (sock->bytesAvailable() > 0) {
-        QByteArray header_ba = _read_exact(sock, 4);
-        if (header_ba.isEmpty()) {
-            append_log("bad", "Не получилось прочитать заголовок сообщения от бэкенда");
-            return;
-        }
-        QDataStream header(header_ba);
-        header.setByteOrder(QDataStream::BigEndian);
-        quint32 size = 0;
-        header >> size;
+    QJsonObject json = proto.receive();
 
-        QByteArray message_ba = _read_exact(sock, size);
-        if (message_ba.isEmpty()) {
-            append_log("bad", "Не получилось прочитать тело сообщения от бэкенда");
-            return;
-        }
-        QJsonObject json_obj = QJsonDocument::fromJson(message_ba).object();
-
-        append_log("info", QString("Ответ смотреть в консоли"));
-        qDebug() << json_obj.keys();
-        foreach (QString key, json_obj.keys()) {
-            qDebug() << QString(key + ": ") << json_obj.value(key);
-        }
+    qDebug() << json.keys();
+    foreach (QString key, json.keys()) {
+        qDebug() << QString(key + ": ") << json.value(key);
     }
 }
 
@@ -203,9 +184,18 @@ void MainWindow::on_pushButton_back_clicked() {
     }
     case STATE::CurrPage::IMPORT: {
         //
+        //
+        //
+        //
+        proto.send("SHUTDOWN", QJsonObject());
         break;
     }
     case STATE::CurrPage::SELECTION: {
+        // proto.send()
+        //
+        //
+        //
+
         state.pages[1]->hide();
         ui->widget_main->layout()->removeWidget(state.pages[1]);
         ui->widget_main->layout()->addWidget(state.pages[0]);
@@ -217,6 +207,10 @@ void MainWindow::on_pushButton_back_clicked() {
     }
     case STATE::CurrPage::RESULT: {
         //
+        //
+        //
+        //
+
         break;
     }
     default:
@@ -234,16 +228,23 @@ void MainWindow::on_pushButton_showLog_clicked() {
     }
 }
 
-void MainWindow::closeEvent(QCloseEvent*) {
-    json_sock->disconnectFromHost();
-    // http_sock->disconnectFromHost();
-    // backend.send_shutdown
-    backend->waitForFinished();
-    delete backend;
-    backend = nullptr;
+void MainWindow::closeEvent(QCloseEvent* e) {
+    if (backend->state() == QProcess::Running) {
+        append_log("info", "Бэкенд ещё работет, завершить программу сейчас невозможно");
+        e->ignore();
+    }
 }
 
 void MainWindow::import_clicked() {
+    //
+    //
+    //
+    //
+    QJsonObject json = QJsonObject();
+    proto.send("PING", json);
+    proto.send("PING", json);
+    proto.send("SHUTDOWN", QJsonObject{{"arg1", "val1"}});
+
     state.pages[0]->hide();
     ui->widget_main->layout()->removeWidget(state.pages[0]);
     ui->widget_main->layout()->addWidget(state.pages[1]);
@@ -251,22 +252,4 @@ void MainWindow::import_clicked() {
     disconnect(state.pages[0], &ClickableQWidget::clicked, this, &MainWindow::import_clicked);
 
     state.page = STATE::CurrPage::SELECTION;
-
-    // QString       data("yo nigga черножопый урод?\n一个堕落的同性恋男人/''\"\"\\");
-    // QJsonObject   json{{"from", "frontend"}, {"data", data}};
-    QJsonObject   json{{"proto_version", "1.2.0"},
-                       {"server_version", "1.0.0"},
-                       {"id", 152},
-                       {"operation", "PING"},
-                       {"parameters", QJsonObject()}};
-    QJsonDocument jdoc(json);
-    QByteArray    data_ba(jdoc.toJson());
-
-    QByteArray  message;
-    QDataStream out(&message, QIODevice::WriteOnly);
-    out.setByteOrder(QDataStream::BigEndian);
-    out << static_cast<quint32>(data_ba.size());
-    message.append(data_ba);
-
-    json_sock->write(message);
 }

@@ -2,7 +2,7 @@ import socket as sock
 from json_proto import Protocol
 from gdal_executor import GdalExecutor
 
-HOST = '127.0.0.1'
+HOST = 'localhost'
 PORT = 42069
 with sock.socket(sock.AF_INET, sock.SOCK_STREAM) as s:
     s.bind((HOST, PORT))
@@ -23,13 +23,24 @@ with sock.socket(sock.AF_INET, sock.SOCK_STREAM) as s:
                 raise proto.IPCError('Message not recieved')
             print(f'Recieved: {request}')
 
-            result = proto.validate(request)
-            if result.get('status') != 0:
-                proto.send(result)
+            response = proto.validate(request)
+            if response.get('status') != 0:
+                proto.send(response)
                 continue
 
-            result = executor.execute(request)
-            result = proto.match(request, result)
-            proto.send(result)
+            response = executor.execute(request)
+            if response.get('status') != 0:
+                proto.send(response)
+                continue
 
+            response = proto.match(request, response)
+            proto.send(response)
+
+            if (request.get('operation') == 'SHUTDOWN' and
+                response.get('status') == 0):
+                conn.close()
+                break
+    
+    s.close()
+            
 print('Backend finished')

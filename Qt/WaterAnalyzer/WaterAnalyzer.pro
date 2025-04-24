@@ -10,12 +10,14 @@ CONFIG += c++17
 
 SOURCES += \
     clickableqwidget.cpp \
+    jsonprotocol.cpp \
     main.cpp \
     mainwindow.cpp \
     uibuilder.cpp
 
 HEADERS += \
     clickableqwidget.hpp \
+    jsonprotocol.hpp \
     mainwindow.hpp \
     uibuilder.hpp
 
