@@ -1,5 +1,7 @@
 import struct
 import json
+import socket
+import select
 
 class Protocol:
     VERSION = '1.2.0'
@@ -9,51 +11,232 @@ class Protocol:
     class IPCError(Exception):
         pass
 
-    def __init__(self, connection):
+    def __init__(self, connection: socket.socket, timeout: float):
         self.conn = connection
+        self.conn.settimeout(timeout)
+        # self.conn.setblocking(False)
+        # self.buffer = b''
         print(f'Using protocol version {self.VERSION}')
 
-    def _receive_exact(self, num_bytes: int) -> bytes:
+    def send(self, message: dict) -> None:
+        body = json.dumps(message).encode('utf-8')
+        header = struct.pack('!I', len(body))
+        msg = header + body
+
+        total_sent = 0
+        while total_sent < len(msg):
+            sent = self.conn.send(msg[total_sent:])
+            if sent == 0:
+                raise RuntimeError('Client closed connection')
+            total_sent += sent
+
+    def _receive_exact(self, num_bytes: int, max_chunk_size: int = 2048) -> bytes:
         data = b''
+        received = 0
         while len(data) < num_bytes:
-            chunk = self.conn.recv(num_bytes - len(data))
+            chunk = self.conn.recv(min(num_bytes - received, max_chunk_size))
             if not chunk:
-                raise self.IPCError('Could not recieve a message part')
-                return None
+                raise RuntimeError('Client closed connection')
             data += chunk
+            received += len(chunk)
+
         return data
 
-    def receive(self) -> dict:
-        """Returns a dictionary created from JSON. In case of errors returns None. Does not validate the message's format and its content according to this protocol and can recieve any JSON."""
-
+    def _receive_message(self) -> dict:
         header = self._receive_exact(self.HEADER_SIZE)
-        if not header:
-            raise self.IPCError('Could not recieve message header')
-            return None
-        (size, ) = struct.unpack('!I', header)
-        if type(size) is not int:
-            raise IPCError('Invalid message header')
-            return None
-        
-        data = self._receive_exact(size)
-        if not data:
-            raise self.IPCError('Could not recieve message body')
-            return None
-        message = json.loads(data.decode('utf-8'))
+        (msg_size, ) = struct.unpack('!I', header)
+        if type(msg_size) is not int:
+            self.conn.close()
+            raise self.IPCError('Invalid message header received')
+
+        message = self._receive_exact(msg_size)
+        message = json.loads(message.decode('utf-8'))
         if type(message) is not dict:
-            raise self.IPCError('Invalid message body')
-            return None
-        
+            self.conn.close()
+            raise self.IPCError('Invalid message body received')
+
         return message
 
-    def send(self, data: dict) -> None:
-        """Sends a message. Does not validate the message's format and its content according to this protocol and can send any JSON."""
+    def receive_all(self) -> [dict]:
+        messages = []
+        while True:
+            try:
+                messages.append(self._receive_message())
+            except socket.timeout:
+                print('all data received for now')
+                break
+        return messages
 
-        data_json = json.dumps(data)
-        data_bytes = data_json.encode('utf-8')
-        header = struct.pack('!I', len(data_bytes))
+    # def _read_chunk(self, chunk_size: int) -> None:
+    #     chunks = []
+    #     received = 0
 
-        self.conn.sendall(header + data_bytes)
+    #     while received < chunk_size:
+    #         chunk = self.conn.recv(chunk_size - received)
+    #         if chunk == b'':
+    #             raise RuntimeError('Socket connection broken')
+    #         chunks.append(chunk)
+    #         received = received + len(chunk)
+
+    #     self.buffer = b''.join(chunks)
+
+    # def _extract_message(self) -> dict:
+    #     if len(self.buffer) < self.HEADER_SIZE:
+    #         return None
+
+    #     header = self.buffer[:self.HEADER_SIZE]
+    #     (msg_size, ) = struct.unpack('!I', header)
+    #     if type(msg_size) is not int:
+    #         raise self.IPCError('Invalid message header')
+    #         return None
+    #     if len(self.buffer) < self.HEADER_SIZE + msg_size:
+    #         return None
+
+    #     message = self.buffer[self.HEADER_SIZE : self.HEADER_SIZE + msg_size - 1]
+    #     self.buffer = self.buffer[self.HEADER_SIZE + msg_size:]
+        
+    #     message = json.loads(message.decode('utf-8'))
+    #     if type(message) is not dict:
+    #         raise self.IPCError('Invalid message body')
+    #         return None
+
+    #     return message
+
+    # def poll_messages(self, timeout: float) -> [dict]:
+    #     messages = []
+    #     ready_to_read, _, _ = select.select([self.conn], [], [], timeout)
+    #     if ready_to_read:
+    #         self._read_chunk(2048)
+
+    #     while True:
+    #         message = self._extract_message()
+    #         if not message:
+    #             break
+    #         messages.append(message)
+
+    #     return messages
+
+    # def _receive_exact(self, num_bytes: int) -> bytes:
+    #     data = b''
+    #     while len(data) < num_bytes:
+    #         chunk = self.conn.recv(num_bytes - len(data))
+    #         if not chunk:
+    #             raise self.IPCError('Could not recieve a message part')
+    #             return None
+    #         data += chunk
+    #     return data
+
+    # def receive(self) -> dict:
+    #     """Returns a dictionary created from JSON. In case of errors returns None. Does not validate the message's format and its content according to this protocol and can recieve any JSON."""
+
+    #     header = self._receive_exact(self.HEADER_SIZE)
+    #     if not header:
+    #         raise self.IPCError('Could not recieve message header')
+    #         return None
+    #     (size, ) = struct.unpack('!I', header)
+    #     if type(size) is not int:
+    #         raise IPCError('Invalid message header')
+    #         return None
+        
+    #     data = self._receive_exact(size)
+    #     if not data:
+    #         raise self.IPCError('Could not recieve message body')
+    #         return None
+    #     message = json.loads(data.decode('utf-8'))
+    #     if type(message) is not dict:
+    #         raise self.IPCError('Invalid message body')
+    #         return None
+        
+    #     return message
+
+    # def send(self, data: dict) -> None:
+    #     """Sends a message. Does not validate the message's format and its content according to this protocol and can send any JSON."""
+
+    #     data_json = json.dumps(data)
+    #     data_bytes = data_json.encode('utf-8')
+    #     header = struct.pack('!I', len(data_bytes))
+
+    #     self.conn.sendall(header + data_bytes)
+
+    # def _receive_exact(self, num_bytes: int, max_chunk_size: int) -> bytes:
+    #     chunks = []
+    #     received = 0
+
+    #     while received < num_bytes:
+    #         try:
+    #             chunk = self.conn.recv(min(num_bytes - received, max_chunk_size))
+    #         except socket.timeout:
+    #             print('all data received')
+    #             return b''
+    #         if chunk == b'':
+    #             raise RuntimeError('Socket connection broken')
+    #         chunks.append(chunk)
+    #         received = received + len(chunk)
+
+    #     return b''.join(chunks)
+
+    # def receive(self) -> dict:
+    #     # while True:
+    #     #     chunk = self.conn.recv(10).decode('utf-8')
+    #     #     if len(chunk) > 0:
+    #     #         print(chunk)
+    #     #     else:
+    #     #         print('finished')
+    #     #         break
+
+    #     # buf = b''
+    #     # chunks = []
+    #     # received = 0
+
+    #     # while received < self.HEADER_SIZE:
+    #     #     chunk = self.conn.recv(self.HEADER_SIZE - received)
+    #     #     if chunk == b'':
+    #     #         raise RuntimeError('Socket connection broken')
+    #     #     chunks.append(chunk)
+    #     #     received = received + len(chunk)
+    #     # buf = b''.join(chunks)
+
+    #     buf = self._receive_exact(self.HEADER_SIZE, 2048)
+
+    #     (msg_len , ) = struct.unpack('!I', buf)
+    #     if type(msg_len) is not int:
+    #         raise self.IPCError('Socket stream busted while reading header, aborting connection')
+    #         self.conn.close()
+    #         return None
+    #     # buf = b''
+    #     # chunks.clear()
+    #     # received = 0
+
+    #     # while received < msg_len:
+    #     #     chunk = self.conn.recv(min(msg_len - received, 2048))
+    #     #     if chunk == b'':
+    #     #         raise RuntimeError('Socket connection broken')
+    #     #     chunks.append(chunk)
+    #     #     received = received + len(chunk)
+    #     # buf = b''.join(chunks)
+
+    #     buf = self._receive_exact(msg_len, 2048)
+
+    #     message = json.loads(buf.decode('utf-8'))
+    #     if type (message) is not dict:
+    #         raise self.IPCError('Socket stream busted while reading payload, aborting connection')
+    #         self.conn.close()
+    #         return None
+        
+    #     return message
+
+    # def send(self, data: dict) -> None:
+    #     data_bytes = json.dumps(data).encode('utf-8')
+    #     header = struct.pack('!I', len(data_bytes))
+    #     msg = header + data_bytes
+
+    #     total_sent = 0
+    #     while total_sent < len(msg):
+    #         sent = self.conn.send(msg[total_sent:])
+    #         if sent == 0:
+    #             raise RuntimeError('Socket connection broken')
+
+    #         total_sent = total_sent + sent
 
     def validate(self, request: dict) -> dict:
         """Checks for all protocol-specific request errors related to message structure, spelling, etc. and returns a dictionary to be used by Protocol.send method. Does not check for data-specific errors (e.g. non-existent image id, server version, etc.) that can only be verified by the backend itself. The dictionary returned is guaranteed to be valid."""
