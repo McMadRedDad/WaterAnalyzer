@@ -16,7 +16,7 @@ class Protocol:
         print(f'Using protocol version {self.VERSION}')
 
     def send(self, message: dict) -> None:
-        """Generate and send a JSON. Does not validate message's content according to this protocol and can send any JSON."""
+        """Generates and sends a JSON. Does not validate content of 'message' according to this protocol and can send any JSON."""
 
         body = json.dumps(message).encode('utf-8')
         header = struct.pack('!I', len(body))
@@ -31,7 +31,7 @@ class Protocol:
             total_sent += sent
 
     def _receive_exact(self, num_bytes: int, max_chunk_size: int = 2048) -> bytes:
-        """Reads data from socket until num_bytes are received and returns it as bytes. If timeouts, returns an empty bytes object."""
+        """Reads data from socket until 'num_bytes' are received and returns it as bytes. If timeouts, returns an empty bytes object."""
 
         data = b''
         received = 0
@@ -49,11 +49,10 @@ class Protocol:
         return data
 
     def receive_message(self) -> dict:
-        """Receive and parse incoming message. Reads exactly one message and returns it as a dictionary. If fails, returns an empty dictionary. Does not validate message's content according to this protocol and can receive any JSON."""
+        """Receives and parses incoming message. Reads exactly one message and returns it as a dictionary. If fails, returns an empty dictionary. Does not validate message's content according to this protocol and can receive any JSON."""
 
         header = self._receive_exact(self.HEADER_SIZE)
         if not header:
-            print('Could not receive message header')
             return {}
         (msg_size, ) = struct.unpack('!I', header)
         if type(msg_size) is not int:
@@ -62,7 +61,6 @@ class Protocol:
 
         message = self._receive_exact(msg_size)
         if not message:
-            print('Could not receive message body')
             return {}
         message = json.loads(message.decode('utf-8'))
         if type(message) is not dict:

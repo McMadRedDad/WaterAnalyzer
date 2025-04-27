@@ -140,7 +140,6 @@ void MainWindow::_connect_socket(QAbstractSocket* socket, QHostAddress address, 
         sock = nullptr;
     });
     connect(socket, &QAbstractSocket::errorOccurred, this, &MainWindow::socket_error);
-    connect(socket, &QAbstractSocket::readyRead, this, &MainWindow::socket_read);
     connect(socket, &QAbstractSocket::disconnected, this, [=] {
         QAbstractSocket* sock = qobject_cast<QAbstractSocket*>(sender());
         append_log("info", QString("Подключение к %1:%2 закрыто").arg(sock->peerAddress().toString(), QString::number(sock->peerPort())));
@@ -168,12 +167,13 @@ void MainWindow::socket_error() {
     sock = nullptr;
 }
 
-void MainWindow::socket_read() {
-    QJsonObject json = proto.receive();
-
-    qDebug() << json.keys();
-    foreach (QString key, json.keys()) {
-        qDebug() << QString(key + ": ") << json.value(key);
+void MainWindow::process_response() {
+    json_sock->waitForReadyRead();
+    QJsonObject response = QJsonObject();
+    response = proto.receive_message();
+    qDebug() << response.keys();
+    foreach (QString key, response.keys()) {
+        qDebug() << QString(key + ": ") << response.value(key);
     }
 }
 
@@ -187,7 +187,8 @@ void MainWindow::on_pushButton_back_clicked() {
         //
         //
         //
-        proto.send("SHUTDOWN", QJsonObject());
+        proto.send_message("SHUTDOWN", QJsonObject());
+        process_response();
         break;
     }
     case STATE::CurrPage::SELECTION: {
@@ -240,10 +241,14 @@ void MainWindow::import_clicked() {
     //
     //
     //
-    QJsonObject json = QJsonObject();
-    proto.send("PING", json);
-    proto.send("PING", json);
-    proto.send("SHUTDOWN", QJsonObject{{"arg1", "val1"}});
+    proto.send_message("PING", QJsonObject());
+    process_response();
+
+    proto.send_message("PING", QJsonObject());
+    process_response();
+
+    proto.send_message("SHUTDOWN", QJsonObject{{"arg1", "val1"}});
+    process_response();
 
     state.pages[0]->hide();
     ui->widget_main->layout()->removeWidget(state.pages[0]);

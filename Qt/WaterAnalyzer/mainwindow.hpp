@@ -50,7 +50,7 @@ private:
     void init_connections();
     void _connect_socket(QAbstractSocket *socket, QHostAddress address, quint16 port);
     void socket_error();
-    void socket_read();
+    void process_response();
 
     void set_status_message(bool good, QString message, short msec);
     void clear_status();

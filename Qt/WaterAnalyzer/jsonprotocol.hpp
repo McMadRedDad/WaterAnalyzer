@@ -19,11 +19,11 @@ public:
     QString get_proto_version();
     QString get_server_version();
 
-    QJsonObject receive();
-    void        send(QString operation, QJsonObject parameters);
+    void        send_message(QString operation, QJsonObject parameters);
+    QJsonObject receive_message();
 
 private:
-    QByteArray _receive_exact(int num_bytes);
+    QByteArray _receive_exact(int num_bytes, int max_chunk_size = 2048);
 
     static const int     header_size;
     static const QString proto_version;

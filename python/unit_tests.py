@@ -1,8 +1,9 @@
 import unittest
+import socket
 from json_proto import Protocol
 from gdal_executor import GdalExecutor
 
-proto = Protocol('valid connection')
+proto = Protocol(socket.socket())
 executor = GdalExecutor('1.2.0')
 
 def check(request):

@@ -27,23 +27,65 @@ QString JsonProtocol::get_server_version() {
     return server_version;
 }
 
-QByteArray JsonProtocol::_receive_exact(int num_bytes) {
+void JsonProtocol::send_message(QString operation, QJsonObject parameters) {
+    if (!sock) {
+        return;
+    }
+
+    QJsonObject   json{{"proto_version", JsonProtocol::proto_version},
+                       {"server_version", this->server_version},
+                       {"id", this->counter},
+                       {"operation", operation},
+                       {"parameters", parameters}};
+    QJsonDocument jdog(json);
+    QByteArray    data_ba = jdog.toJson();
+
+    QByteArray  message;
+    QDataStream out(&message, QIODevice::WriteOnly);
+    out.setByteOrder(QDataStream::BigEndian);
+    out << static_cast<quint32>(data_ba.size());
+    message.append(data_ba);
+
+    int total_sent = 0;
+    while (total_sent < message.size()) {
+        int sent = sock->write(message.mid(total_sent));
+        if (sent == -1) {
+            sock->disconnectFromHost();
+            sock = nullptr;
+            return;
+        }
+        total_sent += sent;
+    }
+    counter++;
+}
+
+QByteArray JsonProtocol::_receive_exact(int num_bytes, int max_chunk_size) {
     if (!sock) {
         return QByteArray();
     }
 
     QByteArray ba;
+    int        received = 0;
     while (ba.size() < num_bytes) {
-        QByteArray chunk = sock->read(num_bytes - ba.size());
+        int min = 0;
+        if ((num_bytes - received) < max_chunk_size) {
+            min = num_bytes - received;
+        } else {
+            min = max_chunk_size;
+        }
+        QByteArray chunk = sock->read(min);
         if (chunk.isEmpty()) {
+            sock->disconnectFromHost();
+            sock = nullptr;
             return chunk;
         }
         ba.append(chunk);
+        received += ba.size();
     }
     return ba;
 }
 
-QJsonObject JsonProtocol::receive() {
+QJsonObject JsonProtocol::receive_message() {
     if (!sock) {
         return QJsonObject();
     }
@@ -67,27 +109,4 @@ QJsonObject JsonProtocol::receive() {
     }
 
     return QJsonObject();
-}
-
-void JsonProtocol::send(QString operation, QJsonObject parameters) {
-    if (!sock) {
-        return;
-    }
-
-    QJsonObject   json{{"proto_version", JsonProtocol::proto_version},
-                       {"server_version", this->server_version},
-                       {"id", this->counter},
-                       {"operation", operation},
-                       {"parameters", parameters}};
-    QJsonDocument jdoc(json);
-    QByteArray    data_ba = jdoc.toJson();
-
-    QByteArray  message;
-    QDataStream out(&message, QIODevice::WriteOnly);
-    out.setByteOrder(QDataStream::BigEndian);
-    out << static_cast<quint32>(data_ba.size());
-    message.append(data_ba);
-
-    sock->write(message);
-    counter++;
 }
