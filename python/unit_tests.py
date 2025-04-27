@@ -234,6 +234,8 @@ requests = {
 }
 
 class Test(unittest.TestCase):
+    ### Common ###
+
     def test_ok(self):
         self.assertEqual(0, check(requests['ping_ok']))
         self.assertEqual(0, check(requests['shutdown_ok']))
@@ -294,9 +296,7 @@ class Test(unittest.TestCase):
     def test_unsupported_operation(self):
         self.assertEqual(20002, executor.execute(requests['unsupported_operation'])['status'])
 
-    # too many requests
-
-    # operation specific params
+    ### Operation specific ###
 
     def test_ping_non_empty_parameters(self):
         self.assertEqual(10100, check(requests['ping_non_empty_params']))

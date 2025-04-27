@@ -1,7 +1,6 @@
 import struct
 import json
 import socket
-import select
 
 class Protocol:
     VERSION = '1.2.0'
@@ -11,14 +10,14 @@ class Protocol:
     class IPCError(Exception):
         pass
 
-    def __init__(self, connection: socket.socket, timeout: float):
+    def __init__(self, connection: socket.socket, timeout: float = 10.0):
         self.conn = connection
-        self.conn.setblocking(False)
-        # self.conn.settimeout(timeout)
-        self.buffer = b''
+        self.conn.settimeout(timeout)
         print(f'Using protocol version {self.VERSION}')
 
     def send(self, message: dict) -> None:
+        """Generate and send a JSON. Does not validate message's content according to this protocol and can send any JSON."""
+
         body = json.dumps(message).encode('utf-8')
         header = struct.pack('!I', len(body))
         msg = header + body
@@ -31,86 +30,46 @@ class Protocol:
                 raise RuntimeError('Peer closed connection')
             total_sent += sent
 
-    def receive_all_available(self, max_chunk_size: int = 4096) -> [dict]:
-        messages = []
-        # should be select.select([self.conn], [], [], 5.0), but that does not work on Windows
-        while True:
-            readable, _, _ = select.select([self.conn], [self.conn], [self.conn], 5.0)
-            if not readable:
-                # print('No data available to read')
-                # return messages
-                continue
+    def _receive_exact(self, num_bytes: int, max_chunk_size: int = 2048) -> bytes:
+        """Reads data from socket until num_bytes are received and returns it as bytes. If timeouts, returns an empty bytes object."""
 
+        data = b''
+        received = 0
+        while len(data) < num_bytes:
             try:
-                data = self.conn.recv(max_chunk_size)
-                if not data:
+                chunk = self.conn.recv(min(num_bytes - received, max_chunk_size))
+                if not chunk:
                     self.conn.close()
                     raise RuntimeError('Peer closed connection')
-            except BlockingIOError:
-            # except socket.timeout:
-                print('no more data for now')
-                continue
+            except socket.timeout:
+                return b''
+            data += chunk
+            received += len(chunk)
 
-            self.buffer += data
+        return data
 
-            while True:
-                if len(self.buffer) < self.HEADER_SIZE:
-                    break
-                (msg_size, ) = struct.unpack('!I', self.buffer[:self.HEADER_SIZE])
-                if type(msg_size) is not int:
-                    self.conn.close()
-                    raise self.IPCError('Invalid message header received')
-                
-                if len(self.buffer) < self.HEADER_SIZE + msg_size:
-                    break
-                msg = json.loads(self.buffer[self.HEADER_SIZE : self.HEADER_SIZE + msg_size].decode('utf-8'))
-                if type(msg) is not dict:
-                    self.conn.close()
-                    raise self.IPCError('Invalid message body received')
+    def receive_message(self) -> dict:
+        """Receive and parse incoming message. Reads exactly one message and returns it as a dictionary. If fails, returns an empty dictionary. Does not validate message's content according to this protocol and can receive any JSON."""
 
-                messages.append(msg)
-                self.buffer = self.buffer[self.HEADER_SIZE + msg_size:]
+        header = self._receive_exact(self.HEADER_SIZE)
+        if not header:
+            print('Could not receive message header')
+            return {}
+        (msg_size, ) = struct.unpack('!I', header)
+        if type(msg_size) is not int:
+            self.conn.close()
+            raise self.IPCError('Invalid message header received')
 
-            break
+        message = self._receive_exact(msg_size)
+        if not message:
+            print('Could not receive message body')
+            return {}
+        message = json.loads(message.decode('utf-8'))
+        if type(message) is not dict:
+            self.conn.close()
+            raise self.IPCError('Invalid message body received')
 
-        return messages
-
-    # def _receive_exact(self, num_bytes: int, max_chunk_size: int = 2048) -> bytes:
-    #     data = b''
-    #     received = 0
-    #     while len(data) < num_bytes:
-    #         chunk = self.conn.recv(min(num_bytes - received, max_chunk_size))
-    #         if not chunk:
-    #             raise RuntimeError('Client closed connection')
-    #         data += chunk
-    #         received += len(chunk)
-
-    #     return data
-
-    # def _receive_message(self) -> dict:
-    #     header = self._receive_exact(self.HEADER_SIZE)
-    #     (msg_size, ) = struct.unpack('!I', header)
-    #     if type(msg_size) is not int:
-    #         self.conn.close()
-    #         raise self.IPCError('Invalid message header received')
-
-    #     message = self._receive_exact(msg_size)
-    #     message = json.loads(message.decode('utf-8'))
-    #     if type(message) is not dict:
-    #         self.conn.close()
-    #         raise self.IPCError('Invalid message body received')
-
-    #     return message
-
-    # def receive_all(self) -> [dict]:
-    #     messages = []
-    #     while True:
-    #         try:
-    #             messages.append(self._receive_message())
-    #         except socket.timeout:
-    #             print('all data received for now')
-    #             break
-    #     return messages
+        return message
 
     def validate(self, request: dict) -> dict:
         """Checks for all protocol-specific request errors related to message structure, spelling, etc. and returns a dictionary to be used by Protocol.send method. Does not check for data-specific errors (e.g. non-existent image id, server version, etc.) that can only be verified by the backend itself. The dictionary returned is guaranteed to be valid."""

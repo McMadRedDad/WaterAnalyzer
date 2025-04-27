@@ -42,8 +42,6 @@ class GdalExecutor:
         
         if operation not in self.SUPPORTED_OPERATIONS:
             return _response(20002, {"error": f"unsupported operation '{operation}' requested. Supported operations are {self.SUPPORTED_OPERATIONS}"})
-
-        # error 20003 too many requests
         
         if operation == 'PING':
             return _response(0, {"data": "PONG"})

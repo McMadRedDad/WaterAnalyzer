@@ -7,7 +7,6 @@ PORT = 42069
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.bind((HOST, PORT))
     s.listen(1)
-    listening = True
     print(f'Backend listening on {HOST}:{PORT}')
 
     conn, addr = s.accept()
@@ -19,31 +18,28 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             raise GdalExecutor.GdalExecutorError(f'Unsupported protocol version: {proto.get_version()}')
 
         while True:
-            requests = proto.receive_all_available()
-            for request in requests:
-                print(f'Received: {request}')
+            request = proto.receive_message()
+            if not request:
+                print('Could not receive request')
+                continue
+            print(f'Received: {request}')
 
-                response = proto.validate(request)
-                if response.get('status') != 0:
-                    proto.send(response)
-                    continue
-
-                response = executor.execute(request)
-                if response.get('status') != 0:
-                    proto.send(response)
-                    continue
-
-                response = proto.match(request, response)
+            response = proto.validate(request)
+            if response.get('status') != 0:
                 proto.send(response)
+                continue
 
-                if (request.get('operation') == 'SHUTDOWN' and
-                    response.get('status') == 0):
-                    conn.close()
-                    listening = False
-                    break
+            response = executor.execute(request)
+            if response.get('status') != 0:
+                proto.send(response)
+                continue
 
-            if not listening:
-                print('Shutting down')
+            response = proto.match(request, response)
+            proto.send(response)
+
+            if (request.get('operation') == 'SHUTDOWN' and
+                response.get('status') == 0):
+                conn.close()
                 break
     
     s.close()
