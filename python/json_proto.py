@@ -3,7 +3,7 @@ import json
 import socket
 
 class Protocol:
-    VERSION = '1.2.0'
+    VERSION = '1.2.1'
     HEADER_SIZE = 4
     SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'export_gtiff', 'calc_preview', 'calc_index')
 
@@ -151,7 +151,7 @@ class Protocol:
             return _response(10006, {"error": "invalid 'parameters' key: must be of JSON object type"})
             
         if proto_version != self.VERSION:
-            return _response(10008, {"error": f"incorrect protocol version: '{proto_version}'. The current protocol version is {self.VERSION}"})
+            return _response(10009, {"error": f"incorrect protocol version: '{proto_version}'. The current protocol version is {self.VERSION}"})
             
         ### PING ###
         if operation == 'PING':
@@ -166,6 +166,23 @@ class Protocol:
                 return _response(10200, {"error": "'parameters' must be an empty JSON object for 'SHUTDOWN' request"})
             else:
                 return _response(0, {})
+
+        ### import_gtiff ###
+        if operation == 'import_gtiff':
+            keys = list(parameters.keys())
+            correct_keys = ['file']
+            present_keys = []
+            for key in keys:
+                if key not in correct_keys:
+                    return _response(10008, {"error": f"unknown key '{key}' in parameters for 'import_gtiff' operation"})
+                else:
+                    present_keys.append(key)
+            
+            if len(keys) != 1:
+                diff = set(correct_keys) - set(present_keys)
+                return _response(10007, {"error": f"keys '{diff}' are not specified in parameters for 'import_gtiff' operation"})
+                
+            return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})
 
@@ -186,11 +203,11 @@ class Protocol:
             }
 
         if proto_version != result.get('proto_version'):
-            return _response(10009, {"error": "values 'proto_version' do not match in request and response"})
+            return _response(10010, {"error": "values 'proto_version' do not match in request and response"})
         if server_version != result.get('server_version'):
-            return _response(10009, {"error": "values 'server_version' do not match in request and response"})
+            return _response(10010, {"error": "values 'server_version' do not match in request and response"})
         if id_ != result.get('id'):
-            return _response(10009, {"error": "values 'id' do not match in request and response"})
+            return _response(10010, {"error": "values 'id' do not match in request and response"})
 
         return _response(result.get('status'), result.get('result'))
 

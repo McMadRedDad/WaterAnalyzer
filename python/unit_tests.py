@@ -4,7 +4,9 @@ from json_proto import Protocol
 from gdal_executor import GdalExecutor
 
 proto = Protocol(socket.socket())
-executor = GdalExecutor('1.2.0')
+proto_version = proto.get_version()
+executor = GdalExecutor(proto_version)
+server_version = executor.get_version()
 
 def check(request):
     response = proto.validate(request)
@@ -18,171 +20,171 @@ def check(request):
 
 requests = {
     'unknown_key1': {
-        "version": "1.2.0",
-        "server_version": "1.0.0",
+        "version": proto_version,
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'unknown_key2': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {},
         "val": 420.69
     },
     'missing_key1': {
-        "server_version": "1.0.0",
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'missing_key2': {
-        "proto_version": "1.2.0",        
+        "proto_version": proto_version,        
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'missing_key3': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "operation": "PING",
         "parameters": {}
     },
     'missing_key4': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "id": 0,
         "parameters": {}
     },
     'missing_key4': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
     },
     'inv_proto_ver1': {
         "proto_version": "abc",
-        "server_version": "1.0.0",
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'inv_proto_ver2': {
         "proto_version": "120",
-        "server_version": "1.0.0",
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'inv_proto_ver3': {
         "proto_version": "12.0",
-        "server_version": "1.0.0",
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'inv_proto_ver4': {
         "proto_version": "12.0",
-        "server_version": "1.0.0",
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'inv_proto_ver5': {
         "proto_version": "a.2.0",
-        "server_version": "1.0.0",
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'inv_proto_ver6': {
         "proto_version": "1.2.0-1",
-        "server_version": "1.0.0",
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'inv_serv_ver1': {
-        "proto_version": "1.2.0",
+        "proto_version": proto_version,
         "server_version": "abc",
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'inv_serv_ver2': {
-        "proto_version": "1.2.0",
+        "proto_version": proto_version,
         "server_version": "120",
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'inv_serv_ver3': {
-        "proto_version": "1.2.0",
+        "proto_version": proto_version,
         "server_version": "12.0",
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'inv_serv_ver4': {
-        "proto_version": "1.2.0",
+        "proto_version": proto_version,
         "server_version": "12.0",
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'inv_serv_ver5': {
-        "proto_version": "1.2.0",
+        "proto_version": proto_version,
         "server_version": "a.2.0",
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'inv_serv_ver6': {
-        "proto_version": "1.2.0",
+        "proto_version": proto_version,
         "server_version": "1.2.0-1",
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'inv_id1': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "id": "abc",
         "operation": "PING",
         "parameters": {}
     },
     'inv_id2': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "id": 0.3,
         "operation": "PING",
         "parameters": {}
     },
     'unknown_operation': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "id": 0,
         "operation": "abc",
         "parameters": {}
     },
     'inv_params': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": "abc"
     },
     'incorrect_proto_ver': {
         "proto_version": "420.69.42069",
-        "server_version": "1.0.0",
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'incorrect_serv_ver': {
-        "proto_version": "1.2.0",
+        "proto_version": proto_version,
         "server_version": "420.69.42069",
         "id": 0,
         "operation": "PING",
@@ -190,43 +192,42 @@ requests = {
     },
     'unsupported_proto_ver': {
         "proto_version": "1.0.0",
-        "server_version": "1.0.0",
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'unsupported_operation': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "id": 0,
         "operation": "new_operation",
         "parameters": {}
     },
-    # too many requests
     'ping_ok': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {}
     },
     'ping_non_empty_params': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "id": 0,
         "operation": "PING",
         "parameters": {"arg1": "val1"}
     },
     'shutdown_ok': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "id": 0,
         "operation": "SHUTDOWN",
         "parameters": {}
     },
     'shutdown_non_empty_params': {
-        "proto_version": "1.2.0",
-        "server_version": "1.0.0",
+        "proto_version": proto_version,
+        "server_version": server_version,
         "id": 0,
         "operation": "SHUTDOWN",
         "parameters": {"arg1": "val1"}
@@ -278,12 +279,12 @@ class Test(unittest.TestCase):
         self.assertEqual(10006, check(requests['inv_params']))
 
     def test_incorrect_proto_version(self):
-        self.assertEqual(10008, check(requests['incorrect_proto_ver']))
+        self.assertEqual(10009, check(requests['incorrect_proto_ver']))
 
     def test_mismatching_keys(self):
         response = executor.execute(requests['ping_ok'])
         response['id'] = 69
-        self.assertEqual(10009, proto.match(requests['ping_ok'], response)['status'])
+        self.assertEqual(10010, proto.match(requests['ping_ok'], response)['status'])
 
     def test_incorrect_server_version(self):
         self.assertEqual(20000, check(requests['incorrect_serv_ver']))

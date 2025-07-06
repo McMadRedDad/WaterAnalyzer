@@ -1,7 +1,7 @@
 # import gdal
 
 class GdalExecutor:
-    SUPPORTED_PROTOCOL_VERSIONS = ('1.2.0')
+    SUPPORTED_PROTOCOL_VERSIONS = ('1.2.1')
     SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'export_gtiff', 'calc_preview', 'calc_index')
     VERSION = '1.0.0'
     
