@@ -1,4 +1,4 @@
-Qt/C++ frontend communicates with Python backend via HTTP messages. JSON objects constructed according to this protocol are sent in message bodies.
+Communication via HTTP messages. The payload is sent as a JSON object in message bodies.
 
 Requests for command execution are sent as POST HTTP/1.1 to /api/`command` endpoint.
 Requests for particular resources (image preview, spatial index image, etc.) are sent as GET HTTP/2 to /resources/`type`/`id` endpoint.
@@ -6,6 +6,15 @@ Requests for particular resources (image preview, spatial index image, etc.) are
 There are two layers of error checking.
 Firstly, overall request validity on the HTTP level is checked. This includes correct set of headers, valid JSON body, etc. If any error is caught, a response is sent immediately with an empty body and a "Reason" header containing a description of the error. Else, the protocol proceeds to the next layer.
 Secondly, the JSON body itself, if applicable, is checked according to the main part of this protocol and an appropriate response is generated. Alongside the JSON errors, HTTP status codes are utilized as a general clue on the result of the request.
+
+## Endpoint validation
+
+If the request was sent to an unknown endpoint, an HTTP 400 Bad Request is sent for command execution requests and HTTP 404 Not Found is sent for resource requests with one of the following "Reason" headers:
+
+Reason: Unknown/unsupported command "`unknown command`" requested.
+Reason: The requested resource `resource url` does not exist.
+
+For these, and **these only**, responses mandatory HTTP headers defined below are optional to be included.
 
 ## Mandatory HTTP headers
 
@@ -17,7 +26,7 @@ Command execution requests must include the following HTTP headers:
 - Request-ID: `request id`
 Command execution responses must include the following HTTP headers:
 - Server: `HTTP server`
-- Content-Type: application/json; charset=utf-8
+- Content-Type: application/json; charset=utf-8 **OR** anything for non-200 responses
 - Content-Length: `response's body length in bytes`
 - Protocol-Version: `this protocol's version`
 - Request-ID: `request id`
@@ -28,7 +37,7 @@ Resource requests must include the following HTTP headers:
 - Request-ID: `request id`
 Resource responses must include the following HTTP headers:
 - Server: `HTTP server`
-- Content-Type: `resource format`
+- Content-Type: `resource format` **OR** anything for non-200 responses
 - Content-Length: `response's body length in bytes`
 - Protocol-Version: `this protocol's version`
 - Request-ID: `request id`
@@ -38,34 +47,43 @@ If not all mandatory headers are present in a request, HTTP server constructs an
 
 Reason: Invalid HTTP Request. Headers "`missing headers`" are missing in the request.
 
-If only the "Content-Length" header is missing, HTTP 411 Length Required is sent instead withthe following "Reason" header:
+If only the "Content-Length" header is missing, HTTP 411 Length Required is sent instead with the following "Reason" header:
 
 Reason: Invalid HTTP request. "Content-Length" header must be provided.
 
 The mandatory headers' values are considered valid if:
 - Content-Type and Accept equal to "application/json; charset=utf-8" OR "application/json;charset=utf-8"
-- Content-Length is of integer type and equals to the size of the message body in bytes
+- Content-Length is of integer type and is between 2 and 1024 including borders for command execution requests
 - Protocol-Version equals to the actual version of this protocol
-- Request-ID is of integer type
+- Request-ID is of integer type and is greater than or equal to 0
 
-If any header's value is invalid, an HTTP 400 Bad Request response with an empty body and one of the following "Reason" headers is sent:
+If "Content-Length" header's value is more than 1024, an HTTP 413 Content Too Large response with an empty body and the "Reason" header is sent:
+
+Reason: Invalid value "`provided length`" for "Content-Length" header: must be in [2, 1024] for /api/`command` request.
+
+For other cases an HTTP 400 Bad Request response with an empty body and one of the following "Reason" headers is sent:
 
 Reason: Invalid value "`invalid value`" of "Content-Type" header: must be "application/json; charset=utf-8" or "application/json;charset=utf-8".
 Reason: Invalid value "`invalid value`" of "Accept" header: must be "application/json; charset=utf-8" or "application/json;charset=utf-8".
 Reason: Invalid type for "Content-Length" header: must be of integer type.
-Reason: Invalid value "`provided length`" for "Content-Length" header: does not equal to message body's length in bytes (actual length is `actual length`).
+Invalid value "`provided length`" for "Content-Length" header: must be in [2, 1024] for /api/`command` request.
 Reason: Invalid protocol version "`provided version`" in "Protocol-Version" header: used protocol version is "`used protocol version`".
 Reason: Invalid type for "Request-ID" header: must be of integer type.
+Reason: Invalid value "`value`" of "Request-ID" header: must be >= 0.
 
 ## HTTP request body validation
 
-After successfully passing HTTP headers check, the request proceeds to body validation. At this point, it is only checked if body is of the correct type and in a valid format.
+After successfully passing HTTP headers check, the request proceeds to body validation. At this point, it is only checked if the body is of correct type and in a valid format.
 
-For command execution (HTTP POST) requests it is checked if a body is a valid JSON. If not, an HTTP 400 Bad Request with an empty body and the "Reason" header is sent:
+For **command execution** (HTTP POST) requests it is checked if a body is a valid JSON. If not, an HTTP 400 Bad Request with an empty body and the "Reason" header is sent:
 
 Reason: The request's body is not a valid JSON.
 
-For resource (HTTP GET) requests it is checked if body is empty. If not, an HTTP 400 Bad Request with an empty body and the "Reason" header is sent:
+If the body is an empty JSON document, an HTTP 400 Bad Request with an empty body and the "Reason" header is sent:
+
+Reason: The request's body must not be an empty JSON document for command execution requests.
+
+For **resource** (HTTP GET) requests it is checked if body is empty. If not, an HTTP 400 Bad Request with an empty body and the "Reason" header is sent:
 
 Reason: The request's body must be empty for resource requests.
 
@@ -73,11 +91,11 @@ If the request passed body validation, it proceeds to the second layer of error 
 
 ## Supported commands
 
-1. PING - check connection
+1. PING - check connection and get a "PONG" piece of data
 2. SHUTDOWN - turn the server off
 3. import_gtiff - load and cache GeoTiff file
-4. export_gtiff - save calculated index as GeoTiff file
-5. calc_preview - request rgb values to render as a preview. Upon recieving a successful response, the client constructs an HTTP request, sends it over a separate channel and waits for an HTTP response containing the binary representation of the preview
+4. export_gtiff - save a GeoTiff file
+5. calc_preview - request an image preview. Upon recieving a successful response, the client sends an HTTP/2 GET request over a separate channel
 6. calc_index - create a spectral index and cache it
 
 ## Message structure
@@ -87,25 +105,26 @@ All JSON documents (objects) consist of 5 keys:
 **REQUEST**
 - `proto_version`     - [STRING] in format of  "x.y.z" indicating the version of the protocol used
 - `server_version`    - [STRING] in format of  "x.y.z" indicating the version of the server running
-- `id`                - [INT]    id of request
+- `id`                - [INT]    id of request, >= 0
 - `operation`         - [STRING] type of operation to perform on the backend
 - `parameters`        - [OBJECT] parameters to use for `operation`
 
 **RESPONSE**
 - `proto_version`     - [STRING] in format of  "x.y.z" indicating the version of the protocol used
 - `server_version`    - [STRING] in format of  "x.y.z" indicating the version of the server running
-- `id`                - [INT]    id of respective request
+- `id`                - [INT]    id of respective request, >= 0
 - `status`            - [INT]    number indicating success or an error
 - `result`            - [OBJECT] data generated by respective `operation`, if applicable
 
 If there are no `parameters` or `result`, an empty object is sent.
 
 Status codes follow these general rules:
-- 0 means requested operation was successfully performed.
-- 1xxxx means invalid request (checks for types and request structure).
-- 2xxxx means an error on the backend side (logic/other error).
+- 0 means requested operation was successfully performed
+- 1xxxx means invalid request (checks for types and request structure)
+- 2xxxx means an error on the backend side (logic/other error)
 - 100xx and 200xx refer to codes common for all operations
 - 1yyxx and 2yyxx refer to codes specific for operation `yy`, numbered as in Supported commands, 0-prefixed
+
 
 Below are specifics for requests and responses for each supported command. Common keys and status codes are not specified for each operation.
 
@@ -391,6 +410,20 @@ If the client encounters an error (e.g. incorrect/invalid `size`, incorrect `sha
     - `result` - { "error": "unknown error" }
     -  HTTP 500 Internal Server Error
 
+## HTTP and JSON cross-validation
+
+If applicable to the request type e.g. for command execution requests, after a request successfully passes the HTTP error checking layer and the 'client' part of the JSON error checking layer (status code 1xxxx errors) which guarantees that the JSON payload contains a valid request according to this protocol, some HTTP request's parts are compared to certain JSON payload's keys. The following comparisons are performed:
+
+- HTTP endpoint and JSON `operation` key
+- HTTP "Protocol-Version" header and JSON `proto_version` key
+- HTTP "Request-ID" header and JSON `id` key
+
+If values in any pair mismatch or refer to different entities (for example, the request was sent to /api/ping, but the `operation` key contains 'export_gtiff'), an HTTP 400 Bad Request is sent with the same payload as in the request and one of the "Reason" headers:
+
+Reason: Requested operation "`operation`" does not match to the endpoint "/api/`command`".
+Reason: Protocol versions do not match in HTTP header and JSON payload: `version in header` and `version in body`.
+Reason: Request ids do not match in HTTP header and JSON payload: `id in header` and `id in body`.
+
 ## Examples
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -409,7 +442,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "operation": "PING",
     "parameters": {}
@@ -425,7 +459,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "status": 0,
     "result": {
@@ -445,7 +480,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "operation": "SHUTDOWN",
     "parameters": {}
@@ -461,7 +497,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "status": 0,
     "result": {}
@@ -479,7 +516,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "operation": "import_gtiff",
     "parameters": {
@@ -497,7 +535,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "status": 0,
     "result": {
@@ -520,7 +559,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "operation": "export_gtiff",
     "parameters": {
@@ -539,7 +579,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "status": 0,
     "result": {}
@@ -557,7 +598,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "operation": "calc_preview",
     "parameters": {
@@ -575,7 +617,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "1.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "status": 0,
     "result": {
@@ -599,7 +642,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "operation": "calc_index",
     "parameters": {
@@ -618,7 +662,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "status": 0,
     "result": {
@@ -641,7 +686,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "operation": "export_geotiff",
     "parameters": {
@@ -660,7 +706,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "1.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "status": 10003,
     "result": {
@@ -678,7 +725,8 @@ Protocol-Version: 2.0.0
 Request-ID: 152
 
 {
-    "version": "2.0.0",
+    "proto_version": "2.0.0",
+    "server_version": "1.0.0",
     "id": 152,
     "operation": "export_gtiff",
     "parameters": {
@@ -692,8 +740,7 @@ Request-ID: 152
 HTTP/2 400 Bad Request
 Server: nginx
 Content-Type: application/json; charset=utf-8
-Content-Length: 149
+Content-Length: 0
 Protocol-Version: 2.0.0
 Request-ID: 152
 Reason: Invalid HTTP Request. Headers "Content-Type, Content-Length" are missing in the request.
-

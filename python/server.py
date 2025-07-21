@@ -4,20 +4,27 @@ from flask import Flask, request, make_response
 from json_proto import Protocol
 from gdal_executor import GdalExecutor
 
-# proto = Protocol()
-# executor = GdalExecutor()
+proto = Protocol()
+executor = GdalExecutor(proto.get_version())
+if not executor:
+    raise ValueError(f'Unsupproted protocol version passed to {GdalExecutor} constructor.')
+_max_content_length = 1024
 server = Flask(__name__)
+
+def _http_response(request: request, body: str, status: int, **headers: str) -> 'Response':
+    """In 'headers' arguments underscore '_' is replaced with hyphen '-'."""
+
+    hdrs = { 'Protocol-Version': proto.get_version() }
+    if 'Request-ID' in request.headers:
+        hdrs['Request-ID'] = request.headers['Request-ID']
+    for k, v in headers.items():
+        hdrs[k.replace('_', '-')] = v
+    return make_response(body, status, hdrs)
 
 def check_http_headers(request: request, request_type: str) -> Union['Response', None]:
     """Checks if all mandatory HTTP headers are included in the request. Then checks if headers' values are valid. In case of errors, generates a response and returns a Response object, otherwise returns None. Must be called first to validate an HTTP request. request_type is either 'command' for command execution requests, or 'resource' for resource requests."""
 
     headers = request.headers
-    def _http400(reason: str) -> 'Response':
-        response = make_response('', 400)
-        response.headers['Request-ID'] = headers['Request-ID']
-        response.headers['Reason'] = reason
-        return response
-    
     if request_type == 'command':
         mandatory_headers = ['Content-Type', 'Content-Length', 'Accept', 'Protocol-Version', 'Request-ID']
         present_headers = []
@@ -26,47 +33,54 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
                 present_headers.append(header)
         if len(present_headers) != len(mandatory_headers):
             diff = set(mandatory_headers) - set(present_headers)
-            response = make_response('', 400)
-            if 'Request-ID' in present_headers:
-                response.headers['Request-ID'] = headers['Request-ID']
             if diff == {'Content-Length'}:
-                response.headers['Reason'] = 'Invalid HTTP request. "Content-Length" header must be provided.'
+                return _http_response(request, '', 411, Reason='Invalid HTTP request. "Content-Length" header must be provided.')
             else:
-                response.headers['Reason'] = f'Invalid HTTP Request. Headers "{diff}" are missing in the request.'
-            return response
+                return _http_response(request, '', 400, Reason=f'Invalid HTTP Request. Headers "{diff}" are missing in the request.')
     elif request_type == 'resource':
         pass
     else:
         raise ValueError(f'Invalid "request_type" argument passed to "check_http_headers" function: {request_type}')
 
-    content_type = headers['Content-Type']
-    if (
-        content_type != 'application/json; charset=utf-8' and
-        content_type != 'application/json;charset=utf-8'
-    ):
-        return _http400(f'Invalid value "{content_type}" of "Content-Type" header: must be "application/json; charset=utf-8" or "application/json;charset=utf-8".')
-    
-    accept = headers['Accept']
-    if (
-        accept != 'application/json; charset=utf-8' and
-        accept != 'application/json;charset=utf-8'
-    ):
-        return _http400(f'Invalid value "{accept}" of "Accept" header: must be "application/json; charset=utf-8" or "application/json;charset=utf-8".')
+    if headers['Protocol-Version'] != proto.get_version():
+        return _http_response(request, '', 400, Reason=f'Invalid protocol version "{headers["Protocol-Version"]}" in "Protocol-Version" header: used protocol version is "{proto.get_version()}".')
 
-    content_length = headers['Content-Length']
+    id_ = -1
     try:
-        content_length = int(content_length)
+        id_ = int(headers['Request-ID'])
     except ValueError:
-        return _http400('Invalid type for "Content-Length" header: must be of integer type.')
-    if content_length != len(request.get_data()):
-        return _http400(f'Invalid value {content_length} for "Content-Length" header: does not equal to message body\'s length in bytes (actual length is {len(request.get_data())}).')
+        return _http_response(request, '', 400, Reason='Invalid type for "Request-ID" header: must be of integer type.')
+    if id_ < 0:
+        return _http_response(request, '', 400, Reason=f'Invalid value "{id_}" of "Request-ID" header: must be >= 0.')
 
-    # proto version
+    if request_type == 'command':
+        content_type = headers['Content-Type']
+        if (
+            content_type != 'application/json; charset=utf-8' and
+            content_type != 'application/json;charset=utf-8'
+        ):
+            return _http_response(request, '', 400, Reason=f'Invalid value "{content_type}" of "Content-Type" header: must be "application/json; charset=utf-8" or "application/json;charset=utf-8".')
+        
+        accept = headers['Accept']
+        if (
+            accept != 'application/json; charset=utf-8' and
+            accept != 'application/json;charset=utf-8'
+        ):
+            return _http_response(request, '', 400, Reason=f'Invalid value "{accept}" of "Accept" header: must be "application/json; charset=utf-8" or "application/json;charset=utf-8".')
 
-    try:
-        int(headers['Request-ID'])
-    except ValueError:
-        return _http400('Invalid type for "Request-ID" header: must be of integer type.')
+        content_length = headers['Content-Length']
+        try:
+            content_length = int(content_length)
+        except ValueError:
+            return _http_response(request, '', 400, Reason='Invalid type for "Content-Length" header: must be of integer type.')
+        if content_length < 2:
+            return _http_response(request, '', 400, Reason=f'Invalid value "{content_length}" for "Content-Length" header: must be in [2, 1024] for {request.url} request.')
+        if content_length > _max_content_length:
+            return _http_response(request, '', 413, Reason=f'Invalid value "{content_length}" for "Content-Length" header: must be in [2, 1024] for {request.url} request.')
+    elif request_type == 'resource':
+        pass
+    else:
+        raise ValueError(f'Invalid "request_type" argument passed to "check_http_headers" function: {request_type}')
 
     return None
 
@@ -74,13 +88,13 @@ def check_http_body(request: request, request_type: str) -> Union['Response', No
     """Checks validity of the request's body and returns None if the body is valid. Otherwise, generates a response and returns a Response object. Must be called after the 'check_http_headers' function. request_type is either 'command' for command execution requests, or 'resource' for resource requests."""
 
     if request_type == 'command':
+        request_json = {}
         try:
-            json.loads(request.get_data())
+            request_json = json.loads(request.get_data())
         except ValueError:
-            response = make_response('', 400)
-            response.headers['Request-ID'] = request.headers['Request-ID']
-            response.headers['Reason'] = 'The request\'s body is not a valid JSON.'
-            return response
+            return _http_response(request, '', 400, Reason='The request\'s body is not a valid JSON.')
+        if not request_json:
+            return _http_response(request, '', 400, Reason='The request\'s body must not be an empty JSON document for command execution requests.')
     elif request_type == 'resource':
         pass
     else:
@@ -88,13 +102,52 @@ def check_http_body(request: request, request_type: str) -> Union['Response', No
     
     return None
 
-# def 
+def generate_http_response(request: request, response_json: str) -> 'Response':
+    """Constructs an HTTP response based on the JSON response generated by the protocol and returns a Response object. Assumes 'request' and 'response_json' are valid according to the protocol."""
+    
+    http_status = -1
+    code = response_json['status']
+    if code == 0:
+        http_status = 200
+    elif (
+        code in range(10000, 10010+1) or
+        code == 10100 or
+        code == 10200 or
+        code == 10400 or
+        code in range(10500, 10501+1) or code == 20501 or
+        code in range(10600, 10601+1) or code in range(20601, 20602+1)
+    ):
+        http_status = 400
+    elif (
+        code == 20300 or
+        code == 20400 or
+        code == 20500 or
+        code == 20600
+    ):
+        http_status = 404
+    elif (
+        code in range(20000, 20002+1) or
+        code == 20201 or
+        code == 20301 or
+        code == 20401 or
+        code == 20502 or
+        code == 20603
+    ):
+        http_status = 500
+    elif code == 20003:
+        http_status = 429
+    elif code == 20200:
+        http_status = 503
+    else:
+        raise ValueError(f'Incorrect status code in JSON response: {code}')
 
-def generate_http_response(json_response: dict) -> 'Response':
-    pass
+    return _http_response(request, response_json, http_status, Content_Type='application/json; charset=utf-8')
 
 @server.post('/api/<command>')
-def respond(command):
+def handle_command(command):
+    if command not in executor.get_supported_operations():
+        return _http_response(request, '', 400, Reason=f'Unknown/unsupported command "{command}" requested.')
+
     response = check_http_headers(request, 'command')
     if response is not None:
         return response
@@ -103,47 +156,22 @@ def respond(command):
     if response is not None:
         return response
 
-    return make_response('temp ok', 200)
-
-# with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-#     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-#     s.bind((HOST, PORT))
-#     s.listen(1)
-#     print(f'Backend listening on {HOST}:{PORT}')
-
-#     conn, addr = s.accept()
-#     with conn:
-#         print(f'New connection from {addr[0]}:{addr[1]}')
-#         proto = Protocol(conn)
-#         executor = GdalExecutor(proto.get_version())
-#         if not executor:
-#             raise GdalExecutor.GdalExecutorError(f'Unsupported protocol version: {proto.get_version()}')
-
-#         while True:
-#             request = proto.receive_message()
-#             if not request:
-#                 # print('Could not receive request')
-#                 continue
-#             print(f'Received: {request}')
-
-#             response = proto.validate(request)
-#             if response.get('status') != 0:
-#                 proto.send(response)
-#                 continue
-
-#             response = executor.execute(request)
-#             if response.get('status') != 0:
-#                 proto.send(response)
-#                 continue
-
-#             response = proto.match(request, response)
-#             proto.send(response)
-
-#             if (request.get('operation') == 'SHUTDOWN' and
-#                 response.get('status') == 0):
-#                 conn.close()
-#                 break
+    request_json = request.get_json()
     
-#     s.close()
+    response_json = proto.validate(request_json)
+    if response_json['status'] != 0:
+        return generate_http_response(request, response_json)
 
-# print('Backend finished')
+    if command != request_json['operation']:
+        return _http_response(request, request_json, 400, Reason=f'Requested operation "{request_json["operation"]}" does not match to the endpoint "/api/{command}"')
+    if request.headers['Protocol-Version'] != request_json['proto_version']:
+        return _http_response(request, request_json,  400, Reason=f'Protocol versions do not match in HTTP header and JSON payload: {request.headers["Protocol-Version"]} and {request_json["proto_version"]}.')
+    if int(request.headers['Request-ID']) != request_json['id']:
+        return _http_response(request, request_json,  400, Reason=f'Request ids do not match in HTTP header and JSON payload: {request.headers["Request-ID"]} and {request_json["id"]}.')
+    
+    response_json = executor.execute(request_json)
+    if response_json['status'] != 0:
+        return generate_http_response(request, response_json)
+
+    response_json = proto.match(request_json, response_json)
+    return generate_http_response(request, response_json)

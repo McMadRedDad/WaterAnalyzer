@@ -1,76 +1,18 @@
-import struct
-import json
-import socket
-
 class Protocol:
-    VERSION = '1.2.1'
-    HEADER_SIZE = 4
+    VERSION = '2.0.0'
     SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'export_gtiff', 'calc_preview', 'calc_index')
 
-    class IPCError(Exception):
-        pass
-
-    def __init__(self, connection: socket.socket, timeout: float = 10.0):
-        self.conn = connection
-        self.conn.settimeout(timeout)
+    def __init__(self):
         print(f'Using protocol version {self.VERSION}')
+    
+    def get_version(self) -> str:
+        return self.VERSION
 
-    def send(self, message: dict) -> None:
-        """Generates and sends a JSON. Does not validate content of 'message' according to this protocol and can send any JSON."""
-
-        body = json.dumps(message).encode('utf-8')
-        header = struct.pack('!I', len(body))
-        msg = header + body
-
-        total_sent = 0
-        while total_sent < len(msg):
-            sent = self.conn.send(msg[total_sent:])
-            if sent == 0:
-                self.conn.close()
-                raise RuntimeError('Peer closed connection')
-            total_sent += sent
-
-    def _receive_exact(self, num_bytes: int, max_chunk_size: int = 2048) -> bytes:
-        """Reads data from socket until 'num_bytes' are received and returns it as bytes. If timeouts, returns an empty bytes object."""
-
-        data = b''
-        received = 0
-        while len(data) < num_bytes:
-            try:
-                chunk = self.conn.recv(min(num_bytes - received, max_chunk_size))
-                if not chunk:
-                    self.conn.close()
-                    raise RuntimeError('Peer closed connection')
-            except socket.timeout:
-                return b''
-            data += chunk
-            received += len(chunk)
-
-        return data
-
-    def receive_message(self) -> dict:
-        """Receives and parses incoming message. Reads exactly one message and returns it as a dictionary. If fails, returns an empty dictionary. Does not validate message's content according to this protocol and can receive any JSON."""
-
-        header = self._receive_exact(self.HEADER_SIZE)
-        if not header:
-            return {}
-        (msg_size, ) = struct.unpack('!I', header)
-        if type(msg_size) is not int:
-            self.conn.close()
-            raise self.IPCError('Invalid message header received')
-
-        message = self._receive_exact(msg_size)
-        if not message:
-            return {}
-        message = json.loads(message.decode('utf-8'))
-        if type(message) is not dict:
-            self.conn.close()
-            raise self.IPCError('Invalid message body received')
-
-        return message
+    def get_supported_operations(self) -> tuple:
+        return self.SUPPORTED_OPERATIONS
 
     def validate(self, request: dict) -> dict:
-        """Checks for all protocol-specific request errors related to message structure, spelling, etc. and returns a dictionary to be used by Protocol.send method. Does not check for data-specific errors (e.g. non-existent image id, server version, etc.) that can only be verified by the backend itself. The dictionary returned is guaranteed to be valid."""
+        """Checks for all protocol-specific request errors related to message structure, spelling, etc. and returns a dictionary. Does not check for data-specific errors (e.g. non-existent image id, server version, etc.) that can only be verified by the backend itself. The dictionary returned is guaranteed to be valid."""
 
         proto_version = request.get('proto_version')
         server_version = request.get('server_version')
@@ -187,7 +129,7 @@ class Protocol:
         return _response(-1, {"error": "how's this even possible?"})
 
     def match(self, request: dict, result: dict) -> dict:
-        """Checks if 'result' correctly correlates with 'request' and returns a dictionary to be used by Protocol.send method. The dictionary returned is guaranteed to be valid."""
+        """Checks if 'result' correctly correlates with 'request' and returns a dictionary. The dictionary returned is guaranteed to be valid."""
 
         proto_version = request.get('proto_version')
         server_version = request.get('server_version')
@@ -210,12 +152,3 @@ class Protocol:
             return _response(10010, {"error": "values 'id' do not match in request and response"})
 
         return _response(result.get('status'), result.get('result'))
-
-    def get_version(self) -> str:
-        return self.VERSION
-
-    def get_supported_operations(self) -> tuple:
-        return self.SUPPORTED_OPERATIONS
-
-    def get_header_size(self) -> int:
-        return self.HEADER_SIZE
