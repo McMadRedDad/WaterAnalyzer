@@ -5,8 +5,8 @@
 #include "jsonprotocol.hpp"
 #include <QMainWindow>
 #include <QMessageBox>
-#include <QProcess>
-#include <QTcpSocket>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 #include <QTimer>
 
 QT_BEGIN_NAMESPACE
@@ -33,25 +33,18 @@ private slots:
 
 private:
   STATE state;
-
-  QProcess *backend;
-  QTcpSocket *json_sock;
-  QTcpSocket *http_sock;
-  QHostAddress backend_host;
-  quint16 json_port;
-  quint16 http_port;
+  QHostAddress backend_ip;
+  quint16 backend_port;
+  QNetworkAccessManager *net_man;
   JsonProtocol proto;
 
   Ui::MainWindow *ui;
   QTimer timer_status;
 
-  void prepare_backend();
-  void backend_stdout();
-  void init_connections();
-  void _connect_socket(QAbstractSocket *socket, QHostAddress address,
-                       quint16 port);
-  void socket_error();
-  void process_response();
+  void send_request(QString type, QString endpoint, QJsonObject data);
+  void handle_response(QNetworkReply *response);
+  void process_get(QByteArray body);
+  void process_post(QByteArray body);
 
   void set_status_message(bool good, QString message, short msec);
   void clear_status();
