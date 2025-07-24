@@ -66,25 +66,65 @@ void MainWindow::send_request(QString type, QString endpoint,
 
 void MainWindow::handle_response(QNetworkReply *response) {
   if (response->error() != QNetworkReply::NoError) {
-    append_log(
-        "bad",
-        QString("Ошибка запроса к бэкенду: %1.").arg(response->errorString()));
+    if (!response->attribute(QNetworkRequest::HttpStatusCodeAttribute)
+             .isValid()) {
+      append_log("bad", "Ошибка соединения с сервером: " +
+                            response->errorString() + ".");
+      return;
+    }
+
+    QList<QNetworkReply::RawHeaderPair> raw_headers =
+        response->rawHeaderPairs();
+    for (QNetworkReply::RawHeaderPair header : raw_headers) {
+      if (QString::fromUtf8(header.first).toLower() == "reason") {
+        append_log(
+            "bad",
+            QString("Некорректный HTTP-запрос к серверу: %1 %2, Reason: %3.")
+                .arg(response
+                         ->attribute(QNetworkRequest::HttpStatusCodeAttribute)
+                         .toString(),
+                     response
+                         ->attribute(QNetworkRequest::HttpReasonPhraseAttribute)
+                         .toString(),
+                     QString::fromUtf8(header.second)));
+        return;
+      }
+    }
+
+    QJsonObject json = QJsonDocument::fromJson(response->readAll()).object();
+    append_log("bad", "Некорректный JSON-запрос к серверу: " +
+                          json["result"].toObject()["error"].toString() + ".");
     return;
   }
 
   if (response->operation() == QNetworkAccessManager::GetOperation) {
     process_get(response->readAll());
   } else if (response->operation() == QNetworkAccessManager::PostOperation) {
-    process_post(response->readAll());
+    process_post(response->request().url(), response->readAll());
   } else {
-    append_log("bad", "Неподдерживаемый тип запроса к бэкенду.");
+    append_log("bad", "Неподдерживаемый тип запроса к серверу.");
   }
   response->deleteLater();
 }
 
 void MainWindow::process_get(QByteArray body) {}
 
-void MainWindow::process_post(QByteArray body) { qDebug() << body; }
+void MainWindow::process_post(QUrl endpoint, QByteArray body) {
+  QString command = endpoint.toString().split("/").last();
+  QJsonObject json = QJsonDocument::fromJson(body).object();
+
+  if (command == "PING") {
+    append_log("good", "Ответ сервера: " +
+                           json["result"].toObject()["data"].toString() + ".");
+  } else if (command == "SHUTDOWN") {
+    append_log("good", "Сервер завершил работу.");
+  } /*else if () {}*/
+  else {
+    append_log("bad",
+               "Запрошена неизвестная команда, но сервер её обработал: " +
+                   command + ".");
+  }
+}
 
 void MainWindow::set_status_message(bool good, QString message, short msec) {
   if (timer_status.isActive()) {

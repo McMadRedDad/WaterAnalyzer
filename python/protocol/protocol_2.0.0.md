@@ -202,7 +202,7 @@ Below are specifics for requests and responses for each supported command. Commo
 
 1. Success:
     - `status` - 0
-    - `result` - {"data": "PONG"}
+    - `result` - { "data": "PONG" }
     -  HTTP 200 OK
 2. Non-empty `parameters`:
     - `status` - 10100

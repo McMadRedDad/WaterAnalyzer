@@ -1,3 +1,4 @@
+import os, time, threading
 import json
 from typing import Union
 from flask import Flask, request, make_response
@@ -143,6 +144,11 @@ def generate_http_response(request: request, response_json: str) -> 'Response':
 
     return _http_response(request, response_json, http_status, Content_Type='application/json; charset=utf-8')
 
+def shutdown():
+    # to be changed for chosen wsgi server
+    time.sleep(3)
+    os._exit(0)
+
 @server.post('/api/<command>')
 def handle_command(command):
     if command not in executor.get_supported_operations():
@@ -174,4 +180,6 @@ def handle_command(command):
         return generate_http_response(request, response_json)
 
     response_json = proto.match(request_json, response_json)
+    if command == 'SHUTDOWN':
+        threading.Thread(target=shutdown).start()
     return generate_http_response(request, response_json)
