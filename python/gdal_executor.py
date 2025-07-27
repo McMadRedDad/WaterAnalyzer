@@ -1,4 +1,6 @@
-# import gdal
+from osgeo import gdal
+
+gdal.UseExceptions()
 
 class GdalExecutor:
     SUPPORTED_PROTOCOL_VERSIONS = ('2.0.0')
@@ -49,6 +51,25 @@ class GdalExecutor:
         if operation == 'SHUTDOWN':
             # errors 20200 and 20201
             return _response(0, {})
+
+        if operation == 'import_gtiff':
+            try:
+                dataset = gdal.Open(parameters.get('file', None))
+            except RuntimeError:
+                return _response(20301, {"error": f"failed to open file '{parameters.get('file', None)}'"})
+
+            # 20300 error
+            
+            geotransform = dataset.GetGeoTransform()
+            result = {'id': None, 'metadata': {
+                'width': dataset.RasterXSize,
+                'height': dataset.RasterYSize,
+                'projection': dataset.GetProjection(),
+                'origin': [geotransform[0], geotransform[3]],
+                'pixel_size': [geotransform[1], geotransform[5]]
+            }}
+            dataset = None
+            return _response(0, result)
         
         return _response(-1, {"error": "how's this even possible?"})
     

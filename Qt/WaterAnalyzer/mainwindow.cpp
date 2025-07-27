@@ -93,6 +93,7 @@ void MainWindow::handle_response(QNetworkReply *response) {
 
     QJsonObject json = QJsonDocument::fromJson(response->readAll()).object();
     append_log("bad", "Некорректный JSON-запрос к серверу: " +
+                          QString::number(json["status"].toInt()) + " " +
                           json["result"].toObject()["error"].toString() + ".");
     return;
   }
@@ -118,8 +119,11 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
                            json["result"].toObject()["data"].toString() + ".");
   } else if (command == "SHUTDOWN") {
     append_log("good", "Сервер завершил работу.");
-  } /*else if () {}*/
-  else {
+  } else if (command == "import_gtiff") {
+    QJsonObject metadata = json["result"].toObject()["metadata"].toObject();
+    append_log("good", "Метаданные геоизображения: " +
+                           QJsonDocument(metadata).toJson() + ".");
+  } else {
     append_log("bad",
                "Запрошена неизвестная команда, но сервер её обработал: " +
                    command + ".");
@@ -163,8 +167,7 @@ void MainWindow::on_pushButton_back_clicked() {
     return;
   }
   case STATE::CurrPage::IMPORT: {
-    send_request("command", "/api/SHUTDOWN",
-                 proto.construct_json("SHUTDOWN", QJsonObject()));
+    send_request("command", "/api/SHUTDOWN", proto.shutdown());
     break;
   }
   case STATE::CurrPage::SELECTION: {
@@ -209,8 +212,10 @@ void MainWindow::on_pushButton_showLog_clicked() {
 void MainWindow::closeEvent(QCloseEvent *e) {}
 
 void MainWindow::import_clicked() {
-  send_request("command", "/api/PING",
-               proto.construct_json("PING", QJsonObject()));
+  send_request("command", "/api/import_gtiff",
+               proto.import_gtiff(
+                   "/home/tim/Учёба/LC09_L1TP_188012_20230710_20230710_02_T1/"
+                   "LC09_L1TP_188012_20230710_20230710_02_T1_B5.TIF"));
 
   state.pages[0]->hide();
   ui->widget_main->layout()->removeWidget(state.pages[0]);

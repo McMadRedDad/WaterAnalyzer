@@ -12,11 +12,16 @@ public:
   };
   JsonProtocol(QString server_version);
 
-  QJsonObject construct_json(QString operation, QJsonObject parameters);
+  QJsonObject ping();
+  QJsonObject shutdown();
+  QJsonObject import_gtiff(QString file);
+
   QString get_proto_version();
   QString get_server_version();
 
 private:
+  QJsonObject construct_json(QString operation, QJsonObject parameters);
+
   static const QString proto_version;
   QString server_version;
   qint32 counter;

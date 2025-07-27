@@ -7,6 +7,18 @@ JsonProtocol::JsonProtocol(QString server_version) {
   this->counter = 0;
 }
 
+QJsonObject JsonProtocol::ping() {
+  return construct_json("PING", QJsonObject());
+}
+
+QJsonObject JsonProtocol::shutdown() {
+  return construct_json("SHUTDOWN", QJsonObject());
+}
+
+QJsonObject JsonProtocol::import_gtiff(QString file) {
+  return construct_json("import_gtiff", QJsonObject{{"file", file}});
+}
+
 QJsonObject JsonProtocol::construct_json(QString operation,
                                          QJsonObject parameters) {
   QJsonObject json{{"proto_version", JsonProtocol::proto_version},

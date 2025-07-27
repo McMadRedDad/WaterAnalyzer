@@ -255,10 +255,10 @@ Below are specifics for requests and responses for each supported command. Commo
         }
     }
     -  HTTP 200 OK
-2. File does not exist:
+2. Not a GeoTiff:
     - `status` - 20300
-    - `result` - { "error": "file '`filename`' does not exist" }
-    -  HTTP 404 Not Found
+    - `result` - { "error": "provided file is not a GeoTiff image" }
+    -  HTTP 500 Internal Server Error
 3. Unknown error:
     - `status` - 20301
     - `result` - { "error": "failed to open file '`filename`'" }
