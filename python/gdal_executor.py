@@ -17,23 +17,25 @@ class GdalExecutor:
         print(f'Server running version {self.VERSION}')
 
     def execute(self, request: dict) -> dict:
-        """Processes the request and returns a dictionary to be used by Protocol.send method. The dictionary returned is guaranteed to be valid."""
+        """Processes the request and returns a dictionary to be used by Protocol.send method.
+        Must be called after 'Protocol.validate'.
+        The dictionary returned is guaranteed to be valid according to the protocol used."""
 
-        proto_version = request.get('proto_version')
-        server_version = request.get('server_version')
-        id_ = request.get('id')
-        operation = request.get('operation')
-        parameters = request.get('parameters')
+        proto_version = request['proto_version']
+        server_version = request['server_version']
+        id_ = request['id']
+        operation = request['operation']
+        parameters = request['parameters']
         status = 0
         result = {}
 
         def _response(status: int, result: dict) -> dict:
             return {
-                "proto_version": proto_version,
-                "server_version": self.VERSION,
-                "id": id_,
-                "status": status,
-                "result": result
+                'proto_version': proto_version,
+                'server_version': self.VERSION,
+                'id': id_,
+                'status': status,
+                'result': result
             }
 
         if server_version != self.VERSION:
@@ -54,9 +56,9 @@ class GdalExecutor:
 
         if operation == 'import_gtiff':
             try:
-                dataset = gdal.Open(parameters.get('file', None))
+                dataset = gdal.Open(parameters['file'])
             except RuntimeError:
-                return _response(20301, {"error": f"failed to open file '{parameters.get('file', None)}'"})
+                return _response(20301, {"error": f"failed to open file '{parameters['file']}'"})
 
             # 20300 error
             

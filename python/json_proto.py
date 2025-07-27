@@ -12,7 +12,9 @@ class Protocol:
         return self.SUPPORTED_OPERATIONS
 
     def validate(self, request: dict) -> dict:
-        """Checks for all protocol-specific request errors related to message structure, spelling, etc. and returns a dictionary. Does not check for data-specific errors (e.g. non-existent image id, server version, etc.) that can only be verified by the backend itself. The dictionary returned is guaranteed to be valid."""
+        """Checks for all protocol-specific request errors related to message structure, spelling, etc. and returns a dictionary. Does not check for data-specific errors (e.g. non-existent image id, server version, etc.) that can only be verified by the backend itself.
+        Must be called first to validate the request.
+        The dictionary returned is guaranteed to be valid according to this protocol."""
 
         proto_version = request.get('proto_version')
         server_version = request.get('server_version')
@@ -22,22 +24,21 @@ class Protocol:
         status = 0
         result = {}
         
-        def _non_standard_response(request: dict, status: str, result: dict) -> dict:
+        def _non_standard_response(request: dict, status: int, result: dict) -> dict:
             response = {}
-            for key, val in request.items():
-                response[key] = val
-            response["status"] = status
-            response["result"] = result
-
+            for k, v in request.items():
+                response[k] = v
+            response['status'] = status
+            response['result'] = result
             return response
 
         def _response(status: int, result: dict) -> dict:
             return {
-                "proto_version": self.VERSION,
-                "server_version": server_version,
-                "id": id_,
-                "status": status,
-                "result": result
+                'proto_version': self.VERSION,
+                'server_version': server_version,
+                'id': id_,
+                'status': status,
+                'result': result
             }
 
         ### Common errors ###
@@ -54,34 +55,27 @@ class Protocol:
             diff = set(correct_keys) - set(present_keys)
             return _non_standard_response(request, 10001, {"error": f"keys '{diff}' are not specified"})
                     
-        ok = True
         if type(proto_version) is not str:
-            ok = False
-        digits = proto_version.split('.')
-        if len(digits) == 3:
-            for i in range(3):
-                try:
-                    digits[i] = int(digits[i])
-                except ValueError:
-                    ok = False
-        else:
-            ok = False
-        if not ok:
             return _response(10002, {"error": f"invalid protocol version string: '{proto_version}'"})
+        digits = proto_version.split('.')
+        if len(digits) != 3:
+            return _response(10002, {"error": f"invalid protocol version string: '{proto_version}'"})   
+        for i in range(3):
+            try:
+                digits[i] = int(digits[i])
+            except ValueError:
+                return _response(10002, {"error": f"invalid protocol version string: '{proto_version}'"})
 
         if type(server_version) is not str:
-            ok = False
-        digits = server_version.split('.')
-        if len(digits) == 3:
-            for i in range(3):
-                try:
-                    digits[i] = int(digits[i])
-                except ValueError:
-                    ok = False
-        else:
-            ok = False
-        if not ok:
             return _response(10003, {"error": f"invalid server version string: '{server_version}'"})
+        digits = server_version.split('.')
+        if len(digits) != 3:
+            return _response(10003, {"error": f"invalid server version string: '{server_version}'"})
+        for i in range(3):
+            try:
+                digits[i] = int(digits[i])
+            except ValueError:
+                return _response(10003, {"error": f"invalid server version string: '{server_version}'"})
                     
         if type(id_) is not int:
             return _response(10004, {"error": f"invalid request id: '{id_}'"})
@@ -112,7 +106,7 @@ class Protocol:
             if len(parameters) != 0:
                 return _response(10100, {"error": "'parameters' must be an empty JSON object for 'PING' request"})
             else:
-                return _response(0, {"data": "PONG"})
+                return _response(0, {})
 
         ### SHUTDOWN ###
         if operation == 'SHUTDOWN':
@@ -123,16 +117,18 @@ class Protocol:
 
         ### import_gtiff ###
         if operation == 'import_gtiff':
-            params_ok = _check_keys('import_gtiff', ['file'], list(parameters.keys()))
-            if len(params_ok) > 0: 
-                return params_ok
+            params_check = _check_keys('import_gtiff', ['file'], list(parameters.keys()))
+            if len(params_check) != 0: 
+                return params_check
             else:
                 return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})
 
     def match(self, request: dict, result: dict) -> dict:
-        """Checks if 'result' correctly correlates with 'request' and returns a dictionary. The dictionary returned is guaranteed to be valid."""
+        """Checks if 'result' correctly correlates with 'request' and returns a dictionary.
+        Must be called after 'Protocol.validate' and 'GdalExecutor.execute'.
+        The dictionary returned is guaranteed to be valid according to this protocol."""
 
         proto_version = request.get('proto_version')
         server_version = request.get('server_version')
@@ -140,18 +136,18 @@ class Protocol:
 
         def _response(status: int, result: dict) -> dict:
             return {
-                "proto_version": self.VERSION,
-                "server_version": server_version,
-                "id": id_,
-                "status": status,
-                "result": result
+                'proto_version': self.VERSION,
+                'server_version': server_version,
+                'id': id_,
+                'status': status,
+                'result': result
             }
 
-        if proto_version != result.get('proto_version'):
+        if proto_version != result['proto_version']:
             return _response(10010, {"error": "values 'proto_version' do not match in request and response"})
-        if server_version != result.get('server_version'):
+        if server_version != result['server_version']:
             return _response(10010, {"error": "values 'server_version' do not match in request and response"})
-        if id_ != result.get('id'):
+        if id_ != result['id']:
             return _response(10010, {"error": "values 'id' do not match in request and response"})
 
-        return _response(result.get('status'), result.get('result'))
+        return _response(result['status'], result['result'])
