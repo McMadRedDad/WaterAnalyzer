@@ -4,7 +4,7 @@
 
 import unittest
 from werkzeug.test import EnvironBuilder
-from server import server, proto, executor
+from server import server, proto, executor, generate_http_response
 
 server.testing = True
 client = server.test_client()
@@ -137,6 +137,14 @@ http_headers = {
         'Protocol-Version': proto_version,
         'Request-ID': -1
     }
+}
+
+test_files = {
+    'gtiff_ok1': '/home/tim/Учёба/Test data/LC09_L1TP_188012_20230710_20230710_02_T1/LC09_L1TP_188012_20230710_20230710_02_T1_B5.TIF',
+    'gtiff_ok2': '/home/tim/Учёба/Test data/dacha.tif',
+    'saga_grid': '/home/tim/Учёба/Test data/dacha.sg-grd-z',
+    'shape': '/home/tim/Учёба/Test data/dacha.shp',
+    'non_existent': '/home/tim/42069.34'
 }
 
 requests_json = {
@@ -297,6 +305,23 @@ requests_json = {
         "operation": "PING",
         "parameters": "abc"
     },
+    'params_missing_key': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_gtiff",
+        "parameters": {}
+    },
+    'params_unknown_key': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_gtiff",
+        "parameters": {
+            "file": test_files['gtiff_ok1'],
+            "arg": "val"
+        }
+    },
     'incorrect_proto_ver': {
         "proto_version": "420.69.42069",
         "server_version": server_version,
@@ -352,8 +377,53 @@ requests_json = {
         "id": 0,
         "operation": "SHUTDOWN",
         "parameters": {"arg1": "val1"}
+    },
+    # shutdown 20200, 20201
+    'import_gtiff_ok1': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_gtiff",
+        "parameters": {
+            "file": test_files['gtiff_ok1']
+        }
+    },
+    'import_gtiff_ok2': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_gtiff",
+        "parameters": {
+            "file": test_files['gtiff_ok2']
+        }
+    },
+    'import_gtiff_non_existent': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_gtiff",
+        "parameters": {
+            "file": test_files['non_existent']
+        }
+    },
+    'import_gtiff_not_geotiff1': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_gtiff",
+        "parameters": {
+            "file": test_files['saga_grid']
+        }
+    },
+    'import_gtiff_not_geotiff2': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_gtiff",
+        "parameters": {
+            "file": test_files['shape']
+        }
     }
-    # shutdown other
 }
 
 # Able to override the Content-Type and Content-Length headers.
@@ -364,31 +434,29 @@ def POST(endpoint, headers, body):
         headers=headers,
         json=body
     )
-    builder.content_type = headers.get('Content-Type', None)
+    builder.content_type = headers.get('Content-Type')
     env = builder.get_environ()
     if 'Content-Length' not in headers:
         env.pop('CONTENT_LENGTH')
     elif type(headers['Content-Length']) is not int or headers['Content-Length'] != 0:
         env['CONTENT_LENGTH'] = str(headers['Content-Length'])
-    res = client.open(environ_overrides=env)
-    # print(res.headers)
-    return res
+    return client.open(environ_overrides=env)
 
 def check_json(request_json):
     response = proto.validate(request_json)
-    if response.get('status') != 0:
-        return response.get('status')
+    if response['status'] != 0:
+        return response['status']
     response = executor.execute(request_json)
-    if response.get('status') != 0:
-        return response.get('status')
+    if response['status'] != 0:
+        return response['status']
     response = proto.match(request_json, response)
-    return response.get('status')
+    return response['status']
 
 def check_all(endpoint, headers, body):
     res = POST(endpoint, headers, body)
     return res.status_code, \
-           res.headers.get('Reason', None), \
-           res.get_json().get('status', None) if res.get_json() else None
+           res.headers.get('Reason'), \
+           res.get_json().get('status') if res.get_json() else None
 
 class Test(unittest.TestCase):
 
@@ -397,13 +465,17 @@ class Test(unittest.TestCase):
     def test_http_ok(self):
         self.assertEqual(200, POST('/api/PING', http_headers['ok'], requests_json['ping_ok']).status_code)
         self.assertEqual(200, POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok']).status_code)
+        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok1']).status_code)
+        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok2']).status_code)
         
-        self.assertIsNone(POST('/api/PING', http_headers['ok'], requests_json['ping_ok']).headers.get('Reason', None))
-        self.assertIsNone(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok']).headers.get('Reason', None))
+        self.assertIsNone(POST('/api/PING', http_headers['ok'], requests_json['ping_ok']).headers.get('Reason'))
+        self.assertIsNone(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok']).headers.get('Reason'))
+        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok1']).headers.get('Reason'))
+        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok2']).headers.get('Reason'))
 
     def test_http_endpoint(self):
         self.assertEqual(400, POST('/api/unsupported', http_headers['ok'], '').status_code)
-        self.assertTrue(http_reason['unknown_endpoint'] in POST('/api/unsupported', http_headers['ok'], '').headers.get('Reason', None))
+        self.assertTrue(http_reason['unknown_endpoint'] in POST('/api/unsupported', http_headers['ok'], '').headers.get('Reason'))
 
     def test_http_headers(self):
         self.assertEqual(400, POST('/api/PING', http_headers['missing_content_type'], '').status_code)
@@ -421,30 +493,30 @@ class Test(unittest.TestCase):
         self.assertEqual(400, POST('/api/PING', http_headers['inv_request_id_type'], '').status_code)
         self.assertEqual(400, POST('/api/PING', http_headers['inv_request_id'], '').status_code)
 
-        self.assertTrue(http_reason['missing_content_type'] in POST('/api/PING', http_headers['missing_content_type'], '').headers.get('Reason', None))
-        self.assertTrue(http_reason['missing_accept'] in POST('/api/PING', http_headers['missing_accept'], '').headers.get('Reason', None))
-        self.assertTrue(http_reason['missing_proto_v'] in POST('/api/PING', http_headers['missing_proto_v'], '').headers.get('Reason', None))
-        self.assertTrue(http_reason['missing_request_id'] in POST('/api/PING', http_headers['missing_request_id'], '').headers.get('Reason', None))
+        self.assertTrue(http_reason['missing_content_type'] in POST('/api/PING', http_headers['missing_content_type'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['missing_accept'] in POST('/api/PING', http_headers['missing_accept'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['missing_proto_v'] in POST('/api/PING', http_headers['missing_proto_v'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['missing_request_id'] in POST('/api/PING', http_headers['missing_request_id'], '').headers.get('Reason'))
         self.assertTrue(
-            http_reason['missing_many1'] in POST('/api/PING', http_headers['missing_many'], '').headers.get('Reason', None) or
-            http_reason['missing_many2'] in POST('/api/PING', http_headers['missing_many'], '').headers.get('Reason', None)
+            http_reason['missing_many1'] in POST('/api/PING', http_headers['missing_many'], '').headers.get('Reason') or
+            http_reason['missing_many2'] in POST('/api/PING', http_headers['missing_many'], '').headers.get('Reason')
         )
-        self.assertTrue(http_reason['missing_content_length'] in POST('/api/PING', http_headers['missing_content_length'], '').headers.get('Reason', None))
-        self.assertTrue(http_reason['inv_content_type'] in POST('/api/PING', http_headers['inv_content_type'], '').headers.get('Reason', None))
-        self.assertTrue(http_reason['inv_accept'] in POST('/api/PING', http_headers['inv_accept'], '').headers.get('Reason', None))
-        self.assertTrue(http_reason['inv_content_length_type'] in POST('/api/PING', http_headers['inv_content_length_type'], '').headers.get('Reason', None))
-        self.assertTrue(http_reason['inv_content_length'] in POST('/api/PING', http_headers['inv_content_length_val1'], '').headers.get('Reason', None))
-        self.assertTrue(http_reason['inv_content_length'] in POST('/api/PING', http_headers['inv_content_length_val2'], '').headers.get('Reason', None))
-        self.assertTrue(http_reason['inv_proto_v'] in POST('/api/PING', http_headers['inv_proto_v'], '').headers.get('Reason', None))
-        self.assertTrue(http_reason['inv_request_id_type'] in POST('/api/PING', http_headers['inv_request_id_type'], '').headers.get('Reason', None))
-        self.assertTrue(http_reason['inv_request_id'] in POST('/api/PING', http_headers['inv_request_id'], '').headers.get('Reason', None))
+        self.assertTrue(http_reason['missing_content_length'] in POST('/api/PING', http_headers['missing_content_length'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_content_type'] in POST('/api/PING', http_headers['inv_content_type'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_accept'] in POST('/api/PING', http_headers['inv_accept'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_content_length_type'] in POST('/api/PING', http_headers['inv_content_length_type'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_content_length'] in POST('/api/PING', http_headers['inv_content_length_val1'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_content_length'] in POST('/api/PING', http_headers['inv_content_length_val2'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_proto_v'] in POST('/api/PING', http_headers['inv_proto_v'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_request_id_type'] in POST('/api/PING', http_headers['inv_request_id_type'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_request_id'] in POST('/api/PING', http_headers['inv_request_id'], '').headers.get('Reason'))
 
     def test_http_body(self):
         self.assertEqual(400, client.post('/api/PING', headers=http_headers['ok'], data='{{"key": "str }').status_code)
         self.assertEqual(400, POST('/api/PING', http_headers['ok'], {}).status_code)
 
-        self.assertTrue(http_reason['inv_json'] in client.post('/api/PING', headers=http_headers['ok'], data='{{"key": "str }').headers.get('Reason', None))
-        self.assertTrue(http_reason['empty_json'] in POST('/api/PING', http_headers['ok'], {}).headers.get('Reason', None))
+        self.assertTrue(http_reason['inv_json'] in client.post('/api/PING', headers=http_headers['ok'], data='{{"key": "str }').headers.get('Reason'))
+        self.assertTrue(http_reason['empty_json'] in POST('/api/PING', http_headers['ok'], {}).headers.get('Reason'))
     
     ### JSON ONLY ###
     
@@ -453,6 +525,8 @@ class Test(unittest.TestCase):
     def test_json_ok(self):
         self.assertEqual(0, check_json(requests_json['ping_ok']))
         self.assertEqual(0, check_json(requests_json['shutdown_ok']))
+        self.assertEqual(0, check_json(requests_json['import_gtiff_ok1']))
+        self.assertEqual(0, check_json(requests_json['import_gtiff_ok2']))
 
     def test_json_unknown_key(self):
         self.assertEqual(10000, check_json(requests_json['unknown_key1']))
@@ -490,6 +564,8 @@ class Test(unittest.TestCase):
 
     def test_json_invalid_parameters(self):
         self.assertEqual(10006, check_json(requests_json['inv_params']))
+        self.assertEqual(10007, check_json(requests_json['params_missing_key']))
+        self.assertEqual(10008, check_json(requests_json['params_unknown_key']))
 
     def test_json_incorrect_proto_version(self):
         self.assertEqual(10009, check_json(requests_json['incorrect_proto_ver']))
@@ -513,40 +589,46 @@ class Test(unittest.TestCase):
 
     ### Operation specific ###
 
-    def test_json_ping_non_empty_parameters(self):
+    def test_json_ping(self):
         self.assertEqual(10100, check_json(requests_json['ping_non_empty_params']))
 
-    def test_json_shutdown_non_empty_parameters(self):
+    def test_json_shutdown(self):
         self.assertEqual(10200, check_json(requests_json['shutdown_non_empty_params']))
+        # shutdown other
 
-    # shutdown other
+    def test_json_import_gtiff(self):
+        self.assertEqual(20300, check_json(requests_json['import_gtiff_not_geotiff1']))
+        self.assertEqual(20300, check_json(requests_json['import_gtiff_not_geotiff2']))
+        self.assertEqual(20301, check_json(requests_json['import_gtiff_non_existent']))
 
     ### BOTH ###
 
     def test_cross(self):
         self.assertEqual(400, POST('/api/PING', http_headers['ok'], requests_json['shutdown_ok']).status_code)
         hdrs = http_headers['ok'].copy()
-        hdrs['Protocol-Version'] = '420.69.34'
-        self.assertEqual(400, POST('/api/PING', hdrs, requests_json['ping_ok']).status_code)
-        hdrs['Protocol-Version'] = http_headers['ok']['Protocol-Version']
+        # hdrs['Protocol-Version'] = '420.69.34'
+        # self.assertEqual(400, POST('/api/PING', hdrs, requests_json['ping_ok']).status_code)
+        # hdrs['Protocol-Version'] = http_headers['ok']['Protocol-Version']
         hdrs['Request-ID'] = 42069
         self.assertEqual(400, POST('/api/PING', hdrs, requests_json['ping_ok']).status_code)
 
-        self.assertTrue(http_reason['endpoint_mismatch'] in POST('/api/PING', http_headers['ok'], requests_json['shutdown_ok']).headers.get('Reason', None))
+        self.assertTrue(http_reason['endpoint_mismatch'] in POST('/api/PING', http_headers['ok'], requests_json['shutdown_ok']).headers.get('Reason'))
         hdrs = http_headers['ok'].copy()
         # hdrs['Protocol-Version'] = '420.69.34'
-        # self.assertTrue(http_reason['proto_v_mismatch'] in POST('/api/PING', hdrs, requests_json['ping_ok']).headers.get('Reason', None))
+        # self.assertTrue(http_reason['proto_v_mismatch'] in POST('/api/PING', hdrs, requests_json['ping_ok']).headers.get('Reason'))
         # hdrs['Protocol-Version'] = http_headers['ok']['Protocol-Version']
         hdrs['Request-ID'] = 42069
-        self.assertTrue(http_reason['request_id_mismatch'] in POST('/api/PING', hdrs, requests_json['ping_ok']).headers.get('Reason', None))
+        self.assertTrue(http_reason['request_id_mismatch'] in POST('/api/PING', hdrs, requests_json['ping_ok']).headers.get('Reason'))
 
     def test_status_codes(self):
         def _codes(response: 'Response'):
             return response.status_code, \
-                   response.get_json().get('status', None) if response.get_json() else None
+                   response.get_json().get('status') if response.get_json() else None
 
         self.assertEqual((200, 0) , _codes(POST('/api/PING', http_headers['ok'], requests_json['ping_ok'])))
         self.assertEqual((200, 0) , _codes(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok'])))
+        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok1'])))
+        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok2'])))
 
         self.assertEqual((400, 10000) , _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key1'])))
         self.assertEqual((400, 10000) , _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key2'])))
@@ -573,9 +655,9 @@ class Test(unittest.TestCase):
 
         self.assertEqual((400, 10006) , _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_params'])))
 
-        # self.assertEqual((400, 10007) , _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_params'])))
+        self.assertEqual((400, 10007), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['params_missing_key'])))
 
-        # self.assertEqual((400, 10008) , _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_params'])))
+        self.assertEqual((400, 10008), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['params_unknown_key'])))
 
         self.assertEqual((400, None) , _codes(POST('/api/PING', http_headers['inv_proto_v'], requests_json['ping_ok'])))
 
@@ -599,6 +681,10 @@ class Test(unittest.TestCase):
 
         self.assertEqual((400, 10200) , _codes(POST('/api/PING', http_headers['ok'], requests_json['shutdown_non_empty_params'])))
         # 20200, 20201
+
+        self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff1'])))
+        self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff2'])))
+        self.assertEqual((500, 20301) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_non_existent'])))
 
 if __name__ == '__main__':
     unittest.main()

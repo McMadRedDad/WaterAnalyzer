@@ -1,9 +1,40 @@
 from osgeo import gdal
-
 gdal.UseExceptions()
 
+# thread-safe in the future
+class DatasetManager:
+    def __init__(self):
+        self._datasets = {}
+        self._counter = 0
+        # mutex
+
+    def open(self, file: str) -> int:
+        """Tries to open 'file' as a GDAL dataset and returns its id to be used with 'get' method."""
+
+        try:
+            dataset = gdal.Open(file)
+        except RuntimeError:
+            raise RuntimeError(f'Cannot open file {str}')
+        self._datasets[self._counter] = dataset
+        self._counter += 1
+        return self._counter - 1
+
+    def close(self, id: int) -> None:
+        try:
+            dataset = self._datasets.pop(id)
+        except KeyError:
+            raise KeyError(f'Dataset {id} is not opened but "close" method called')
+        dataset = None
+
+    def get(self, id: int) -> gdal.Dataset:
+        try:
+            return self._datasets[id]
+        except KeyError:
+            raise KeyError(f'Dataset {id} is not opened but "get" method called')
+
+
 class GdalExecutor:
-    SUPPORTED_PROTOCOL_VERSIONS = ('2.0.0')
+    SUPPORTED_PROTOCOL_VERSIONS = ('2.0.1')
     SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'export_gtiff', 'calc_preview', 'calc_index')
     VERSION = '1.0.0'
     
@@ -14,6 +45,7 @@ class GdalExecutor:
     
     def __init__(self, protocol_version: str):
         self.proto_version = protocol_version
+        self._dataset_man = DatasetManager()
         print(f'Server running version {self.VERSION}')
 
     def execute(self, request: dict) -> dict:
@@ -56,21 +88,27 @@ class GdalExecutor:
 
         if operation == 'import_gtiff':
             try:
-                dataset = gdal.Open(parameters['file'])
+                dataset_id = self._dataset_man.open(parameters['file'])
+                dataset = self._dataset_man.get(dataset_id)
             except RuntimeError:
                 return _response(20301, {"error": f"failed to open file '{parameters['file']}'"})
 
-            # 20300 error
+            if dataset.GetDriver().ShortName != 'GTiff':
+                return _response(20300, {"error": f"provided file '{parameters['file']}' is not a GeoTiff image"})
             
             geotransform = dataset.GetGeoTransform()
-            result = {'id': None, 'metadata': {
-                'width': dataset.RasterXSize,
-                'height': dataset.RasterYSize,
-                'projection': dataset.GetProjection(),
-                'origin': [geotransform[0], geotransform[3]],
-                'pixel_size': [geotransform[1], geotransform[5]]
-            }}
-            dataset = None
+            result = {
+                'id': dataset_id,
+                'info': {
+                    'width': dataset.RasterXSize,
+                    'height': dataset.RasterYSize,
+                    'projection': f'{dataset.GetSpatialRef().GetAuthorityName(None)}:{dataset.GetSpatialRef().GetAuthorityCode(None)}',
+                    'unit': dataset.GetSpatialRef().GetAttrValue('UNIT', 0),
+                    'origin': [geotransform[0], geotransform[3]],
+                    'pixel_size': [geotransform[1], geotransform[5]]
+                }
+            }
+            self._dataset_man.close(dataset_id)
             return _response(0, result)
         
         return _response(-1, {"error": "how's this even possible?"})

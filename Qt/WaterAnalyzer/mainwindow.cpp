@@ -1,6 +1,7 @@
 #include "mainwindow.hpp"
 #include "ui_mainwindow.h"
 #include "uibuilder.hpp"
+#include <QJsonArray>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow) {
@@ -70,6 +71,7 @@ void MainWindow::handle_response(QNetworkReply *response) {
              .isValid()) {
       append_log("bad", "Ошибка соединения с сервером: " +
                             response->errorString() + ".");
+      response->deleteLater();
       return;
     }
 
@@ -87,6 +89,7 @@ void MainWindow::handle_response(QNetworkReply *response) {
                          ->attribute(QNetworkRequest::HttpReasonPhraseAttribute)
                          .toString(),
                      QString::fromUtf8(header.second)));
+        response->deleteLater();
         return;
       }
     }
@@ -95,6 +98,7 @@ void MainWindow::handle_response(QNetworkReply *response) {
     append_log("bad", "Некорректный JSON-запрос к серверу: " +
                           QString::number(json["status"].toInt()) + " " +
                           json["result"].toObject()["error"].toString() + ".");
+    response->deleteLater();
     return;
   }
 
@@ -120,9 +124,29 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
   } else if (command == "SHUTDOWN") {
     append_log("good", "Сервер завершил работу.");
   } else if (command == "import_gtiff") {
-    QJsonObject metadata = json["result"].toObject()["metadata"].toObject();
-    append_log("good", "Метаданные геоизображения: " +
-                           QJsonDocument(metadata).toJson() + ".");
+    QJsonObject info = json["result"].toObject()["info"].toObject();
+    append_log("info", "Id: " + QString::number(
+                                    json["result"].toObject()["id"].toInt()));
+    append_log("info", "Данные геоизображения:\n");
+    append_log("info",
+               "Ширина " + QString::number(info["width"].toInt()) + "пикс,\n");
+    append_log("info",
+               "Высота " + QString::number(info["height"].toInt()) + "пикс,\n");
+    append_log("info", "Проекция " + info["projection"].toString() + ",\n");
+    append_log("info", "Единицы измерения " + info["unit"].toString() + ",\n");
+    append_log(
+        "info",
+        "Координаты начала [ " +
+            QString::number(info["origin"].toArray().first().toDouble()) +
+            "; " + QString::number(info["origin"].toArray().last().toDouble()) +
+            " ],\n");
+    append_log(
+        "info",
+        "Размер пикселя [ " +
+            QString::number(info["pixel_size"].toArray().first().toDouble()) +
+            "; " +
+            QString::number(info["pixel_size"].toArray().last().toDouble()) +
+            " ]\n");
   } else {
     append_log("bad",
                "Запрошена неизвестная команда, но сервер её обработал: " +
@@ -212,10 +236,11 @@ void MainWindow::on_pushButton_showLog_clicked() {
 void MainWindow::closeEvent(QCloseEvent *e) {}
 
 void MainWindow::import_clicked() {
-  send_request("command", "/api/import_gtiff",
-               proto.import_gtiff(
-                   "/home/tim/Учёба/LC09_L1TP_188012_20230710_20230710_02_T1/"
-                   "LC09_L1TP_188012_20230710_20230710_02_T1_B5.TIF"));
+  send_request(
+      "command", "/api/import_gtiff",
+      proto.import_gtiff(
+          "/home/tim/Учёба/Test data/LC09_L1TP_188012_20230710_20230710_02_T1/"
+          "LC09_L1TP_188012_20230710_20230710_02_T1_B5.TIF"));
 
   state.pages[0]->hide();
   ui->widget_main->layout()->removeWidget(state.pages[0]);

@@ -253,10 +253,10 @@ Below are specifics for requests and responses for each supported command. Commo
         "info": {                                       - [OBJECT] description of the GeoTiff file
             "width": `width`,                           - [INT] width of the image in pixels
             "height": `height`,                         - [INT] height of the image in pixels
-            "projection": `projection`,                 - 
-            "unit": `measure unit`,                     - 
-            "origin": [`x`, `y`],                       - 
-            "pixel_size": [`size on x`, `size on y`]    - 
+            "projection": `projection`,                 - [STRING] in format "`authority`:`code`" identifying used projection
+            "unit": `measure unit`,                     - [STRING] the unit used in the image
+            "origin": [`x`, `y`],                       - [ARRAY of DOUBLEs] coordinates of the origin of the image
+            "pixel_size": [`size on x`, `size on y`]    - [ARRAY of DOUBLEs] size if the image pixel in measurement units
         }
     }
     -  HTTP 200 OK
