@@ -269,6 +269,10 @@ Below are specifics for requests and responses for each supported command. Commo
     - `result` - { "error": "failed to open file '`filename`'" }
     -  HTTP 500 Internal Server Error
 
+|-########################################-|
+|     THIS SHOULD BE AN HTTP OPERATION     |
+|-↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓-|
+
 ### export gtiff
 
 *REQUEST*
@@ -299,6 +303,10 @@ Below are specifics for requests and responses for each supported command. Commo
     - `status` - 20401
     - `result` - { "error": "failed to write file `filename`" }
     -  HTTP 500 Internal Server Error
+
+|-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-|
+|     THIS SHOULD BE AN HTTP OPERATION     |
+|-########################################-|
 
 ### calculate preview
 

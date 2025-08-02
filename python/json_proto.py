@@ -1,6 +1,6 @@
 class Protocol:
     VERSION = '2.0.1'
-    SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'export_gtiff', 'calc_preview', 'calc_index')
+    SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index')
 
     def __init__(self):
         print(f'Using protocol version {self.VERSION}')
@@ -122,6 +122,10 @@ class Protocol:
                 return params_check
             else:
                 return _response(0, {})
+
+        ### export_gtiff ###
+        if operation == 'export_gtiff':
+            params_check = _check_keys('export_gtiff', ['id', 'file'], list(parameters.keys()))
         
         return _response(-1, {"error": "how's this even possible?"})
 

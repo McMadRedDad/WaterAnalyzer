@@ -35,17 +35,17 @@ class DatasetManager:
 
 class GdalExecutor:
     SUPPORTED_PROTOCOL_VERSIONS = ('2.0.1')
-    SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'export_gtiff', 'calc_preview', 'calc_index')
     VERSION = '1.0.0'
     
-    def __new__(cls, protocol_version):
-        if protocol_version not in GdalExecutor.SUPPORTED_PROTOCOL_VERSIONS:
+    def __new__(cls, protocol):
+        if protocol.get_version() not in GdalExecutor.SUPPORTED_PROTOCOL_VERSIONS:
             return None
         return super().__new__(cls)
     
-    def __init__(self, protocol_version: str):
-        self.proto_version = protocol_version
-        self._dataset_man = DatasetManager()
+    def __init__(self, protocol: str):
+        self.proto_version = protocol.get_version()
+        self.supported_operations = protocol.get_supported_operations()
+        self.ds_man = DatasetManager()
         print(f'Server running version {self.VERSION}')
 
     def execute(self, request: dict) -> dict:
@@ -76,8 +76,8 @@ class GdalExecutor:
         if proto_version not in self.SUPPORTED_PROTOCOL_VERSIONS:
             return _response(20001, {"error": f"unsupported protocol version: '{proto_version}'. The server understands protocol versions {self.SUPPORTED_PROTOCOL_VERSIONS}"})
         
-        if operation not in self.SUPPORTED_OPERATIONS:
-            return _response(20002, {"error": f"unsupported operation '{operation}' requested. Supported operations are {self.SUPPORTED_OPERATIONS}"})
+        if operation not in self.supported_operations:
+            return _response(20002, {"error": f"unsupported operation '{operation}' requested. Supported operations are {self.supported_operations}"})
         
         if operation == 'PING':
             return _response(0, {"data": "PONG"})
@@ -88,8 +88,8 @@ class GdalExecutor:
 
         if operation == 'import_gtiff':
             try:
-                dataset_id = self._dataset_man.open(parameters['file'])
-                dataset = self._dataset_man.get(dataset_id)
+                dataset_id = self.ds_man.open(parameters['file'])
+                dataset = self.ds_man.get(dataset_id)
             except RuntimeError:
                 return _response(20301, {"error": f"failed to open file '{parameters['file']}'"})
 
@@ -108,7 +108,7 @@ class GdalExecutor:
                     'pixel_size': [geotransform[1], geotransform[5]]
                 }
             }
-            self._dataset_man.close(dataset_id)
+            self.ds_man.close(dataset_id)
             return _response(0, result)
         
         return _response(-1, {"error": "how's this even possible?"})
@@ -117,7 +117,7 @@ class GdalExecutor:
         return self.SUPPORTED_PROTOCOL_VERSIONS
 
     def get_supported_operations(self) -> tuple:
-        return self.SUPPORTED_OPERATIONS
+        return self.supported_operations
 
     def get_version(self) -> str:
         return self.VERSION

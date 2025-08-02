@@ -6,7 +6,7 @@ from json_proto import Protocol
 from gdal_executor import GdalExecutor
 
 proto = Protocol()
-executor = GdalExecutor(proto.get_version())
+executor = GdalExecutor(proto)
 if not executor:
     raise ValueError(f'Unsupproted protocol version passed to {GdalExecutor} constructor.')
 _max_content_length = 1024
