@@ -14,7 +14,7 @@ class DatasetManager:
         try:
             dataset = gdal.Open(file)
         except RuntimeError:
-            raise RuntimeError(f'Cannot open file {str}')
+            raise RuntimeError(f'Cannot open file {file}')
         self._datasets[self._counter] = dataset
         self._counter += 1
         return self._counter - 1

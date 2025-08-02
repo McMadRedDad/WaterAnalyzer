@@ -3,8 +3,8 @@
 
 #include "clickableqwidget.hpp"
 #include "jsonprotocol.hpp"
+#include <QFileDialog>
 #include <QMainWindow>
-#include <QMessageBox>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QTimer>
@@ -16,8 +16,8 @@ class MainWindow;
 QT_END_NAMESPACE
 
 struct STATE {
-  enum CurrPage { BAD = -1, IMPORT, SELECTION, RESULT } page;
-  QList<ClickableQWidget *> pages; // same order as CurrPage
+  enum Page { BAD = -1, IMPORT, SELECTION, RESULT } page;
+  QList<ClickableQWidget *> pages; // same order as Page
 };
 
 class MainWindow : public QMainWindow {
@@ -46,9 +46,9 @@ private:
   void process_get(QByteArray body);
   void process_post(QUrl endpoint, QByteArray body);
 
-  void set_status_message(bool good, QString message, short msec);
-  void clear_status();
+  void set_status_message(bool good, QString message, short msec = 3000);
   void append_log(QString type, QString line);
+  void change_page(STATE::Page to);
 
   void closeEvent(QCloseEvent *e) override;
   void import_clicked();

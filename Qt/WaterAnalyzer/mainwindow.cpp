@@ -1,7 +1,6 @@
 #include "mainwindow.hpp"
 #include "ui_mainwindow.h"
 #include "uibuilder.hpp"
-#include <QJsonArray>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow) {
@@ -10,18 +9,14 @@ MainWindow::MainWindow(QWidget *parent)
   state.pages.append(UiBuilder::build_import_page(ui->widget_main));
   state.pages.append(UiBuilder::build_selection_page(ui->widget_main));
   state.pages.append(UiBuilder::build_results_page(ui->widget_main));
-  foreach (QWidget *w, state.pages) {
+  for (QWidget *w : state.pages) {
     w->hide();
   }
-
   ui->widget_main->layout()->addWidget(state.pages[0]);
   state.pages[0]->show();
   connect(state.pages[0], &ClickableQWidget::clicked, this,
           &MainWindow::import_clicked);
-
-  connect(&timer_status, &QTimer::timeout, this, &MainWindow::clear_status);
-
-  state.page = STATE::CurrPage::IMPORT;
+  state.page = STATE::Page::IMPORT;
 
   backend_ip = QHostAddress::LocalHost;
   backend_port = 42069;
@@ -29,6 +24,9 @@ MainWindow::MainWindow(QWidget *parent)
   connect(net_man, &QNetworkAccessManager::finished, this,
           &MainWindow::handle_response);
   proto = JsonProtocol("1.0.0");
+
+  connect(&timer_status, &QTimer::timeout, this,
+          [this]() { ui->label_status->clear(); });
 }
 
 MainWindow::~MainWindow() {
@@ -62,6 +60,7 @@ void MainWindow::send_request(QString type, QString endpoint,
     append_log("bad", QString("Неподдерживаемый тип запроса передан в "
                               "функцию 'send_request': %1.")
                           .arg(type));
+    set_status_message(false, "Неподдерживаемый тип запроса");
   }
 }
 
@@ -71,6 +70,7 @@ void MainWindow::handle_response(QNetworkReply *response) {
              .isValid()) {
       append_log("bad", "Ошибка соединения с сервером: " +
                             response->errorString() + ".");
+      set_status_message(false, "Ошибка соединения с сервером");
       response->deleteLater();
       return;
     }
@@ -89,6 +89,7 @@ void MainWindow::handle_response(QNetworkReply *response) {
                          ->attribute(QNetworkRequest::HttpReasonPhraseAttribute)
                          .toString(),
                      QString::fromUtf8(header.second)));
+        set_status_message(false, "Некорректный HTTP-запрос");
         response->deleteLater();
         return;
       }
@@ -98,6 +99,7 @@ void MainWindow::handle_response(QNetworkReply *response) {
     append_log("bad", "Некорректный JSON-запрос к серверу: " +
                           QString::number(json["status"].toInt()) + " " +
                           json["result"].toObject()["error"].toString() + ".");
+    set_status_message(false, "Некорректный JSON-запрос");
     response->deleteLater();
     return;
   }
@@ -108,6 +110,7 @@ void MainWindow::handle_response(QNetworkReply *response) {
     process_post(response->request().url(), response->readAll());
   } else {
     append_log("bad", "Неподдерживаемый тип запроса к серверу.");
+    set_status_message(false, "Неподдерживаемый тип запроса");
   }
   response->deleteLater();
 }
@@ -121,36 +124,20 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
   if (command == "PING") {
     append_log("good", "Ответ сервера: " +
                            json["result"].toObject()["data"].toString() + ".");
+    set_status_message(true, json["result"].toObject()["data"].toString());
   } else if (command == "SHUTDOWN") {
     append_log("good", "Сервер завершил работу.");
+    set_status_message(true, "Сервер завершил работу");
   } else if (command == "import_gtiff") {
     QJsonObject info = json["result"].toObject()["info"].toObject();
     append_log("info", "Id: " + QString::number(
                                     json["result"].toObject()["id"].toInt()));
-    append_log("info", "Данные геоизображения:\n");
-    append_log("info",
-               "Ширина " + QString::number(info["width"].toInt()) + "пикс,\n");
-    append_log("info",
-               "Высота " + QString::number(info["height"].toInt()) + "пикс,\n");
-    append_log("info", "Проекция " + info["projection"].toString() + ",\n");
-    append_log("info", "Единицы измерения " + info["unit"].toString() + ",\n");
-    append_log(
-        "info",
-        "Координаты начала [ " +
-            QString::number(info["origin"].toArray().first().toDouble()) +
-            "; " + QString::number(info["origin"].toArray().last().toDouble()) +
-            " ],\n");
-    append_log(
-        "info",
-        "Размер пикселя [ " +
-            QString::number(info["pixel_size"].toArray().first().toDouble()) +
-            "; " +
-            QString::number(info["pixel_size"].toArray().last().toDouble()) +
-            " ]\n");
+    set_status_message(true, "Изображение успешно загружено");
   } else {
     append_log("bad",
                "Запрошена неизвестная команда, но сервер её обработал: " +
                    command + ".");
+    set_status_message(false, "Неизвестная команда");
   }
 }
 
@@ -162,14 +149,12 @@ void MainWindow::set_status_message(bool good, QString message, short msec) {
   if (good) {
     ui->label_status->setStyleSheet("color: lightgreen;");
   } else {
-    ui->label_status->setStyleSheet("color: lightred;");
+    ui->label_status->setStyleSheet("color: tomato;");
   }
   ui->label_status->setText(message);
 
   timer_status.start(msec);
 }
-
-void MainWindow::clear_status() { ui->label_status->clear(); }
 
 void MainWindow::append_log(QString type, QString line) {
   QString html;
@@ -185,39 +170,44 @@ void MainWindow::append_log(QString type, QString line) {
   ui->plainTextEdit_log->appendHtml(html);
 }
 
-void MainWindow::on_pushButton_back_clicked() {
-  switch (state.page) {
-  case STATE::CurrPage::BAD: {
-    return;
+void MainWindow::change_page(STATE::Page to) {
+  for (QWidget *w : state.pages) {
+    w->hide();
+    ui->widget_main->layout()->removeWidget(w);
   }
-  case STATE::CurrPage::IMPORT: {
-    send_request("command", "/api/SHUTDOWN", proto.shutdown());
-    break;
-  }
-  case STATE::CurrPage::SELECTION: {
-    // proto.send()
-    //
-    //
-    //
-
-    state.pages[1]->hide();
-    ui->widget_main->layout()->removeWidget(state.pages[1]);
+  switch (to) {
+  case STATE::Page::IMPORT:
     ui->widget_main->layout()->addWidget(state.pages[0]);
     state.pages[0]->show();
+    state.page = STATE::Page::IMPORT;
+    break;
+  case STATE::Page::SELECTION:
+    ui->widget_main->layout()->addWidget(state.pages[1]);
+    state.pages[1]->show();
+    state.page = STATE::Page::SELECTION;
+    break;
+  case STATE::Page::RESULT:
+    //
+    break;
+  default:
+    return;
+  }
+}
+
+void MainWindow::on_pushButton_back_clicked() {
+  switch (state.page) {
+  case STATE::Page::IMPORT:
+    send_request("command", "/api/SHUTDOWN", proto.shutdown());
+    state.page = STATE::Page::BAD;
+    break;
+  case STATE::Page::SELECTION:
+    change_page(STATE::Page::IMPORT);
     connect(state.pages[0], &ClickableQWidget::clicked, this,
             &MainWindow::import_clicked);
-
-    state.page = STATE::CurrPage::IMPORT;
     break;
-  }
-  case STATE::CurrPage::RESULT: {
+  case STATE::Page::RESULT:
     //
-    //
-    //
-    //
-
     break;
-  }
   default:
     return;
   }
@@ -236,18 +226,25 @@ void MainWindow::on_pushButton_showLog_clicked() {
 void MainWindow::closeEvent(QCloseEvent *e) {}
 
 void MainWindow::import_clicked() {
-  send_request(
-      "command", "/api/import_gtiff",
-      proto.import_gtiff(
-          "/home/tim/Учёба/Test data/LC09_L1TP_188012_20230710_20230710_02_T1/"
-          "LC09_L1TP_188012_20230710_20230710_02_T1_B5.TIF"));
+  QDir dir = QFileDialog::getExistingDirectory(this, "Открыть директорию",
+                                               QDir::homePath());
+  int counter = 0;
+  for (QString f : dir.entryList()) {
+    if (f.endsWith(".tif") || f.endsWith(".tiff") || f.endsWith(".TIF") ||
+        f.endsWith(".TIFF")) {
+      send_request("command", "/api/import_gtiff",
+                   proto.import_gtiff(dir.absolutePath() + "/" + f));
+      counter++;
+    }
+  }
+  if (counter == 0) {
+    append_log("bad", QString("В выбранной директории %1 нет снимков GeoTiff.")
+                          .arg(dir.absolutePath()));
+    set_status_message(false, "В выбранной директории нет снимков");
+    return;
+  }
 
-  state.pages[0]->hide();
-  ui->widget_main->layout()->removeWidget(state.pages[0]);
-  ui->widget_main->layout()->addWidget(state.pages[1]);
-  state.pages[1]->show();
+  change_page(STATE::Page::SELECTION);
   disconnect(state.pages[0], &ClickableQWidget::clicked, this,
              &MainWindow::import_clicked);
-
-  state.page = STATE::CurrPage::SELECTION;
 }
