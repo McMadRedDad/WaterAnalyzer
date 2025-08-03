@@ -1,4 +1,5 @@
 from osgeo import gdal
+import numpy as np
 gdal.UseExceptions()
 
 # thread-safe in the future
@@ -12,7 +13,7 @@ class DatasetManager:
         """Tries to open 'file' as a GDAL dataset and returns its id to be used with 'get' method."""
 
         try:
-            dataset = gdal.Open(file)
+            dataset = gdal.Open(file, gdal.GA_ReadOnly)
         except RuntimeError:
             raise RuntimeError(f'Cannot open file {file}')
         self._datasets[self._counter] = dataset
@@ -31,7 +32,6 @@ class DatasetManager:
             return self._datasets[id]
         except KeyError:
             raise KeyError(f'Dataset {id} is not opened but "get" method called')
-
 
 class GdalExecutor:
     SUPPORTED_PROTOCOL_VERSIONS = ('2.0.1')
@@ -92,7 +92,6 @@ class GdalExecutor:
                 dataset = self.ds_man.get(dataset_id)
             except RuntimeError:
                 return _response(20301, {"error": f"failed to open file '{parameters['file']}'"})
-
             if dataset.GetDriver().ShortName != 'GTiff':
                 return _response(20300, {"error": f"provided file '{parameters['file']}' is not a GeoTiff image"})
             
@@ -108,8 +107,35 @@ class GdalExecutor:
                     'pixel_size': [geotransform[1], geotransform[5]]
                 }
             }
-            self.ds_man.close(dataset_id)
+            # self.ds_man.close(dataset_id)
             return _response(0, result)
+
+        if operation == 'calc_preview':
+            ds = []
+            for i in range(3):
+                try:
+                    ds.append(self.ds_man.get(parameters['ids'][i]))
+                except KeyError:
+                    return _response(20500, {"error": f"id {parameters['ids'][i]} provided in 'ids' key does not exist"})
+            if not (
+                ds[0].RasterXSize == ds[1].RasterXSize == ds[2].RasterXSize and
+                ds[0].RasterYSize == ds[1].RasterYSize == ds[2].RasterYSize
+            ):
+                return _response(20501, {"error": "unable to create a preview from requested ids: rasters do not match in size"})
+            
+            rgb = []
+            for i in range(3):
+                band = ds[i].GetRasterBand(1)
+                rgb.append(band.ReadAsArray(win_ysize=1))
+                for j in range(1, ds[i].RasterYSize - 1):
+                    scanline = band.ReadAsArray(yoff=j, win_ysize=1)[0]
+                    rgb[i] = np.vstack((rgb[i], scanline))
+
+            with open('tmp', 'w') as f:
+                f.write(rgb[0])
+
+            return _response(0, {"data": "ok"})
+            # error 20502
         
         return _response(-1, {"error": "how's this even possible?"})
     

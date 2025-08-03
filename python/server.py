@@ -117,7 +117,7 @@ def generate_http_response(request: request, response_json: dict) -> 'Response':
         code == 10100 or
         code == 10200 or
         code == 10400 or
-        code in range(10500, 10501+1) or code == 20501 or
+        code in range(10500, 10502+1) or code == 20501 or
         code in range(10600, 10601+1) or code in range(20601, 20602+1)
     ):
         http_status = 400

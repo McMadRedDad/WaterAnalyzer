@@ -19,6 +19,11 @@ QJsonObject JsonProtocol::import_gtiff(QString file) {
   return construct_json("import_gtiff", QJsonObject{{"file", file}});
 }
 
+QJsonObject JsonProtocol::calc_preview(int r, int g, int b) {
+  return construct_json("calc_preview",
+                        QJsonObject{{"ids", QJsonArray{r, g, b}}});
+}
+
 QJsonObject JsonProtocol::construct_json(QString operation,
                                          QJsonObject parameters) {
   QJsonObject json{{"proto_version", JsonProtocol::proto_version},

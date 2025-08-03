@@ -144,7 +144,8 @@ test_files = {
     'gtiff_ok2': '/home/tim/Учёба/Test data/dacha.tif',
     'saga_grid': '/home/tim/Учёба/Test data/dacha.sg-grd-z',
     'shape': '/home/tim/Учёба/Test data/dacha.shp',
-    'non_existent': '/home/tim/42069.34'
+    'non_existent': '/home/tim/42069.34',
+    'only_nodata': '/home/tim/Учёба/Test data/empty.tif'
 }
 
 requests_json = {

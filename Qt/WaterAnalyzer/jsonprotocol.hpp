@@ -1,6 +1,7 @@
 #ifndef JSONPROTOCOL_H
 #define JSONPROTOCOL_H
 
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 
@@ -15,6 +16,7 @@ public:
   QJsonObject ping();
   QJsonObject shutdown();
   QJsonObject import_gtiff(QString file);
+  QJsonObject calc_preview(int r, int g, int b);
 
   QString get_proto_version();
   QString get_server_version();

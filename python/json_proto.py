@@ -41,6 +41,18 @@ class Protocol:
                 'result': result
             }
 
+        def _check_param_keys(operation: str, correct_keys: list, keys_to_check: list) -> dict:
+            present_keys = []
+            for key in keys_to_check:
+                if key not in correct_keys:
+                    return _response(10008, {"error": f"unknown key '{key}' in parameters for '{operation}' operation"})
+                else:
+                    present_keys.append(key)
+            if len(keys_to_check) != len(correct_keys):
+                diff = set(correct_keys) - set(present_keys)
+                return _response(10007, {"error": f"keys '{diff}' are not specified in parameters for '{operation}' operation"})
+            return {}
+
         ### Common errors ###
         keys = list(request.keys())
         correct_keys = ['proto_version', 'server_version', 'id', 'operation', 'parameters']
@@ -88,18 +100,6 @@ class Protocol:
             
         if proto_version != self.VERSION:
             return _response(10009, {"error": f"incorrect protocol version: '{proto_version}'. The current protocol version is {self.VERSION}"})
-            
-        def _check_keys(operation: str, correct_keys: list, keys_to_check: list) -> dict:
-            present_keys = []
-            for key in keys_to_check:
-                if key not in correct_keys:
-                    return _response(10008, {"error": f"unknown key '{key}' in parameters for '{operation}' operation"})
-                else:
-                    present_keys.append(key)
-            if len(keys_to_check) != len(correct_keys):
-                diff = set(correct_keys) - set(present_keys)
-                return _response(10007, {"error": f"keys '{diff}' are not specified in parameters for '{operation}' operation"})
-            return {}
 
         ### PING ###
         if operation == 'PING':
@@ -117,15 +117,26 @@ class Protocol:
 
         ### import_gtiff ###
         if operation == 'import_gtiff':
-            params_check = _check_keys('import_gtiff', ['file'], list(parameters.keys()))
+            params_check = _check_param_keys('import_gtiff', ['file'], list(parameters.keys()))
             if len(params_check) != 0: 
                 return params_check
             else:
                 return _response(0, {})
-
-        ### export_gtiff ###
-        if operation == 'export_gtiff':
-            params_check = _check_keys('export_gtiff', ['id', 'file'], list(parameters.keys()))
+            
+        ### calc_preview ###
+        if operation == 'calc_preview':
+            params_check = _check_param_keys('calc_preview', ['ids'], list(parameters.keys()))
+            if len(params_check) != 0: 
+                return params_check
+            ids = parameters['ids']
+            if type(ids) is not list:
+                return _response(10500, {"error": "invalid 'ids' key: must be an array of 3 integer values"})
+            if len(ids) != 3:
+                return _response(10501, {"error": "exactly 3 values must be specified in 'ids' key"})
+            for i in range(3):
+                if type(ids[i]) is not int:
+                    return _response(10502, {"error": f"invalid id '{ids[i]}' in 'ids' key"})
+            return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})
 

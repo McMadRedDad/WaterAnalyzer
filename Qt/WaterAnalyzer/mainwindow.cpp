@@ -204,6 +204,8 @@ void MainWindow::on_pushButton_back_clicked() {
     change_page(STATE::Page::IMPORT);
     connect(state.pages[0], &ClickableQWidget::clicked, this,
             &MainWindow::import_clicked);
+
+    send_request("command", "/api/calc_preview", proto.calc_preview(0, 0, 0));
     break;
   case STATE::Page::RESULT:
     //
@@ -226,23 +228,42 @@ void MainWindow::on_pushButton_showLog_clicked() {
 void MainWindow::closeEvent(QCloseEvent *e) {}
 
 void MainWindow::import_clicked() {
-  QDir dir = QFileDialog::getExistingDirectory(this, "Открыть директорию",
-                                               QDir::homePath());
-  int counter = 0;
-  for (QString f : dir.entryList()) {
-    if (f.endsWith(".tif") || f.endsWith(".tiff") || f.endsWith(".TIF") ||
-        f.endsWith(".TIFF")) {
-      send_request("command", "/api/import_gtiff",
-                   proto.import_gtiff(dir.absolutePath() + "/" + f));
-      counter++;
-    }
-  }
-  if (counter == 0) {
-    append_log("bad", QString("В выбранной директории %1 нет снимков GeoTiff.")
-                          .arg(dir.absolutePath()));
-    set_status_message(false, "В выбранной директории нет снимков");
-    return;
-  }
+  // QDir dir = QFileDialog::getExistingDirectory(this, "Открыть директорию",
+  //                                              QDir::homePath());
+  // int counter = 0;
+  // for (QString f : dir.entryList()) {
+  //   if (f.endsWith(".tif") || f.endsWith(".tiff") || f.endsWith(".TIF") ||
+  //       f.endsWith(".TIFF")) {
+  //     send_request("command", "/api/import_gtiff",
+  //                  proto.import_gtiff(dir.absolutePath() + "/" + f));
+  //     counter++;
+  //   }
+  // }
+  // if (counter == 0) {
+  //   append_log("bad", QString("В выбранной директории %1 нет снимков
+  //   GeoTiff.")
+  //                         .arg(dir.absolutePath()));
+  //   set_status_message(false, "В выбранной директории нет снимков");
+  //   return;
+  // }
+
+  // send_request(
+  //     "command", "/api/import_gtiff",
+  //     proto.import_gtiff("/home/tim/Учёба/Test "
+  //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
+  //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B2.TIF"));
+  // send_request(
+  //     "command", "/api/import_gtiff",
+  //     proto.import_gtiff("/home/tim/Учёба/Test "
+  //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
+  //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B3.TIF"));
+  // send_request(
+  //     "command", "/api/import_gtiff",
+  //     proto.import_gtiff("/home/tim/Учёба/Test "
+  //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
+  //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B4.TIF"));
+  send_request("command", "/api/import_gtiff",
+               proto.import_gtiff("/home/tim/Учёба/Test data/dacha.tif"));
 
   change_page(STATE::Page::SELECTION);
   disconnect(state.pages[0], &ClickableQWidget::clicked, this,

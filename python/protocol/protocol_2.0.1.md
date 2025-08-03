@@ -329,23 +329,27 @@ Below are specifics for requests and responses for each supported command. Commo
         "height": `height`             - [INT] height of the image. Must be included in "Height" header of the HTTP request
     }
     -  HTTP 200 OK
-2. Invalid id:
+2. Invalid ids type:
     - `status` - 10500
-    - `result` - { "error": "invalid id '`id`' in `parameters`" }
+    - `result` - { "error": "invalid '`ids`' key: must be an array of 3 integer values" }
     -  HTTP 400 Bad Request
 3. Invalid array length:
     - `status` - 10501
     - `result` - { "error": "exactly 3 values must be specified in '`ids`' key" }
     -  HTTP 400 Bad Request
-4. Non-existent id:
+4. Invalid id:
+    - `status` - 10502
+    - `result` - { "error": "invalid id '`id`' in `ids` key" }
+    -  HTTP 400 Bad Request
+5. Non-existent id:
     - `status` - 20500
-    - `result` - { "error": "id `provided id` in '`ids`' does not exist" }
+    - `result` - { "error": "id `provided id` provided in '`ids`' key does not exist" }
     -  HTTP 404 Not Found
-5. Raster sizes do not match:
+6. Raster sizes do not match:
     - `status` - 20501
     - `result` - { "error": "unable to create a preview from requested ids: rasters do not match in size" }
     -  HTTP 400 Bad Request
-6. Unknown error:
+7. Unknown error:
     - `status` - 20502
     - `result` - { "error": "unknown error" }
     -  HTTP 500 Internal Server Error
@@ -353,7 +357,7 @@ Below are specifics for requests and responses for each supported command. Commo
 ???????????????????? TODO ??????????????????????????
 Upon recieving a "status: 0" response, an HTTP/2 request is sent over a separate channel:
 
-GET /previews/?id=`preview_id` HTTP/2
+GET /resources/previews/?id=`preview_id` HTTP/2
 Host: 127.0.0.1
 Accept: image/png
 Size: `size`
