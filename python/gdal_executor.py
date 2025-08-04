@@ -1,5 +1,7 @@
 from osgeo import gdal
 import numpy as np
+from math import isclose
+import index_calculator as indcal
 gdal.UseExceptions()
 
 # thread-safe in the future
@@ -10,7 +12,7 @@ class DatasetManager:
         # mutex
 
     def open(self, file: str) -> int:
-        """Tries to open 'file' as a GDAL dataset and returns its id to be used with 'get' method."""
+        """Tries to open 'file' as a GDAL dataset and returns its generated id."""
 
         try:
             dataset = gdal.Open(file, gdal.GA_ReadOnly)
@@ -32,6 +34,55 @@ class DatasetManager:
             return self._datasets[id]
         except KeyError:
             raise KeyError(f'Dataset {id} is not opened but "get" method called')
+
+    def read_band(self, dataset_id: int, band_id: int, step_size_percent: float | int) -> np.ndarray:
+        """Reads a band from the dataset and returns it as a numpy array.
+        'step_size' is the percent of the raster's rows or columns that will be read during one iteration. For example, if the raster is 100x100 pixels and 'step_size'=20, the band will be read entirely with 5 iterations by five 20x100 windows.
+        'step_size' <=0 means the band will be read line by line. 'step_size' >=100 means the band will be read at once.
+        The less 'step_size' is, the less memory is used and the slower the function is."""
+
+        try:
+            ds = self.get(dataset_id)
+            band = ds.GetRasterBand(band_id)
+        except KeyError:
+            raise KeyError(f'Dataset {dataset_id} is not opened but "read_band" method called')
+
+        x_size, y_size, step, data = ds.RasterXSize, ds.RasterYSize, 0, 0
+        if (
+            isclose(0, step_size_percent, abs_tol=0.01) or
+            step_size_percent < 0
+        ):
+            step = 1
+        elif (
+            isclose(100, step_size_percent, abs_tol=0.01) or
+            step_size_percent > 100
+        ):
+            step = x_size - 1 if x_size >= y_size else y_size - 1
+        else:
+            step = int(x_size * step_size_percent/100) if x_size >= y_size else int(y_size * step_size_percent/100)
+            if step == 0:
+                step = 1
+
+        # we'll read along the side that is shorter
+        # e.g. raster size 100x50 -> read along y=50
+        if x_size >= y_size:
+            data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=x_size, win_ysize=1)
+            for i in range(1, y_size, step):
+                if y_size >= i + step:
+                    win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=step)
+                else:
+                    win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=y_size - i)
+                data = np.vstack((data, win))
+        else:
+            data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=1, win_ysize=y_size)
+            for i in range(1, x_size, step):
+                if x_size >= i + step:
+                    win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=step, win_ysize=y_size)
+                else:
+                    win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size)
+                data = np.hstack((data, win))
+
+        return data
 
 class GdalExecutor:
     SUPPORTED_PROTOCOL_VERSIONS = ('2.0.1')
@@ -122,20 +173,30 @@ class GdalExecutor:
                 ds[0].RasterYSize == ds[1].RasterYSize == ds[2].RasterYSize
             ):
                 return _response(20501, {"error": "unable to create a preview from requested ids: rasters do not match in size"})
-            
-            rgb = []
-            for i in range(3):
-                band = ds[i].GetRasterBand(1)
-                rgb.append(band.ReadAsArray(win_ysize=1))
-                for j in range(1, ds[i].RasterYSize - 1):
-                    scanline = band.ReadAsArray(yoff=j, win_ysize=1)[0]
-                    rgb[i] = np.vstack((rgb[i], scanline))
-
-            with open('tmp', 'w') as f:
-                f.write(rgb[0])
-
-            return _response(0, {"data": "ok"})
             # error 20502
+            
+            r, g, b = 0, 0, 0
+            r = self.ds_man.read_band(parameters['ids'][0], 1, 100)
+            g = self.ds_man.read_band(parameters['ids'][1], 1, 100) if ds[1] is not ds[0] else r
+            if ds[2] is ds[0]:
+                b = r
+            elif ds[2] is ds[1]:
+                b = g
+            else:
+                b = self.ds_man.read_band(parameters['ids'][2], 1, 100)
+            r = indcal.map_to_8bit(r)
+            g = indcal.map_to_8bit(g)
+            b = indcal.map_to_8bit(b)
+
+            print('r:', r)
+            print('g:', g)
+            print('b:', b)
+                
+
+            # self.ds_man.close(0)
+            # self.ds_man.close(1)
+            # self.ds_man.close(2)
+            return _response(0, {"data": "ok"})
         
         return _response(-1, {"error": "how's this even possible?"})
     
