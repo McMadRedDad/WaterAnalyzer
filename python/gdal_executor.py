@@ -4,6 +4,30 @@ from math import isclose
 import index_calculator as indcal
 gdal.UseExceptions()
 
+class PreviewManager:
+    def __init__(self):
+        self._previews = {}
+        self._counter = 0
+
+    def add(self, array: np.ndarray) -> int:
+        """Stores a new numpy array referring to a preview image and returns its id."""
+
+        self._previews[self._counter] = array
+        self._counter += 1
+        return self._counter - 1
+
+    def remove(self, id: int) -> None:
+        try:
+            self._previews.pop(id)
+        except KeyError:
+            raise KeyError(f'Preview {id} does not exist but "remove" method called')
+
+    def get(self, id: int) -> np.ndarray:
+        try:
+            return self._previews[id]
+        except KeyError:
+            raise KeyError(f'Preview {id} does not exist but "get" method called')
+
 # thread-safe in the future
 class DatasetManager:
     def __init__(self):
@@ -85,7 +109,7 @@ class DatasetManager:
         return data
 
 class GdalExecutor:
-    SUPPORTED_PROTOCOL_VERSIONS = ('2.0.1')
+    SUPPORTED_PROTOCOL_VERSIONS = ('2.1.0')
     VERSION = '1.0.0'
     
     def __new__(cls, protocol):
@@ -97,6 +121,7 @@ class GdalExecutor:
         self.proto_version = protocol.get_version()
         self.supported_operations = protocol.get_supported_operations()
         self.ds_man = DatasetManager()
+        self.pv_man = PreviewManager()
         print(f'Server running version {self.VERSION}')
 
     def execute(self, request: dict) -> dict:
@@ -149,6 +174,7 @@ class GdalExecutor:
             geotransform = dataset.GetGeoTransform()
             result = {
                 'id': dataset_id,
+                'file': parameters['file'],
                 'info': {
                     'width': dataset.RasterXSize,
                     'height': dataset.RasterYSize,
@@ -188,14 +214,10 @@ class GdalExecutor:
             g = indcal.map_to_8bit(g)
             b = indcal.map_to_8bit(b)
 
-            print('r:', r)
-            print('g:', g)
-            print('b:', b)
-                
-
             # self.ds_man.close(0)
             # self.ds_man.close(1)
             # self.ds_man.close(2)
+            self.pv_man.add(np.stack((r, g, b)))
             return _response(0, {"data": "ok"})
         
         return _response(-1, {"error": "how's this even possible?"})

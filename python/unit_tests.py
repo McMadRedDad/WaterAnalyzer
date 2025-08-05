@@ -143,10 +143,12 @@ test_files = {
     'gtiff_ok1': '/home/tim/Учёба/Test data/LC09_L1TP_188012_20230710_20230710_02_T1/LC09_L1TP_188012_20230710_20230710_02_T1_B5.TIF',
     'gtiff_ok2': '/home/tim/Учёба/Test data/dacha.tif',
     'gtiff_ok3': '/home/tim/Учёба/Test data/dacha_10px.tif',
+    'gtiff_ok4': '/home/tim/Учёба/Test data/dacha_dist.tif',
+    'gtiff_ok5': '/home/tim/Учёба/Test data/dacha_dist_10px.tif',
+    'only_nodata': '/home/tim/Учёба/Test data/empty.tif',
     'saga_grid': '/home/tim/Учёба/Test data/dacha.sg-grd-z',
     'shape': '/home/tim/Учёба/Test data/dacha.shp',
-    'non_existent': '/home/tim/42069.34',
-    'only_nodata': '/home/tim/Учёба/Test data/empty.tif'
+    'non_existent': '/home/tim/42069.34'
 }
 
 requests_json = {

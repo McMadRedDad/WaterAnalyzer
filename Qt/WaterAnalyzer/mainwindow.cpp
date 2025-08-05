@@ -130,8 +130,10 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
     set_status_message(true, "Сервер завершил работу");
   } else if (command == "import_gtiff") {
     QJsonObject info = json["result"].toObject()["info"].toObject();
-    append_log("info", "Id: " + QString::number(
-                                    json["result"].toObject()["id"].toInt()));
+    append_log(
+        "info",
+        "Id: " + QString::number(json["result"].toObject()["id"].toInt()) +
+            ", file: " + json["result"].toObject()["file"].toString());
     set_status_message(true, "Изображение успешно загружено");
   } else {
     append_log("bad",
@@ -262,8 +264,9 @@ void MainWindow::import_clicked() {
   //     proto.import_gtiff("/home/tim/Учёба/Test "
   //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
   //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B4.TIF"));
-  send_request("command", "/api/import_gtiff",
-               proto.import_gtiff("/home/tim/Учёба/Test data/dacha_10px.tif"));
+  send_request(
+      "command", "/api/import_gtiff",
+      proto.import_gtiff("/home/tim/Учёба/Test data/dacha_dist_10px.tif"));
 
   change_page(STATE::Page::SELECTION);
   disconnect(state.pages[0], &ClickableQWidget::clicked, this,

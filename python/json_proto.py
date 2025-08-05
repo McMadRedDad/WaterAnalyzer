@@ -1,5 +1,5 @@
 class Protocol:
-    VERSION = '2.0.1'
+    VERSION = '2.1.0'
     SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index')
 
     def __init__(self):
@@ -101,21 +101,18 @@ class Protocol:
         if proto_version != self.VERSION:
             return _response(10009, {"error": f"incorrect protocol version: '{proto_version}'. The current protocol version is {self.VERSION}"})
 
-        ### PING ###
         if operation == 'PING':
             if len(parameters) != 0:
                 return _response(10100, {"error": "'parameters' must be an empty JSON object for 'PING' request"})
             else:
                 return _response(0, {})
 
-        ### SHUTDOWN ###
         if operation == 'SHUTDOWN':
             if len(parameters) != 0:
                 return _response(10200, {"error": "'parameters' must be an empty JSON object for 'SHUTDOWN' request"})
             else:
                 return _response(0, {})
 
-        ### import_gtiff ###
         if operation == 'import_gtiff':
             params_check = _check_param_keys('import_gtiff', ['file'], list(parameters.keys()))
             if len(params_check) != 0: 
@@ -123,7 +120,6 @@ class Protocol:
             else:
                 return _response(0, {})
             
-        ### calc_preview ###
         if operation == 'calc_preview':
             params_check = _check_param_keys('calc_preview', ['ids'], list(parameters.keys()))
             if len(params_check) != 0: 

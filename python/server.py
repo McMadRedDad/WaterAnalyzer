@@ -181,6 +181,11 @@ def handle_command(command):
         return generate_http_response(request, response_json)
 
     response_json = proto.match(request_json, response_json)
+
     if command == 'SHUTDOWN':
         threading.Thread(target=shutdown).start()
+    if command == 'calc_preview':
+        # print(executor.pv_man.get(0))
+        pass
+
     return generate_http_response(request, response_json)
