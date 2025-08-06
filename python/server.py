@@ -150,6 +150,12 @@ def shutdown():
     time.sleep(3)
     os._exit(0)
 
+@server.get('/resource/<type>')
+def handle_resource(type):
+    print(request.args)
+    print(request.headers)
+    return make_response('', 200)
+
 @server.post('/api/<command>')
 def handle_command(command):
     if command not in executor.get_supported_operations():
@@ -181,11 +187,12 @@ def handle_command(command):
         return generate_http_response(request, response_json)
 
     response_json = proto.match(request_json, response_json)
+    if response_json['status'] != 0:
+        return generate_http_response(request, response_json)
 
     if command == 'SHUTDOWN':
         threading.Thread(target=shutdown).start()
     if command == 'calc_preview':
-        # print(executor.pv_man.get(0))
-        pass
+        response_json['result']['url'] = f'/resource/preview?id={response_json['result']['url']}'
 
     return generate_http_response(request, response_json)

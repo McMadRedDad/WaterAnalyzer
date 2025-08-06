@@ -41,7 +41,7 @@ private:
   Ui::MainWindow *ui;
   QTimer timer_status;
 
-  void send_request(QString type, QString endpoint, QJsonObject data);
+  void send_request(QString type, QJsonObject data);
   void handle_response(QNetworkReply *response);
   void process_get(QByteArray body);
   void process_post(QUrl endpoint, QByteArray body);

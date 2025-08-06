@@ -1,7 +1,7 @@
 Communication via HTTP messages. The payload is sent as a JSON object in message bodies.
 
 Requests for command execution are sent as POST HTTP/1.1 to /api/`command` endpoint.
-Requests for particular resources (image preview, spatial index image, etc.) are sent as GET HTTP/2 to /resources/`type`/`id` endpoint.
+Requests for particular resources (image preview, spatial index image, etc.) are sent as GET HTTP/2 to /resource/`type` endpoint with parameter string in format of id=`id`.
 
 There are two layers of error checking.
 Firstly, overall request validity on the HTTP level is checked. This includes correct set of headers, valid JSON body, etc. If any error is caught, a response is sent immediately with an empty body and a "Reason" header containing a description of the error. Else, the protocol proceeds to the next layer.
@@ -322,12 +322,10 @@ Below are specifics for requests and responses for each supported command. Commo
 
 1. Success:
     - `status` - 0
-    - `result` - {                     - [OBJECT] headers for an HTTP request that needs to be sent to get the binary representation of the preview
-        "preview_id": `preview_id`,    - [INT] id of the generated preview (from cache). Must be included in query string of the HTTP request
-        "size": `size`,                - [INT] size of the binary representation. Must be included in the "Size" header of the HTTP request
-        "hash": `sha256`,              - [INT] hash of the binary representation (sha256 algorithm). Must be included in "Hash" header of the HTTP request
-        "width": `width`,              - [INT] width of the image. Must be included in "Width" header of the HTTP request
-        "height": `height`             - [INT] height of the image. Must be included in "Height" header of the HTTP request
+    - `result` - {                            - [OBJECT] data to be included in the HTTP GET request 
+        "url": "/resource/preview?id=`id`",   - [STRING] url to be used for HTTP GET request
+        "width": `width`,                     - [INT] width of the image. Must be included in "Width" header of the HTTP GET request
+        "height": `height`                    - [INT] height of the image. Must be included in "Height" header of the HTTP GET request
     }
     -  HTTP 200 OK
 2. Invalid ids type:
@@ -358,22 +356,21 @@ Below are specifics for requests and responses for each supported command. Commo
 ???????????????????? TODO ??????????????????????????
 Upon recieving a "status: 0" response, an HTTP/2 request is sent over a separate channel:
 
-GET /resources/previews/?id=`preview_id` HTTP/2
-Host: 127.0.0.1
+GET /resource/preview?id=`id` HTTP/2
 Accept: image/png
-Size: `size`
-Hash: `sha256`
+Protocol-Version: `this protocol's version`
+Request-ID: `request id`
 Width: `width`
 Height: `height`
 
 The response follows:
 
 HTTP/2 200 OK
+Server: `HTTP server`
 Content-Type: image/png
-Content-Length: `size`
-Connection: close
-Preview-Id: `preview_id`
-Hash: `sha256`
+Content-Length: `response's body length in bytes`
+Protocol-Version: `this protocol's version`
+Request-ID: `request id`
 Width: `width`
 Height: `height`
 

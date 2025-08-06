@@ -38,15 +38,15 @@ MainWindow::~MainWindow() {
   }
 }
 
-void MainWindow::send_request(QString type, QString endpoint,
-                              QJsonObject data) {
+void MainWindow::send_request(QString type, QJsonObject data) {
   if (backend_ip.isNull()) {
     return;
   }
 
   if (type == "command") {
     QNetworkRequest req("http://" + backend_ip.toString() + ":" +
-                        QString::number(backend_port) + endpoint);
+                        QString::number(backend_port) + "/api/" +
+                        data["operation"].toString());
     req.setHeader(QNetworkRequest::ContentTypeHeader,
                   "application/json; charset=utf-8");
     req.setRawHeader("Accept", "application/json; charset=utf-8");
@@ -55,7 +55,11 @@ void MainWindow::send_request(QString type, QString endpoint,
                      QString::number(data["id"].toInt()).toUtf8());
     net_man->post(req, QJsonDocument(data).toJson());
   } else if (type == "resource") {
-    //
+    QNetworkRequest req("http://" + backend_ip.toString() + ":" +
+                        QString::number(backend_port) + data["url"].toString());
+    req.setRawHeader("Width", data["width"].toString().toUtf8());
+    req.setRawHeader("Height", data["height"].toString().toUtf8());
+    net_man->get(req);
   } else {
     append_log("bad", QString("Неподдерживаемый тип запроса передан в "
                               "функцию 'send_request': %1.")
@@ -119,24 +123,28 @@ void MainWindow::process_get(QByteArray body) {}
 
 void MainWindow::process_post(QUrl endpoint, QByteArray body) {
   QString command = endpoint.toString().split("/").last();
-  QJsonObject json = QJsonDocument::fromJson(body).object();
+  QJsonObject result =
+      QJsonDocument::fromJson(body).object()["result"].toObject();
 
   if (command == "PING") {
-    append_log("good", "Ответ сервера: " +
-                           json["result"].toObject()["data"].toString() + ".");
-    set_status_message(true, json["result"].toObject()["data"].toString());
+    append_log("good", "Ответ сервера: " + result["data"].toString() + ".");
+    set_status_message(true, result["data"].toString());
   } else if (command == "SHUTDOWN") {
     append_log("good", "Сервер завершил работу.");
     set_status_message(true, "Сервер завершил работу");
   } else if (command == "import_gtiff") {
-    QJsonObject info = json["result"].toObject()["info"].toObject();
-    append_log(
-        "info",
-        "Id: " + QString::number(json["result"].toObject()["id"].toInt()) +
-            ", file: " + json["result"].toObject()["file"].toString());
+    QJsonObject info = result["info"].toObject();
+    append_log("info", "Id: " + QString::number(result["id"].toInt()) +
+                           ", file: " + result["file"].toString());
     set_status_message(true, "Изображение успешно загружено");
+  } else if (command == "calc_preview") {
+    append_log("info", result["url"].toString() + ", " +
+                           QString::number(result["width"].toInt()) + "x" +
+                           QString::number(result["height"].toInt()));
+    set_status_message(true, "Превью успешно создано");
+    send_request("resource", result);
   } else {
-    append_log("bad",
+    append_log("info",
                "Запрошена неизвестная команда, но сервер её обработал: " +
                    command + ".");
     set_status_message(false, "Неизвестная команда");
@@ -199,7 +207,7 @@ void MainWindow::change_page(STATE::Page to) {
 void MainWindow::on_pushButton_back_clicked() {
   switch (state.page) {
   case STATE::Page::IMPORT:
-    send_request("command", "/api/SHUTDOWN", proto.shutdown());
+    send_request("command", proto.shutdown());
     state.page = STATE::Page::BAD;
     break;
   case STATE::Page::SELECTION:
@@ -207,7 +215,7 @@ void MainWindow::on_pushButton_back_clicked() {
     connect(state.pages[0], &ClickableQWidget::clicked, this,
             &MainWindow::import_clicked);
 
-    send_request("command", "/api/calc_preview", proto.calc_preview(0, 0, 0));
+    send_request("command", proto.calc_preview(0, 0, 0));
     break;
   case STATE::Page::RESULT:
     //
@@ -236,7 +244,7 @@ void MainWindow::import_clicked() {
   // for (QString f : dir.entryList()) {
   //   if (f.endsWith(".tif") || f.endsWith(".tiff") || f.endsWith(".TIF") ||
   //       f.endsWith(".TIFF")) {
-  //     send_request("command", "/api/import_gtiff",
+  //     send_request("command",
   //                  proto.import_gtiff(dir.absolutePath() + "/" + f));
   //     counter++;
   //   }
@@ -250,23 +258,22 @@ void MainWindow::import_clicked() {
   // }
 
   // send_request(
-  //     "command", "/api/import_gtiff",
+  //     "command",
   //     proto.import_gtiff("/home/tim/Учёба/Test "
   //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
   //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B2.TIF"));
   // send_request(
-  //     "command", "/api/import_gtiff",
+  //     "command",
   //     proto.import_gtiff("/home/tim/Учёба/Test "
   //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
   //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B3.TIF"));
   // send_request(
-  //     "command", "/api/import_gtiff",
+  //     "command",
   //     proto.import_gtiff("/home/tim/Учёба/Test "
   //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
   //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B4.TIF"));
-  send_request(
-      "command", "/api/import_gtiff",
-      proto.import_gtiff("/home/tim/Учёба/Test data/dacha_dist_10px.tif"));
+  send_request("command", proto.import_gtiff(
+                              "/home/tim/Учёба/Test data/dacha_dist_10px.tif"));
 
   change_page(STATE::Page::SELECTION);
   disconnect(state.pages[0], &ClickableQWidget::clicked, this,

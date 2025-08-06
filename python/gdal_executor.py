@@ -184,7 +184,6 @@ class GdalExecutor:
                     'pixel_size': [geotransform[1], geotransform[5]]
                 }
             }
-            # self.ds_man.close(dataset_id)
             return _response(0, result)
 
         if operation == 'calc_preview':
@@ -212,13 +211,14 @@ class GdalExecutor:
                 b = self.ds_man.read_band(parameters['ids'][2], 1, 100)
             r = indcal.map_to_8bit(r)
             g = indcal.map_to_8bit(g)
-            b = indcal.map_to_8bit(b)
+            b = indcal.map_to_8bit(b)            
+            pv_id = self.pv_man.add(np.stack((r, g, b)))
 
-            # self.ds_man.close(0)
-            # self.ds_man.close(1)
-            # self.ds_man.close(2)
-            self.pv_man.add(np.stack((r, g, b)))
-            return _response(0, {"data": "ok"})
+            return _response(0, {
+                "url": pv_id,
+                "width": ds[0].RasterXSize,
+                "height": ds[0].RasterYSize
+            })
         
         return _response(-1, {"error": "how's this even possible?"})
     
