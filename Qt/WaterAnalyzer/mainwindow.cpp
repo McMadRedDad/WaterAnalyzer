@@ -55,10 +55,18 @@ void MainWindow::send_request(QString type, QJsonObject data) {
                      QString::number(data["id"].toInt()).toUtf8());
     net_man->post(req, QJsonDocument(data).toJson());
   } else if (type == "resource") {
+    QJsonObject result = data["result"].toObject();
     QNetworkRequest req("http://" + backend_ip.toString() + ":" +
-                        QString::number(backend_port) + data["url"].toString());
-    req.setRawHeader("Width", data["width"].toString().toUtf8());
-    req.setRawHeader("Height", data["height"].toString().toUtf8());
+                        QString::number(backend_port) +
+                        result["url"].toString());
+    req.setRawHeader("Accept", "image/png");
+    req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
+    req.setRawHeader("Request-ID",
+                     QString::number(data["id"].toInt()).toUtf8());
+    req.setRawHeader("Width",
+                     QString::number(result["width"].toInt()).toUtf8());
+    req.setRawHeader("Height",
+                     QString::number(result["height"].toInt()).toUtf8());
     net_man->get(req);
   } else {
     append_log("bad", QString("Неподдерживаемый тип запроса передан в "
@@ -142,7 +150,7 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
                            QString::number(result["width"].toInt()) + "x" +
                            QString::number(result["height"].toInt()));
     set_status_message(true, "Превью успешно создано");
-    send_request("resource", result);
+    send_request("resource", QJsonDocument::fromJson(body).object());
   } else {
     append_log("info",
                "Запрошена неизвестная команда, но сервер её обработал: " +
@@ -215,7 +223,7 @@ void MainWindow::on_pushButton_back_clicked() {
     connect(state.pages[0], &ClickableQWidget::clicked, this,
             &MainWindow::import_clicked);
 
-    send_request("command", proto.calc_preview(0, 0, 0));
+    send_request("command", proto.calc_preview(0, 1, 2));
     break;
   case STATE::Page::RESULT:
     //
@@ -257,23 +265,24 @@ void MainWindow::import_clicked() {
   //   return;
   // }
 
-  // send_request(
-  //     "command",
-  //     proto.import_gtiff("/home/tim/Учёба/Test "
-  //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
-  //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B2.TIF"));
-  // send_request(
-  //     "command",
-  //     proto.import_gtiff("/home/tim/Учёба/Test "
-  //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
-  //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B3.TIF"));
-  // send_request(
-  //     "command",
-  //     proto.import_gtiff("/home/tim/Учёба/Test "
-  //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
-  //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B4.TIF"));
-  send_request("command", proto.import_gtiff(
-                              "/home/tim/Учёба/Test data/dacha_dist_10px.tif"));
+  send_request(
+      "command",
+      proto.import_gtiff("/home/tim/Учёба/Test "
+                         "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
+                         "LC09_L1TP_188012_20230710_20230710_02_T1_B2.TIF"));
+  send_request(
+      "command",
+      proto.import_gtiff("/home/tim/Учёба/Test "
+                         "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
+                         "LC09_L1TP_188012_20230710_20230710_02_T1_B3.TIF"));
+  send_request(
+      "command",
+      proto.import_gtiff("/home/tim/Учёба/Test "
+                         "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
+                         "LC09_L1TP_188012_20230710_20230710_02_T1_B4.TIF"));
+  // send_request("command", proto.import_gtiff(
+  //                             "/home/tim/Учёба/Test
+  //                             data/dacha_dist_10px.tif"));
 
   change_page(STATE::Page::SELECTION);
   disconnect(state.pages[0], &ClickableQWidget::clicked, this,

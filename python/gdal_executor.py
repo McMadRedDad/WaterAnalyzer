@@ -10,7 +10,8 @@ class PreviewManager:
         self._counter = 0
 
     def add(self, array: np.ndarray) -> int:
-        """Stores a new numpy array referring to a preview image and returns its id."""
+        """Stores a new numpy array referring to a preview image and returns its id.
+        The array is suitable for PIL.Image.fromarray() function."""
 
         self._previews[self._counter] = array
         self._counter += 1
@@ -59,11 +60,26 @@ class DatasetManager:
         except KeyError:
             raise KeyError(f'Dataset {id} is not opened but "get" method called')
 
-    def read_band(self, dataset_id: int, band_id: int, step_size_percent: float | int) -> np.ndarray:
+    def read_band(self, dataset_id: int, band_id: int, step_size_percent: float | int, resolution_percent: float | int) -> np.ndarray:
         """Reads a band from the dataset and returns it as a numpy array.
         'step_size' is the percent of the raster's rows or columns that will be read during one iteration. For example, if the raster is 100x100 pixels and 'step_size'=20, the band will be read entirely with 5 iterations by five 20x100 windows.
         'step_size' <=0 means the band will be read line by line. 'step_size' >=100 means the band will be read at once.
-        The less 'step_size' is, the less memory is used and the slower the function is."""
+        The less 'step_size' is, the less memory is used and the slower the function is.
+        'resolution_percent' controls the resulting array resolution. if <=0 resoltion is set to 0.01 percent of the original raster; if >=100 the band is read at full resolution."""
+
+        def _to_percent(value):
+            if (
+                isclose(0, value, abs_tol=0.01) or
+                value < 0
+            ):
+                return 0
+            elif (
+                isclose(100, value, abs_tol=0.01) or
+                value > 100
+            ):
+               return 100
+            else:
+                return value
 
         try:
             ds = self.get(dataset_id)
@@ -71,39 +87,39 @@ class DatasetManager:
         except KeyError:
             raise KeyError(f'Dataset {dataset_id} is not opened but "read_band" method called')
 
-        x_size, y_size, step, data = ds.RasterXSize, ds.RasterYSize, 0, 0
-        if (
-            isclose(0, step_size_percent, abs_tol=0.01) or
-            step_size_percent < 0
-        ):
+        x_size, y_size, step, res, data = ds.RasterXSize, ds.RasterYSize, 0, 0, 0
+        if _to_percent(step_size_percent) == 0:
             step = 1
-        elif (
-            isclose(100, step_size_percent, abs_tol=0.01) or
-            step_size_percent > 100
-        ):
+        elif _to_percent(step_size_percent) == 100:
             step = x_size - 1 if x_size >= y_size else y_size - 1
         else:
             step = int(x_size * step_size_percent/100) if x_size >= y_size else int(y_size * step_size_percent/100)
             if step == 0:
                 step = 1
+        if _to_percent(resolution_percent) == 0:
+            res = 0.0001
+        elif _to_percent(resolution_percent) == 100:
+            res = 1
+        else:
+            res = resolution_percent / 100
 
         # we'll read along the side that is shorter
         # e.g. raster size 100x50 -> read along y=50
         if x_size >= y_size:
-            data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=x_size, win_ysize=1)
+            data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=x_size, win_ysize=1, buf_xsize=int(x_size*res), buf_ysize=int(1*res))
             for i in range(1, y_size, step):
                 if y_size >= i + step:
-                    win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=step)
+                    win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=step, buf_xsize=int(x_size*res), buf_ysize=int(step*res))
                 else:
-                    win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=y_size - i)
+                    win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=y_size - i, buf_xsize=int(x_size*res), buf_ysize=int((y_size-i)*res))
                 data = np.vstack((data, win))
         else:
-            data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=1, win_ysize=y_size)
+            data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=1, win_ysize=y_size, buf_xsize=int(1*res), buf_ysize=int(y_size*res))
             for i in range(1, x_size, step):
                 if x_size >= i + step:
-                    win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=step, win_ysize=y_size)
+                    win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=step, win_ysize=y_size, buf_xsize=int(step*res), buf_ysize=int(y_size*res))
                 else:
-                    win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size)
+                    win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size, buf_xsize=int((x_size-i)*res), buf_ysize=int(y_size*res))
                 data = np.hstack((data, win))
 
         return data
@@ -201,18 +217,21 @@ class GdalExecutor:
             # error 20502
             
             r, g, b = 0, 0, 0
-            r = self.ds_man.read_band(parameters['ids'][0], 1, 100)
-            g = self.ds_man.read_band(parameters['ids'][1], 1, 100) if ds[1] is not ds[0] else r
+            r = self.ds_man.read_band(parameters['ids'][0], 1, 100, 10)
+            g = self.ds_man.read_band(parameters['ids'][1], 1, 100, 10) if ds[1] is not ds[0] else r
             if ds[2] is ds[0]:
                 b = r
             elif ds[2] is ds[1]:
                 b = g
             else:
-                b = self.ds_man.read_band(parameters['ids'][2], 1, 100)
+                b = self.ds_man.read_band(parameters['ids'][2], 1, 100, 10)
+                
             r = indcal.map_to_8bit(r)
             g = indcal.map_to_8bit(g)
             b = indcal.map_to_8bit(b)            
-            pv_id = self.pv_man.add(np.stack((r, g, b)))
+            pv_id = self.pv_man.add(np.transpose(np.stack((r, g, b)), (1, 2, 0)))
+
+            print(r.shape)
 
             return _response(0, {
                 "url": pv_id,

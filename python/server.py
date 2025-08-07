@@ -1,7 +1,9 @@
-import os, time, threading
-import json
 from typing import Union
+import os, time, threading
 from flask import Flask, request, make_response
+from io import BytesIO
+from PIL import Image
+import json
 from json_proto import Protocol
 from gdal_executor import GdalExecutor
 
@@ -150,11 +152,15 @@ def shutdown():
     time.sleep(3)
     os._exit(0)
 
-@server.get('/resource/<type>')
-def handle_resource(type):
-    print(request.args)
-    print(request.headers)
-    return make_response('', 200)
+@server.get('/resource/<res_type>')
+def handle_resource(res_type):
+    # check args & other
+    rgb = executor.pv_man.get(int(request.args['id']))
+    buf = BytesIO()
+    img = Image.fromarray(rgb)
+    img.save(buf, format='PNG')
+    img.show()
+    return make_response(buf, 200)
 
 @server.post('/api/<command>')
 def handle_command(command):

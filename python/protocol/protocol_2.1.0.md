@@ -353,13 +353,12 @@ Below are specifics for requests and responses for each supported command. Commo
     - `result` - { "error": "unknown error" }
     -  HTTP 500 Internal Server Error
 
-???????????????????? TODO ??????????????????????????
-Upon recieving a "status: 0" response, an HTTP/2 request is sent over a separate channel:
+Upon recieving a "status: 0" response, an HTTP/2 GET request is sent:
 
 GET /resource/preview?id=`id` HTTP/2
 Accept: image/png
 Protocol-Version: `this protocol's version`
-Request-ID: `request id`
+Request-ID: `JSON request's id`
 Width: `width`
 Height: `height`
 
@@ -370,14 +369,13 @@ Server: `HTTP server`
 Content-Type: image/png
 Content-Length: `response's body length in bytes`
 Protocol-Version: `this protocol's version`
-Request-ID: `request id`
+Request-ID: `JSON request's id`
 Width: `width`
 Height: `height`
 
 `binary representation`
 
-If the client encounters an error (e.g. incorrect/invalid `size`, incorrect `sha256`, etc), a new request is sent.
-???????????????????? TODO ??????????????????????????
+If the client encounters an error (`width` or `height` does not match, for example), a new request is sent.
 
 ### calculate index
 
