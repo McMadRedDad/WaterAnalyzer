@@ -29,21 +29,33 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
     Must be called first to validate an HTTP request.
     'request_type' is either 'command' for command execution requests, or 'resource' for resource requests."""
 
-    headers = request.headers
-    if request_type == 'command':
-        mandatory_headers = ['Content-Type', 'Content-Length', 'Accept', 'Protocol-Version', 'Request-ID']
+    def _check_header_list(correct_headers, headers_to_check):
         present_headers = []
-        for header in mandatory_headers:
-            if header in headers:
+        for header in correct_headers:
+            if header in headers_to_check:
                 present_headers.append(header)
-        if len(present_headers) != len(mandatory_headers):
-            diff = set(mandatory_headers) - set(present_headers)
+        if len(present_headers) != len(correct_headers):
+            diff = set(correct_headers) - set(present_headers)
             if diff == {'Content-Length'}:
                 return _http_response(request, '', 411, Reason='Invalid HTTP request. "Content-Length" header must be provided.')
             else:
                 return _http_response(request, '', 400, Reason=f'Invalid HTTP Request. Headers "{diff}" are missing in the request.')
+        return None
+
+    headers = request.headers
+    if request_type == 'command':
+        mandatory_headers = ['Content-Type', 'Content-Length', 'Accept', 'Protocol-Version', 'Request-ID']
+        hdr_list = _check_header_list(mandatory_headers, headers)
+        if hdr_list is not None:
+            return hdr_list
     elif request_type == 'resource':
-        pass
+        if request.base_url.rpartition('/')[2] == 'preview':
+            mandatory_headers = ['Accept', 'Protocol-Version', 'Request-ID', 'Width', 'Height']
+            hdr_list = _check_header_list(mandatory_headers, headers)
+            if hdr_list is not None:
+                return hdr_list
+        elif request.base_url.rpartition('/')[2] == '':
+            pass
     else:
         raise ValueError(f'Invalid "request_type" argument passed to "check_http_headers" function: {request_type}')
 
@@ -81,7 +93,21 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
         if content_length > _max_content_length:
             return _http_response(request, '', 413, Reason=f'Invalid value "{content_length}" for "Content-Length" header: must be in [2, {_max_content_length}] for {request.url} request.')
     elif request_type == 'resource':
-        pass
+        accept = headers['Accept']
+        if request.base_url.rpartition('/')[2] == 'preview':
+            if accept != 'image/png':
+                return _http_response(request, '', 400, Reason=f'Invalid value "{accept}" of "Accept" header: must be "image/png" for /resource/preview request.')
+            
+            try:
+                int(headers['Width'])
+            except ValueError:
+                return _http_response(request, '', 400, Reason='Invalid type for "Width" header: must be of integer type.')
+            try:
+                int(headers['Height'])
+            except ValueError:
+                return _http_response(request, '', 400, Reason='Invalid type for "Height" header: must be of integer type.')
+        elif request.base_url.rpartition('/')[2] == '':
+            pass
     else:
         raise ValueError(f'Invalid "request_type" argument passed to "check_http_headers" function: {request_type}')
 
@@ -100,7 +126,8 @@ def check_http_body(request: request, request_type: str) -> Union['Response', No
         if not request_json:
             return _http_response(request, '', 400, Reason='The request\'s body must not be an empty JSON document for command execution requests.')
     elif request_type == 'resource':
-        pass
+        if request.get_data() != b'':
+            return _http_response(request, '', 400, Reason='The request\'s body must be empty for resource requests.')
     else:
         raise ValueError(f'Invalid "request_type" argument passed to "check_http_body" function: {request_type}')
     
@@ -154,16 +181,48 @@ def shutdown():
 
 @server.get('/resource/<res_type>')
 def handle_resource(res_type):
-    # check args & other
-    rgb = executor.pv_man.get(int(request.args['id']))
+    if len(request.query_string) == 0:
+        return _http_response(request, '', 400, Reason='Query string must be provided for resource requests.')
+    if len(request.args) > 1:
+        return _http_response(request, '', 400, Reason='Query string must only include "id" parameter for resource requests.')
+    try:
+        id_ = int(request.args['id'])
+    except ValueError:
+        return _http_response(request, '', 400, Reason='"id" parameter of the query string must be of integer type.')
+
+    if res_type not in ('preview'):
+        return _http_response(request, '', 400, Reason=f'The requested resource type "{res_type}" is not supported.')
+
+    response = check_http_headers(request, 'resource')
+    if response is not None:
+        return response
+
+    response = check_http_body(request, 'resource')
+    if response is not None:
+        return response
+
+    try:
+        rgb = executor.pv_man.get(id_)
+    except KeyError:
+        return _http_response(request, '', 404, Reason=f'Requested preview "{request.url}" does not exist.')
+    
+    if int(request.headers['Width']) != rgb.width:
+        return _http_response(request, '', 400, Reason=f'Invalid width {request.headers['Width']} in the "Width" header: actual width of the requested preview is {rgb.width}.')
+    if int(request.headers['Height']) != rgb.height:
+        return _http_response(request, '', 400, Reason=f'Invalid height {request.headers['Height']} in the "Height" header: actual height of the requested preview is {rgb.height}.')
+
     buf = BytesIO()
-    img = Image.fromarray(rgb)
+    img = Image.fromarray(rgb.array)
     img.save(buf, format='PNG')
-    img.show()
-    return make_response(buf, 200)
+
+    # img.show()
+    return _http_response(request, buf, 200, Width=rgb.width, Height=rgb.height)
 
 @server.post('/api/<command>')
 def handle_command(command):
+    if len(request.query_string) != 0:
+        return _http_response(request, '', 400, Reason='No query strings allowed for command execution requests.')
+
     if command not in executor.get_supported_operations():
         return _http_response(request, '', 400, Reason=f'Unknown/unsupported command "{command}" requested.')
 

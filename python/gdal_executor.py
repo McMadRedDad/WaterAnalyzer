@@ -4,6 +4,12 @@ from math import isclose
 import index_calculator as indcal
 gdal.UseExceptions()
 
+class Preview:
+    def __init__(self, array: np.ndarray):
+        self.array = array
+        self.width = array.shape[1]
+        self.height = array.shape[0]
+
 class PreviewManager:
     def __init__(self):
         self._previews = {}
@@ -13,7 +19,7 @@ class PreviewManager:
         """Stores a new numpy array referring to a preview image and returns its id.
         The array is suitable for PIL.Image.fromarray() function."""
 
-        self._previews[self._counter] = array
+        self._previews[self._counter] = Preview(array)
         self._counter += 1
         return self._counter - 1
 
@@ -23,7 +29,11 @@ class PreviewManager:
         except KeyError:
             raise KeyError(f'Preview {id} does not exist but "remove" method called')
 
-    def get(self, id: int) -> np.ndarray:
+    def remove_all(self) -> None:
+        for id_ in self._previews.keys():
+            self.remove(id_)
+
+    def get(self, id: int) -> Preview:
         try:
             return self._previews[id]
         except KeyError:
@@ -53,6 +63,10 @@ class DatasetManager:
         except KeyError:
             raise KeyError(f'Dataset {id} is not opened but "close" method called')
         dataset = None
+
+    def close_all(self) -> None:
+        for id_ in self._datasets.keys():
+            self.close(id_)
 
     def get(self, id: int) -> gdal.Dataset:
         try:
@@ -106,26 +120,26 @@ class DatasetManager:
         # we'll read along the side that is shorter
         # e.g. raster size 100x50 -> read along y=50
         if x_size >= y_size:
-            data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=x_size, win_ysize=1, buf_xsize=int(x_size*res), buf_ysize=int(1*res))
+            data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=x_size, win_ysize=1, buf_xsize=int(x_size * res), buf_ysize=int(1 * res))
             for i in range(1, y_size, step):
                 if y_size >= i + step:
-                    win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=step, buf_xsize=int(x_size*res), buf_ysize=int(step*res))
+                    win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=step, buf_xsize=int(x_size * res), buf_ysize=int(step * res))
                 else:
-                    win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=y_size - i, buf_xsize=int(x_size*res), buf_ysize=int((y_size-i)*res))
+                    win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=y_size - i, buf_xsize=int(x_size * res), buf_ysize=int((y_size - i) * res))
                 data = np.vstack((data, win))
         else:
-            data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=1, win_ysize=y_size, buf_xsize=int(1*res), buf_ysize=int(y_size*res))
+            data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=1, win_ysize=y_size, buf_xsize=int(1 * res), buf_ysize=int(y_size * res))
             for i in range(1, x_size, step):
                 if x_size >= i + step:
-                    win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=step, win_ysize=y_size, buf_xsize=int(step*res), buf_ysize=int(y_size*res))
+                    win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=step, win_ysize=y_size, buf_xsize=int(step * res), buf_ysize=int(y_size * res))
                 else:
-                    win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size, buf_xsize=int((x_size-i)*res), buf_ysize=int(y_size*res))
+                    win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size, buf_xsize=int((x_size - i) * res), buf_ysize=int(y_size * res))
                 data = np.hstack((data, win))
 
         return data
 
 class GdalExecutor:
-    SUPPORTED_PROTOCOL_VERSIONS = ('2.1.0')
+    SUPPORTED_PROTOCOL_VERSIONS = ('2.1.1')
     VERSION = '1.0.0'
     
     def __new__(cls, protocol):
@@ -217,26 +231,24 @@ class GdalExecutor:
             # error 20502
             
             r, g, b = 0, 0, 0
-            r = self.ds_man.read_band(parameters['ids'][0], 1, 100, 10)
-            g = self.ds_man.read_band(parameters['ids'][1], 1, 100, 10) if ds[1] is not ds[0] else r
+            r = self.ds_man.read_band(parameters['ids'][0], 1, 100, 5)
+            g = self.ds_man.read_band(parameters['ids'][1], 1, 100, 5) if ds[1] is not ds[0] else r
             if ds[2] is ds[0]:
                 b = r
             elif ds[2] is ds[1]:
                 b = g
             else:
-                b = self.ds_man.read_band(parameters['ids'][2], 1, 100, 10)
+                b = self.ds_man.read_band(parameters['ids'][2], 1, 100, 5)
                 
             r = indcal.map_to_8bit(r)
             g = indcal.map_to_8bit(g)
             b = indcal.map_to_8bit(b)            
             pv_id = self.pv_man.add(np.transpose(np.stack((r, g, b)), (1, 2, 0)))
 
-            print(r.shape)
-
             return _response(0, {
                 "url": pv_id,
-                "width": ds[0].RasterXSize,
-                "height": ds[0].RasterYSize
+                "width": self.pv_man.get(pv_id).width,
+                "height": self.pv_man.get(pv_id).height
             })
         
         return _response(-1, {"error": "how's this even possible?"})

@@ -1,5 +1,5 @@
 class Protocol:
-    VERSION = '2.1.0'
+    VERSION = '2.1.1'
     SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index')
 
     def __init__(self):
@@ -48,7 +48,7 @@ class Protocol:
                     return _response(10008, {"error": f"unknown key '{key}' in parameters for '{operation}' operation"})
                 else:
                     present_keys.append(key)
-            if len(keys_to_check) != len(correct_keys):
+            if len(present_keys) != len(correct_keys):
                 diff = set(correct_keys) - set(present_keys)
                 return _response(10007, {"error": f"keys '{diff}' are not specified in parameters for '{operation}' operation"})
             return {}

@@ -117,6 +117,14 @@ void MainWindow::handle_response(QNetworkReply *response) {
   }
 
   if (response->operation() == QNetworkAccessManager::GetOperation) {
+
+    //
+
+    append_log("good", "w: " + response->rawHeader("Width"));
+    append_log("good", "h: " + response->rawHeader("Height"));
+
+    //
+
     process_get(response->readAll());
   } else if (response->operation() == QNetworkAccessManager::PostOperation) {
     process_post(response->request().url(), response->readAll());
