@@ -75,23 +75,23 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
             content_type != 'application/json; charset=utf-8' and
             content_type != 'application/json;charset=utf-8'
         ):
-            return _http_response(request, '', 400, Reason=f'Invalid value "{content_type}" of "Content-Type" header: must be "application/json; charset=utf-8" or "application/json;charset=utf-8".')
+            return _http_response(request, '', 400, Reason=f'Invalid value "{content_type}" of "Content-Type" header: must be "application/json; charset=utf-8" or "application/json;charset=utf-8" for "{request.path}" request.')
         
         accept = headers['Accept']
         if (
             accept != 'application/json; charset=utf-8' and
             accept != 'application/json;charset=utf-8'
         ):
-            return _http_response(request, '', 400, Reason=f'Invalid value "{accept}" of "Accept" header: must be "application/json; charset=utf-8" or "application/json;charset=utf-8".')
+            return _http_response(request, '', 400, Reason=f'Invalid value "{accept}" of "Accept" header: must be "application/json; charset=utf-8" or "application/json;charset=utf-8" for "{request.path}" request.')
 
         try:
             content_length = int(headers['Content-Length'])
         except ValueError:
             return _http_response(request, '', 400, Reason='Invalid type for "Content-Length" header: must be of integer type.')
         if content_length < 2:
-            return _http_response(request, '', 400, Reason=f'Invalid value "{content_length}" for "Content-Length" header: must be in [2, {_max_content_length}] for {request.url} request.')
+            return _http_response(request, '', 400, Reason=f'Invalid value "{content_length}" for "Content-Length" header: must be in [2, {_max_content_length}] for {request.path} request.')
         if content_length > _max_content_length:
-            return _http_response(request, '', 413, Reason=f'Invalid value "{content_length}" for "Content-Length" header: must be in [2, {_max_content_length}] for {request.url} request.')
+            return _http_response(request, '', 413, Reason=f'Invalid value "{content_length}" for "Content-Length" header: must be in [2, {_max_content_length}] for {request.path} request.')
     elif request_type == 'resource':
         accept = headers['Accept']
         if request.base_url.rpartition('/')[2] == 'preview':
@@ -122,7 +122,7 @@ def check_http_body(request: request, request_type: str) -> Union['Response', No
         try:
             request_json = json.loads(request.get_data())
         except ValueError:
-            return _http_response(request, '', 400, Reason='The request\'s body is not a valid JSON.')
+            return _http_response(request, '', 400, Reason='The request\'s body is not a valid JSON document.')
         if not request_json:
             return _http_response(request, '', 400, Reason='The request\'s body must not be an empty JSON document for command execution requests.')
     elif request_type == 'resource':
@@ -204,7 +204,7 @@ def handle_resource(res_type):
     try:
         rgb = executor.pv_man.get(id_)
     except KeyError:
-        return _http_response(request, '', 404, Reason=f'Requested preview "{request.url}" does not exist.')
+        return _http_response(request, '', 404, Reason=f'Requested preview "{request.path}" does not exist.')
     
     if int(request.headers['Width']) != rgb.width:
         return _http_response(request, '', 400, Reason=f'Invalid width {request.headers['Width']} in the "Width" header: actual width of the requested preview is {rgb.width}.')
@@ -214,8 +214,8 @@ def handle_resource(res_type):
     buf = BytesIO()
     img = Image.fromarray(rgb.array)
     img.save(buf, format='PNG')
-
-    # img.show()
+    buf.seek(0)
+    
     return _http_response(request, buf, 200, Width=rgb.width, Height=rgb.height)
 
 @server.post('/api/<command>')

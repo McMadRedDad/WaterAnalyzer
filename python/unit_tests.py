@@ -33,7 +33,7 @@ http_reason = {
     'inv_proto_v': 'Invalid protocol version ',
     'inv_request_id_type': 'Invalid type for "Request-ID" header: must be ',
     'inv_request_id': ' of "Request-ID" header: must be ',
-    'inv_json': ' is not a valid JSON.',
+    'inv_json': ' is not a valid JSON document.',
     'empty_json': ' must not be an empty JSON document ',
     'endpoint_mismatch': ' does not match to the endpoint ',
     'proto_v_mismatch': 'Protocol versions do not match ',

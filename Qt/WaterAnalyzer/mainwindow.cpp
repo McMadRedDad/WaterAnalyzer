@@ -135,7 +135,14 @@ void MainWindow::handle_response(QNetworkReply *response) {
   response->deleteLater();
 }
 
-void MainWindow::process_get(QByteArray body) {}
+void MainWindow::process_get(QByteArray body) {
+  QPixmap preview;
+  preview.loadFromData(body, "PNG");
+  QLabel *l = new QLabel();
+  l->setAttribute(Qt::WA_DeleteOnClose);
+  l->setPixmap(preview);
+  l->show();
+}
 
 void MainWindow::process_post(QUrl endpoint, QByteArray body) {
   QString command = endpoint.toString().split("/").last();
