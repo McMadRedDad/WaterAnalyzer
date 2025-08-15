@@ -18,6 +18,8 @@ QT_END_NAMESPACE
 struct STATE {
   enum Page { BAD = -1, IMPORT, SELECTION, RESULT } page;
   QList<ClickableQWidget *> pages; // same order as Page
+  QDir selected_dir;
+  QMap<QString, uint> file_ids;
 };
 
 class MainWindow : public QMainWindow {

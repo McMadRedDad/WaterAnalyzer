@@ -16,7 +16,9 @@ MainWindow::MainWindow(QWidget *parent)
   state.pages[0]->show();
   connect(state.pages[0], &ClickableQWidget::clicked, this,
           &MainWindow::import_clicked);
+
   state.page = STATE::Page::IMPORT;
+  state.selected_dir = QDir();
 
   backend_ip = QHostAddress::LocalHost;
   backend_port = 42069;
@@ -157,6 +159,7 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
     set_status_message(true, "Сервер завершил работу");
   } else if (command == "import_gtiff") {
     QJsonObject info = result["info"].toObject();
+    state.file_ids[result["file"].toString()] = result["id"].toInt();
     append_log("info", "Id: " + QString::number(result["id"].toInt()) +
                            ", file: " + result["file"].toString());
     set_status_message(true, "Изображение успешно загружено");
@@ -229,20 +232,38 @@ void MainWindow::change_page(STATE::Page to) {
 
 void MainWindow::on_pushButton_back_clicked() {
   switch (state.page) {
-  case STATE::Page::IMPORT:
+  case STATE::Page::IMPORT: {
     send_request("command", proto.shutdown());
     state.page = STATE::Page::BAD;
     break;
-  case STATE::Page::SELECTION:
+  }
+  case STATE::Page::SELECTION: {
     change_page(STATE::Page::IMPORT);
     connect(state.pages[0], &ClickableQWidget::clicked, this,
             &MainWindow::import_clicked);
 
-    send_request("command", proto.calc_preview(0, 1, 2));
+    int ids[3] = {-1, -1, -1};
+    for (QString f : state.selected_dir.entryList()) {
+      if (f.endsWith("_B4.TIF")) {
+        ids[0] = state.file_ids.value(state.selected_dir.absoluteFilePath(f));
+      }
+      if (f.endsWith("_B3.TIF")) {
+        ids[1] = state.file_ids.value(state.selected_dir.absoluteFilePath(f));
+      }
+      if (f.endsWith("_B2.TIF")) {
+        ids[2] = state.file_ids.value(state.selected_dir.absoluteFilePath(f));
+        qDebug() << state.selected_dir.absoluteFilePath(f);
+      }
+    }
+    send_request("command", proto.calc_preview(ids[0], ids[1], ids[2]));
+    state.selected_dir = QDir();
+    state.file_ids.clear();
     break;
-  case STATE::Page::RESULT:
+  }
+  case STATE::Page::RESULT: {
     //
     break;
+  }
   default:
     return;
   }
@@ -261,43 +282,42 @@ void MainWindow::on_pushButton_showLog_clicked() {
 void MainWindow::closeEvent(QCloseEvent *e) {}
 
 void MainWindow::import_clicked() {
-  // QDir dir = QFileDialog::getExistingDirectory(this, "Открыть директорию",
-  //                                              QDir::homePath());
-  // int counter = 0;
-  // for (QString f : dir.entryList()) {
-  //   if (f.endsWith(".tif") || f.endsWith(".tiff") || f.endsWith(".TIF") ||
-  //       f.endsWith(".TIFF")) {
-  //     send_request("command",
-  //                  proto.import_gtiff(dir.absolutePath() + "/" + f));
-  //     counter++;
-  //   }
-  // }
-  // if (counter == 0) {
-  //   append_log("bad", QString("В выбранной директории %1 нет снимков
-  //   GeoTiff.")
-  //                         .arg(dir.absolutePath()));
-  //   set_status_message(false, "В выбранной директории нет снимков");
-  //   return;
-  // }
+  QDir dir = QFileDialog::getExistingDirectory(this, "Открыть директорию",
+                                               QDir::homePath());
+  int counter = 0;
+  for (QString f : dir.entryList()) {
+    if (f.endsWith(".tif") || f.endsWith(".tiff") || f.endsWith(".TIF") ||
+        f.endsWith(".TIFF")) {
+      send_request("command", proto.import_gtiff(dir.absolutePath() + "/" + f));
+      counter++;
+    }
+  }
+  if (counter == 0) {
+    append_log("bad", QString("В выбранной директории %1 нет снимков GeoTiff.")
+                          .arg(dir.absolutePath()));
+    set_status_message(false, "В выбранной директории нет снимков");
+    return;
+  }
+  state.selected_dir = dir;
 
-  send_request(
-      "command",
-      proto.import_gtiff("/home/tim/Учёба/Test "
-                         "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
-                         "LC09_L1TP_188012_20230710_20230710_02_T1_B2.TIF"));
-  send_request(
-      "command",
-      proto.import_gtiff("/home/tim/Учёба/Test "
-                         "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
-                         "LC09_L1TP_188012_20230710_20230710_02_T1_B3.TIF"));
-  send_request(
-      "command",
-      proto.import_gtiff("/home/tim/Учёба/Test "
-                         "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
-                         "LC09_L1TP_188012_20230710_20230710_02_T1_B4.TIF"));
-  // send_request("command", proto.import_gtiff(
-  //                             "/home/tim/Учёба/Test
-  //                             data/dacha_dist_10px.tif"));
+  // send_request(
+  //     "command",
+  //     proto.import_gtiff("/home/tim/Учёба/Test "
+  //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
+  //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B2.TIF"));
+  // send_request(
+  //     "command",
+  //     proto.import_gtiff("/home/tim/Учёба/Test "
+  //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
+  //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B3.TIF"));
+  // send_request(
+  //     "command",
+  //     proto.import_gtiff("/home/tim/Учёба/Test "
+  //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
+  //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B4.TIF"));
+  // // send_request("command", proto.import_gtiff(
+  // //                             "/home/tim/Учёба/Test
+  // //                             data/dacha_dist_10px.tif"));
 
   change_page(STATE::Page::SELECTION);
   disconnect(state.pages[0], &ClickableQWidget::clicked, this,
