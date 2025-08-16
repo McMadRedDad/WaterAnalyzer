@@ -252,7 +252,6 @@ void MainWindow::on_pushButton_back_clicked() {
       }
       if (f.endsWith("_B2.TIF")) {
         ids[2] = state.file_ids.value(state.selected_dir.absoluteFilePath(f));
-        qDebug() << state.selected_dir.absoluteFilePath(f);
       }
     }
     send_request("command", proto.calc_preview(ids[0], ids[1], ids[2]));
