@@ -166,6 +166,7 @@ test_files = {
     'gtiff_ok4': '/home/tim/Учёба/Test data/dacha_dist.tif',
     'gtiff_ok5': '/home/tim/Учёба/Test data/dacha_dist_10px.tif',
     'only_nodata': '/home/tim/Учёба/Test data/empty.tif',
+    'regular_tif': '/home/tim/Учёба/Test data/japanese-stone-lantern.tif',
     'saga_grid': '/home/tim/Учёба/Test data/dacha.sg-grd-z',
     'shape': '/home/tim/Учёба/Test data/dacha.shp',
     'non_existent': '/home/tim/42069.34'
@@ -482,6 +483,15 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['shape']
+        }
+    },
+    'import_gtiff_not_geotiff3': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_gtiff",
+        "parameters": {
+            "file": test_files['regular_tif']
         }
     },
     'calc_preview_ok': {
@@ -821,6 +831,7 @@ class Test(unittest.TestCase):
     def test_json_import_gtiff(self):
         self.assertEqual(20300, check_json(requests_json['import_gtiff_not_geotiff1']))
         self.assertEqual(20300, check_json(requests_json['import_gtiff_not_geotiff2']))
+        self.assertEqual(20300, check_json(requests_json['import_gtiff_not_geotiff3']))
         self.assertEqual(20301, check_json(requests_json['import_gtiff_non_existent']))
 
     def test_json_calc_preview(self):
@@ -927,6 +938,7 @@ class Test(unittest.TestCase):
 
         self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff1'])))
         self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff2'])))
+        self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff3'])))
         self.assertEqual((500, 20301) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_non_existent'])))
 
         self.assertEqual((400, 10400), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_ids'])))

@@ -71,7 +71,11 @@ class DatasetManager:
         try:
             dataset = gdal.Open(file, gdal.GA_ReadOnly)
         except RuntimeError:
+            dataset = None
             raise RuntimeError(f'Cannot open file {file}')
+        if dataset.GetSpatialRef() is None:
+            dataset = None
+            raise ValueError(f'Opened file {file} is not a spatial image')
 
         with self._lock:
             for id_, ds in self._datasets.items():
@@ -231,6 +235,8 @@ class GdalExecutor:
                 dataset = self.ds_man.get(dataset_id)
             except (RuntimeError, KeyError):
                 return _response(20301, {"error": f"failed to open file '{parameters['file']}'"})
+            except ValueError:
+                return _response(20300, {"error": f"provided file '{parameters['file']}' is not a GeoTiff image"})
             if dataset.GetDriver().ShortName != 'GTiff':
                 return _response(20300, {"error": f"provided file '{parameters['file']}' is not a GeoTiff image"})
             
