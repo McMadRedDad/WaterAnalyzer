@@ -824,14 +824,14 @@ class Test(unittest.TestCase):
         self.assertEqual(20301, check_json(requests_json['import_gtiff_non_existent']))
 
     def test_json_calc_preview(self):
-        self.assertEqual(10500, check_json(requests_json['calc_preview_inv_ids']))
-        self.assertEqual(10501, check_json(requests_json['calc_preview_4_ids']))
-        self.assertEqual(10502, check_json(requests_json['calc_preview_inv_id1']))
-        self.assertEqual(10502, check_json(requests_json['calc_preview_inv_id2']))
-        self.assertEqual(10502, check_json(requests_json['calc_preview_inv_id3']))
-        self.assertEqual(20500, check_json(requests_json['calc_preview_non_existent_id']))
-        self.assertEqual(20501, check_json(requests_json['calc_preview_dim_mismatch']))
-        # 20502
+        self.assertEqual(10400, check_json(requests_json['calc_preview_inv_ids']))
+        self.assertEqual(10401, check_json(requests_json['calc_preview_4_ids']))
+        self.assertEqual(10402, check_json(requests_json['calc_preview_inv_id1']))
+        self.assertEqual(10402, check_json(requests_json['calc_preview_inv_id2']))
+        self.assertEqual(10402, check_json(requests_json['calc_preview_inv_id3']))
+        self.assertEqual(20400, check_json(requests_json['calc_preview_non_existent_id']))
+        self.assertEqual(20401, check_json(requests_json['calc_preview_dim_mismatch']))
+        # 20402
 
     ### BOTH ###
 
@@ -929,14 +929,14 @@ class Test(unittest.TestCase):
         self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff2'])))
         self.assertEqual((500, 20301) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_non_existent'])))
 
-        self.assertEqual((400, 10500), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_ids'])))
-        self.assertEqual((400, 10501), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_4_ids'])))
-        self.assertEqual((400, 10502), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_id1'])))
-        self.assertEqual((400, 10502), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_id2'])))
-        self.assertEqual((400, 10502), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_id3'])))
-        self.assertEqual((404, 20500), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_non_existent_id'])))
-        self.assertEqual((400, 20501), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_dim_mismatch'])))
-        # 20502
+        self.assertEqual((400, 10400), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_ids'])))
+        self.assertEqual((400, 10401), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_4_ids'])))
+        self.assertEqual((400, 10402), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_id1'])))
+        self.assertEqual((400, 10402), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_id2'])))
+        self.assertEqual((400, 10402), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_id3'])))
+        self.assertEqual((404, 20400), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_non_existent_id'])))
+        self.assertEqual((400, 20401), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_dim_mismatch'])))
+        # 20402
 
 if __name__ == '__main__':
     unittest.main()

@@ -7,7 +7,7 @@ There are two layers of error checking.
 Firstly, overall request validity on the HTTP level is checked. This includes correct set of headers, valid JSON body, etc. If any error is caught, a response is sent immediately with an empty body and a "Reason" header containing a description of the error. Otherwise, the protocol proceeds to the next layer.
 Secondly, the JSON body itself, if applicable, is checked according to the main part of this protocol and an appropriate response is generated. Alongside the JSON errors, HTTP status codes are utilized as a general clue on the result of the request.
 
-## URL validation
+# URL validation
 
 If the request was sent to an unknown endpoint, an HTTP 400 Bad Request is sent with one of the following "Reason" headers:
 
@@ -26,7 +26,7 @@ Reason: "id" parameter of the query string must be of integer type.
 
 For these, and **these only**, responses mandatory HTTP headers defined below are optional to be included.
 
-## Mandatory HTTP headers
+# Mandatory HTTP headers
 
 **Command execution** requests must include the following HTTP headers:
 - Content-Type: application/json; charset=utf-8
@@ -90,12 +90,12 @@ The mandatory headers' values are considered valid for **resource** requests if:
 If any header is invalid, an HTTP 400 Bad Request response with an empty body and one of the following "Reason" headers is sent:
 
 Reason: Invalid value "`invalid value`" of "Accept" header: must be "image/png" for /resource/preview request.
-Reason: Invalid value "`invalid value`" of "Accept" header: must be "**TBA**" for /resource/**TBA** request.
+Reason: Invalid value "`invalid value`" of "Accept" header: must be "**TBA**" for /resource/index request.
 Reason: Invalid protocol version "`provided version`" in "Protocol-Version" header: used protocol version is "`used protocol version`".
 Reason: Invalid type for "Request-ID" header: must be of integer type.
 Reason: Invalid value "`value`" of "Request-ID" header: must be >= 0.
 
-## HTTP request body validation
+# HTTP request body validation
 
 After successfully passing HTTP headers check, the request proceeds to body validation. At this point, it is only checked if the body is of correct type and in a valid format.
 
@@ -113,14 +113,14 @@ Reason: The request's body must be empty for resource requests.
 
 If the request passed body validation, it proceeds to the second layer of error checking related to the JSON part of this protocol.
 
+# Command execution requests
 ## Supported commands
 
-1. PING - check connection and get a "PONG" piece of data
-2. SHUTDOWN - turn the server off
-3. import_gtiff - load a GeoTiff file to the server and cache it
-4. export_gtiff - save a GeoTiff file on the client's machine
-5. calc_preview - request an image preview. Upon recieving a successful response, the client sends an HTTP/2 GET request for the actual image
-6. calc_index - create a spectral index and cache it
+1. PING             - check connection and get a "PONG" piece of data
+2. SHUTDOWN         - turn the server off
+3. import_gtiff     - load a GeoTiff file to the server and cache it
+4. calc_preview     - request the server to calculate an image preview from cached GeoTiffs
+5. calc_index       - create a spectral index and cache it
 
 ## Message structure
 
@@ -151,7 +151,7 @@ Status codes follow these general rules:
 
 Below are specifics for requests and responses for each supported command.
 
-### Common status codes
+## Common status codes
 
 1. Invalid request structure:
     - `status` - 10000
@@ -214,7 +214,7 @@ Below are specifics for requests and responses for each supported command.
     - `result` - { "error": "too many requests" }
     -  HTTP 429 Too Many Requests
 
-### ping
+## ping
 
 *REQUEST*
 
@@ -232,7 +232,7 @@ Below are specifics for requests and responses for each supported command.
     - `result` - { "error": "'`parameters`' must be an empty object for 'PING'request" }
     -  HTTP 400 Bad Request
 
-### shutdown
+## shutdown
 
 *REQUEST*
 
@@ -260,12 +260,12 @@ Below are specifics for requests and responses for each supported command.
     - `result` - { "error": "failed to close '`filename`'" }
     -  HTTP 500 Internal Server Error
 
-### import gtiff
+## import gtiff
 
 *REQUEST*
 
 - `operation`  - "import_gtiff"
-- `parameters` - { "file": "`/path/to/file.tif`" }
+- `parameters` - { "file": "`/path/to/file.tif`" }  !!!no local paths for remote servers; fine for now!!!
 
 *RESPONSE*
 
@@ -293,46 +293,7 @@ Below are specifics for requests and responses for each supported command.
     - `result` - { "error": "failed to open file '`filename`'" }
     -  HTTP 500 Internal Server Error
 
-|-########################################-|
-|     THIS SHOULD BE AN HTTP OPERATION     |
-|-↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓-|
-
-### export gtiff
-
-*REQUEST*
-
-- `operation`  - "export_gtiff"
-- `parameters` - {
-    "id": `id`                    - [INT] id of the index (from cache) to save as a GeoTiff file
-    "file": "`/path/to/file.tif`"
-    }
-
-*RESPONSE*
-
-1. Success:
-    - `status` - 0
-    - `result` - {}
-    -  HTTP 200 OK
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-2. Invalid id:
-    - `status` - 10400
-    - `result` - { "error": "invalid id '`id`' in `parameters`" }
-    -  HTTP 400 Bad Request
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-3. Non-existent id:
-    - `status` - 20400
-    - `result` - { "error": "id '`provided id`' does not exist" }
-    -  HTTP 404 Not Found
-4. Unknown error:
-    - `status` - 20401
-    - `result` - { "error": "failed to write file '`filename`'" }
-    -  HTTP 500 Internal Server Error
-
-|-↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑-|
-|     THIS SHOULD BE AN HTTP OPERATION     |
-|-########################################-|
-
-### calculate preview
+## calculate preview
 
 *REQUEST*
 
@@ -352,31 +313,101 @@ Below are specifics for requests and responses for each supported command.
     }
     -  HTTP 200 OK
 2. Invalid ids type:
-    - `status` - 10500
+    - `status` - 10400
     - `result` - { "error": "invalid '`ids`' key: must be an array of 3 integer values" }
     -  HTTP 400 Bad Request
 3. Invalid array length:
-    - `status` - 10501
+    - `status` - 10401
     - `result` - { "error": "exactly 3 values must be specified in '`ids`' key" }
     -  HTTP 400 Bad Request
 4. Invalid id:
-    - `status` - 10502
+    - `status` - 10402
     - `result` - { "error": "invalid id '`id`' in '`ids`' key" }
     -  HTTP 400 Bad Request
 5. Non-existent id:
-    - `status` - 20500
+    - `status` - 20400
     - `result` - { "error": "id '`provided id`' provided in '`ids`' key does not exist" }
     -  HTTP 404 Not Found
 6. Raster dimensions do not match:
-    - `status` - 20501
+    - `status` - 20401
     - `result` - { "error": "unable to create a preview from requested ids: rasters do not match in dimensions" }
     -  HTTP 400 Bad Request
 7. Unknown error:
-    - `status` - 20502
+    - `status` - 20402
     - `result` - { "error": "unknown error" }
     -  HTTP 500 Internal Server Error
 
-Upon recieving a "status: 0" response, the client is free to construct a resource request as an HTTP/2 GET request to get the actual preview image:
+## calculate index
+
+*REQUEST*
+
+- `operation`  - "calc_index"
+- `parameters` - {
+    "ids": [`id_1`, `id_2`, ...],    - [ARRAY of INTs] ids of the files (from cache) to use to generate the index. Provided ids are used in the same order as in the index' formula, e.g. for NDVI = (NIR - RED) / (NIR + RED) id_1 is used for NIR and id_2 is used for RED, because in the index's formula NIR appeared first.
+    "index": "`name of the index`"   - [STRING] name of the index/algorithm to calculate
+    }
+
+*RESPONSE*
+
+1. Success:
+    - `status` - 0
+    - `result` - {
+        "id": `id`,       - [INT] id of created spectral index (stored on the server)
+        "metadata": {     - [OBJECT] metadata of the index
+            ...
+        }
+    }
+    -  HTTP 200 OK
+2. Invalid id:
+    - `status` - 10500
+    - `result` - { "error": "invalid id '`id`' in '`parameters`'" }
+    -  HTTP 400 Bad Request
+3. Invalid array length:
+    - `status` - 10501
+    - `result` - { "error": "exactly `n` values must be specified in '`ids`' key for calculating '`index`' index: `k` values given" }
+    -  HTTP 400 Bad Request
+4. Non-existent id:
+    - `status` - 20500
+    - `result` - { "error": "id '`provided id`' in '`ids`' does not exist" }
+    -  HTTP 404 Not Found
+5. Raster dimensions do not match:
+    - `status` - 20501
+    - `result` - { "error": "unable to create a preview from requested ids: rasters do not match in dimensions" }
+    -  HTTP 400 Bad Request
+6. Unknown/unsupported index:
+    - `status` - 20502
+    - `result` - { "error": "index '`index`' is not supported or unknown" }
+    -  HTTP 400 Bad Request
+7. Unknown error:
+    - `status` - 20503
+    - `result` - { "error": "unknown error" }
+    -  HTTP 500 Internal Server Error
+
+## HTTP and JSON cross-validation
+
+If applicable to the request type e.g. for command execution requests, after a request successfully passes the HTTP error checking layer and the 'client' part of the JSON error checking layer (status code 1xxxx errors) which guarantees that the JSON payload contains a valid request according to this protocol, some HTTP request's parts are compared to certain JSON payload's keys. The following comparisons are performed:
+
+- HTTP endpoint and JSON `operation` key
+- HTTP "Protocol-Version" header and JSON `proto_version` key
+- HTTP "Request-ID" header and JSON `id` key
+
+If values in any pair mismatch or refer to different entities (for example, the request was sent to /api/ping, but the `operation` key contains 'export_gtiff'), an HTTP 400 Bad Request is sent with the same payload as in the request and one of the "Reason" headers:
+
+Reason: Requested operation "`operation`" does not match to the endpoint "/api/`command`".
+Reason: Protocol versions do not match in HTTP header and JSON payload: "`version in header`" and "`version in body`".
+Reason: Request ids do not match in HTTP header and JSON payload: "`id in header`" and "`id in body`".
+
+# Resource requests
+
+The following resource endpoints are supported:
+- /resource/preview     - for 8bit PNG previews of GeoTiff images
+- /resource/index       - for GeoTiff images
+
+All resource requests are constructed as HTTP/2 GET requests with an empty body, headers defined in Mandatory HTTP headers and possibly extra headers depending on the resource type and a query string with the only `id` parameter equal to an integer number.
+
+## Preview
+
+Upon recieving a "status: 0" response for `calc_preview` request, the client is free to construct a resource request to get the actual preview image:
 
 GET /resource/preview?id=`id` HTTP/2
 Accept: image/png
@@ -415,67 +446,32 @@ If there is no preview with requested URL, an HTTP 404 Not Found with an empty b
 
 Reason: Requested preview "`request url`" does not exist.
 
-### calculate index
+## Index
 
-*REQUEST*
+Requests for indices are ment to get the actual geographical image and save it on the client's machine. No extra mandatory headers are defined.
 
-- `operation`  - "calc_index"
-- `parameters` - {
-    "ids": [`id_1`, `id_2`, ...],    - [ARRAY of INTs] ids of the files (from cache) to use to generate the index. Provided ids are used in the same order as in the index' formula, e.g. for NDVI = (NIR - RED) / (NIR + RED) id_1 is used for NIR and id_2 is used for RED, because in the index's formula NIR appeared first.
-    "index": "`name of the index`"   - [STRING] name of the index/algorithm to calculate
-    }
+GET /resource/index?id=`id` HTTP/2
+Accept: **TBA**
+Protocol-Version: `this protocol's version`
+Request-ID: `id`
 
-*RESPONSE*
 
-1. Success:
-    - `status` - 0
-    - `result` - {
-        "id": `id`,       - [INT] id of created spectral index (stored on the server)
-        "metadata": {     - [OBJECT] metadata of the index
-            ...
-        }
-    }
-    -  HTTP 200 OK
-2. Invalid id:
-    - `status` - 10600
-    - `result` - { "error": "invalid id '`id`' in '`parameters`'" }
-    -  HTTP 400 Bad Request
-3. Invalid array length:
-    - `status` - 10601
-    - `result` - { "error": "exactly `n` values must be specified in '`ids`' key for calculating '`index`' index: `k` values given" }
-    -  HTTP 400 Bad Request
-4. Non-existent id:
-    - `status` - 20600
-    - `result` - { "error": "id '`provided id`' in '`ids`' does not exist" }
-    -  HTTP 404 Not Found
-5. Raster dimensions do not match:
-    - `status` - 20601
-    - `result` - { "error": "unable to create a preview from requested ids: rasters do not match in dimensions" }
-    -  HTTP 400 Bad Request
-6. Unknown/unsupported index:
-    - `status` - 20602
-    - `result` - { "error": "index '`index`' is not supported or unknown" }
-    -  HTTP 400 Bad Request
-7. Unknown error:
-    - `status` - 20603
-    - `result` - { "error": "unknown error" }
-    -  HTTP 500 Internal Server Error
+The response follows:
 
-## HTTP and JSON cross-validation
+HTTP/2 200 OK
+Server: `HTTP server`
+Content-Type: **TBA**
+Content-Length: `response's body length in bytes`
+Protocol-Version: `this protocol's version`
+Request-ID: `request's id`
 
-If applicable to the request type e.g. for command execution requests, after a request successfully passes the HTTP error checking layer and the 'client' part of the JSON error checking layer (status code 1xxxx errors) which guarantees that the JSON payload contains a valid request according to this protocol, some HTTP request's parts are compared to certain JSON payload's keys. The following comparisons are performed:
+`binary representation`
 
-- HTTP endpoint and JSON `operation` key
-- HTTP "Protocol-Version" header and JSON `proto_version` key
-- HTTP "Request-ID" header and JSON `id` key
+If there is no index with requested URL, an HTTP 404 Not Found with an empty body and a "Reason" header is sent:
 
-If values in any pair mismatch or refer to different entities (for example, the request was sent to /api/ping, but the `operation` key contains 'export_gtiff'), an HTTP 400 Bad Request is sent with the same payload as in the request and one of the "Reason" headers:
+Reason: Requested preview "`request url`" does not exist.
 
-Reason: Requested operation "`operation`" does not match to the endpoint "/api/`command`".
-Reason: Protocol versions do not match in HTTP header and JSON payload: "`version in header`" and "`version in body`".
-Reason: Request ids do not match in HTTP header and JSON payload: "`id in header`" and "`id in body`".
-
-## Examples
+# Examples
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 TODO GET requests

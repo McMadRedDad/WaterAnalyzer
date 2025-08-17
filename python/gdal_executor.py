@@ -256,13 +256,13 @@ class GdalExecutor:
                 try:
                     ds.append(self.ds_man.get(i))
                 except KeyError:
-                    return _response(20500, {"error": f"id {i} provided in 'ids' key does not exist"})
+                    return _response(20400, {"error": f"id {i} provided in 'ids' key does not exist"})
             if not (
                 ds[0].RasterXSize == ds[1].RasterXSize == ds[2].RasterXSize and
                 ds[0].RasterYSize == ds[1].RasterYSize == ds[2].RasterYSize
             ):
-                return _response(20501, {"error": "unable to create a preview from requested ids: rasters do not match in size"})
-            # error 20502
+                return _response(20401, {"error": "unable to create a preview from requested ids: rasters do not match in size"})
+            # error 20402
 
             existing = self.pv_man.find(id_r, id_g, id_b)
             if existing is not None:

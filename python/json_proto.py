@@ -126,12 +126,12 @@ class Protocol:
                 return params_check
             ids = parameters['ids']
             if type(ids) is not list:
-                return _response(10500, {"error": "invalid 'ids' key: must be an array of 3 integer values"})
+                return _response(10400, {"error": "invalid 'ids' key: must be an array of 3 integer values"})
             if len(ids) != 3:
-                return _response(10501, {"error": "exactly 3 values must be specified in 'ids' key"})
+                return _response(10401, {"error": "exactly 3 values must be specified in 'ids' key"})
             for i in range(3):
                 if type(ids[i]) is not int:
-                    return _response(10502, {"error": f"invalid id '{ids[i]}' in 'ids' key"})
+                    return _response(10402, {"error": f"invalid id '{ids[i]}' in 'ids' key"})
             return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})
