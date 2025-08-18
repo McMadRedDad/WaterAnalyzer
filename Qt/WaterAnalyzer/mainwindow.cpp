@@ -64,7 +64,8 @@ void MainWindow::send_request(QString type, QJsonObject data) {
     req.setRawHeader("Accept", "image/png");
     req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
     req.setRawHeader("Request-ID",
-                     QString::number(data["id"].toInt()).toUtf8());
+                     QString::number(proto.get_counter()).toUtf8());
+    proto.inc_counter();
     req.setRawHeader("Width",
                      QString::number(result["width"].toInt()).toUtf8());
     req.setRawHeader("Height",
@@ -127,7 +128,7 @@ void MainWindow::handle_response(QNetworkReply *response) {
 
     //
 
-    process_get(response->readAll());
+    process_get(response->request().url(), response->readAll());
   } else if (response->operation() == QNetworkAccessManager::PostOperation) {
     process_post(response->request().url(), response->readAll());
   } else {
@@ -137,14 +138,47 @@ void MainWindow::handle_response(QNetworkReply *response) {
   response->deleteLater();
 }
 
-void MainWindow::process_get(QByteArray body) {
-  // QPixmap preview;
-  // preview.loadFromData(body, "PNG");
-  // QLabel *l = new QLabel();
-  // l->setAttribute(Qt::WA_DeleteOnClose);
-  // l->setPixmap(preview);
-  // l->show();
-  qDebug() << body.length();
+void MainWindow::process_get(QUrl endpoint, QByteArray body) {
+  QString type = endpoint.toString().split("/").last().split("?").first();
+  if (type == "preview") {
+    QPixmap preview;
+    preview.loadFromData(body, "PNG");
+    QLabel *l = new QLabel();
+    l->setAttribute(Qt::WA_DeleteOnClose);
+    l->setPixmap(preview);
+    l->show();
+  } else if (type == "index") {
+    QString path = QFileDialog::getSaveFileName(this, "Сохранить файл GeoTiff",
+                                                QDir::homePath());
+    if (!(path.endsWith(".tif") || path.endsWith(".tiff") ||
+          path.endsWith(".TIF") || path.endsWith(".TIFF"))) {
+      path.append(".tif");
+    }
+    QFile *file = new QFile(path);
+    if (!file->open(QIODevice::WriteOnly)) {
+      append_log("bad", "Не удалось открыть файл " + path + " для записи.");
+      set_status_message(false, "Не удалось открыть файл для записи");
+      delete file;
+      file = nullptr;
+      return;
+    }
+    qint64 written = file->write(body);
+    if (written != body.size()) {
+      append_log("bad", "Не удалось записать файл " + path +
+                            " целиком. Скорее всего, файл повреждён.");
+      set_status_message(false, "Не удалось записать файл");
+    } else {
+      append_log("good", "Файл " + path + " успешно сохранён.");
+      set_status_message(true, "Файл успешно сохранён");
+    }
+    delete file;
+    file = nullptr;
+  } else {
+    append_log("info",
+               "Запрошена неизвестный тип ресурса, но сервер его обработал: " +
+                   type + ".");
+    set_status_message(false, "Неизвестный тип ресурса");
+  }
 }
 
 void MainWindow::process_post(QUrl endpoint, QByteArray body) {
@@ -259,15 +293,16 @@ void MainWindow::on_pushButton_back_clicked() {
     //   }
     // }
     // send_request("command", proto.calc_preview(ids[0], ids[1], ids[2]));
-    for (int i = 0; i < 17; i++) {
-      QNetworkRequest req("http://" + backend_ip.toString() + ":" +
-                          QString::number(backend_port) +
-                          QString("/resource/index?id=%1").arg(i));
-      req.setRawHeader("Accept", "image/tiff");
-      req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
-      req.setRawHeader("Request-ID", QString::number(i).toUtf8());
-      net_man->get(req);
-    }
+
+    QNetworkRequest req("http://" + backend_ip.toString() + ":" +
+                        QString::number(backend_port) +
+                        QString("/resource/index?id=0"));
+    req.setRawHeader("Accept", "image/tiff");
+    req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
+    req.setRawHeader("Request-ID",
+                     QString::number(proto.get_counter()).toUtf8());
+    proto.inc_counter();
+    net_man->get(req);
     state.selected_dir = QDir();
     state.file_ids.clear();
     break;

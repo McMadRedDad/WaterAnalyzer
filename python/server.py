@@ -210,7 +210,7 @@ def handle_resource(res_type):
         try:
             rgb = executor.pv_man.get(id_)
         except KeyError:
-            return _http_response(request, '', 404, Reason=f'Requested preview "{request.path}" does not exist.')
+            return _http_response(request, '', 404, Reason=f'Requested preview "{id_}" does not exist.')
         
         if int(request.headers['Width']) != rgb.width:
             return _http_response(request, '', 400, Reason=f'Invalid width {request.headers['Width']} in the "Width" header: actual width of the requested preview is {rgb.width}.')
@@ -226,7 +226,11 @@ def handle_resource(res_type):
         
     if res_type == 'index':
         with tempfile.NamedTemporaryFile(mode='w+b', delete=True, delete_on_close=True) as tmp:
-            dataset = executor.ds_man.get(id_)
+            try:
+                dataset = executor.ds_man.get(id_)
+            except KeyError:
+                return _http_response(request, '', 404, Reason=f'Requested index "{id_}" does not exist.')
+
             dataset.GetDriver().CreateCopy(tmp.name, dataset, strict=False)
             tmp.seek(0)
             data = tmp.read()

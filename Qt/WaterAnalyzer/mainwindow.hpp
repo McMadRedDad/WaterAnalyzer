@@ -45,7 +45,7 @@ private:
 
   void send_request(QString type, QJsonObject data);
   void handle_response(QNetworkReply *response);
-  void process_get(QByteArray body);
+  void process_get(QUrl endpoint, QByteArray body);
   void process_post(QUrl endpoint, QByteArray body);
 
   void set_status_message(bool good, QString message, short msec = 3000);

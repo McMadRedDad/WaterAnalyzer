@@ -24,6 +24,8 @@ QJsonObject JsonProtocol::calc_preview(int r, int g, int b) {
                         QJsonObject{{"ids", QJsonArray{r, g, b}}});
 }
 
+void JsonProtocol::inc_counter() { counter++; }
+
 QJsonObject JsonProtocol::construct_json(QString operation,
                                          QJsonObject parameters) {
   QJsonObject json{{"proto_version", JsonProtocol::proto_version},
@@ -40,3 +42,5 @@ QString JsonProtocol::get_proto_version() {
 }
 
 QString JsonProtocol::get_server_version() { return server_version; }
+
+quint32 JsonProtocol::get_counter() { return counter; }

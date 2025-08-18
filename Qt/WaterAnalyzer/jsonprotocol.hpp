@@ -18,8 +18,10 @@ public:
   QJsonObject import_gtiff(QString file);
   QJsonObject calc_preview(int r, int g, int b);
 
+  void inc_counter();
   QString get_proto_version();
   QString get_server_version();
+  quint32 get_counter();
 
 private:
   QJsonObject construct_json(QString operation, QJsonObject parameters);

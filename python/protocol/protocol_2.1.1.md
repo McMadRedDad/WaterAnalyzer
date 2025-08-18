@@ -469,7 +469,7 @@ Request-ID: `request's id`
 
 If there is no index with requested URL, an HTTP 404 Not Found with an empty body and a "Reason" header is sent:
 
-Reason: Requested preview "`request url`" does not exist.
+Reason: Requested index "`request url`" does not exist.
 
 # Examples
 
