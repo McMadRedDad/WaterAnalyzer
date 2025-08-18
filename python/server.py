@@ -225,12 +225,12 @@ def handle_resource(res_type):
         return _http_response(request, buf, 200, Width=rgb.width, Height=rgb.height)
         
     if res_type == 'index':
-        with tempfile.NamedTemporaryFile(mode='w+b', delete=True, delete_on_close=True) as tmp:
-            try:
-                dataset = executor.ds_man.get(id_)
-            except KeyError:
-                return _http_response(request, '', 404, Reason=f'Requested index "{id_}" does not exist.')
+        try:
+            dataset = executor.ds_man.get(id_)
+        except KeyError:
+            return _http_response(request, '', 404, Reason=f'Requested index "{id_}" does not exist.')
 
+        with tempfile.NamedTemporaryFile(mode='w+b', delete=True, delete_on_close=True) as tmp:
             dataset.GetDriver().CreateCopy(tmp.name, dataset, strict=False)
             tmp.seek(0)
             data = tmp.read()

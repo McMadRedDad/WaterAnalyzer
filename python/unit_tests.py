@@ -47,7 +47,8 @@ http_reason = {
     'get_preview_inv_width_type': 'Invalid type for "Width" header: ',
     'get_preview_inv_height_type': 'Invalid type for "Height" header: ',
     'get_preview_width_mismatch': ' actual width of the requested preview is ',
-    'get_preview_height_mismatch': ' actual height of the requested preview is '
+    'get_preview_height_mismatch': ' actual height of the requested preview is ',
+    'get_index_404': ' does not exist.'
 }
 
 # Content-Length = string -> assuming invalid type
@@ -63,6 +64,11 @@ http_headers = {
     },
     'get_preview_ok': {
         'Accept': 'image/png',
+        'Protocol-Version': proto_version,
+        'Request-ID': 0
+    },
+    'get_index_ok': {
+        'Accept': 'image/tiff',
         'Protocol-Version': proto_version,
         'Request-ID': 0
     },
@@ -630,6 +636,7 @@ class Test(unittest.TestCase):
         width = prev.get_json()['result']['width']
         height = prev.get_json()['result']['height']
         self.assertEqual(200, GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=width, Height=height).status_code)
+        self.assertEqual(200, GET('/resource/index?id=0', http_headers['get_index_ok'], '').status_code)
         
         self.assertIsNone(POST('/api/PING', http_headers['ok'], requests_json['ping_ok']).headers.get('Reason'))
         self.assertIsNone(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok']).headers.get('Reason'))
@@ -644,26 +651,35 @@ class Test(unittest.TestCase):
         width = prev.get_json()['result']['width']
         height = prev.get_json()['result']['height']
         self.assertIsNone(GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=width, Height=height).headers.get('Reason'))
+        self.assertIsNone(GET('/resource/index?id=0', http_headers['get_index_ok'], '').headers.get('Reason'))
 
     def test_http_endpoint(self):
         self.assertEqual(400, POST('/api/unsupported', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('resource/unsupported?id=0', http_headers['ok'], '').status_code)
         self.assertEqual(404, GET('/resource/preview?id=4206934', http_headers['get_preview_ok'], '', Width=123, Height=123).status_code)
+        self.assertEqual(404, GET('/resource/index?id=4206934', http_headers['get_index_ok'], '').status_code)
 
         self.assertTrue(http_reason['unknown_endpoint'] in POST('/api/unsupported', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['unsupported_resource_type'] in GET('/resource/unsupported?id=0', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['get_preview_404'] in GET('/resource/preview?id=4206934', http_headers['get_preview_ok'], '', Width=123, Height=123).headers.get('Reason'))
+        self.assertTrue(http_reason['get_index_404'] in GET('/resource/index?id=4206934', http_headers['get_index_ok'], '').headers.get('Reason'))
 
     def test_query_string(self):
         self.assertEqual(400, POST('/api/PING?=', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/preview', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/preview?a=1&b=2', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/preview?id=abc', http_headers['ok'], '').status_code)
+        self.assertEqual(400, GET('/resource/index', http_headers['ok'], '').status_code)
+        self.assertEqual(400, GET('/resource/index?a=1&b=2', http_headers['ok'], '').status_code)
+        self.assertEqual(400, GET('/resource/index?id=abc', http_headers['ok'], '').status_code)
 
         self.assertTrue(http_reason['no_query_string'] in POST('/api/PING?=', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['query_string_necessary'] in GET('/resource/preview', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['query_string_id'] in GET('/resource/preview?a=1&b=2', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['inv_id_type_in_query_string'] in GET('/resource/preview?id=abc', http_headers['ok'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['query_string_necessary'] in GET('/resource/index', http_headers['ok'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['query_string_id'] in GET('/resource/index?a=1&b=2', http_headers['ok'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_id_type_in_query_string'] in GET('/resource/index?id=abc', http_headers['ok'], '').headers.get('Reason'))
 
     def test_http_headers(self):
         self.assertEqual(400, POST('/api/PING', http_headers['missing_content_type'], '').status_code)
@@ -698,6 +714,13 @@ class Test(unittest.TestCase):
         height = prev.get_json()['result']['height']
         self.assertEqual(400, GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=width, Height=4206934).status_code)
         self.assertEqual(400, GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=4206934, Height=height).status_code)
+        self.assertEqual(400, GET('/resource/index?id=0', http_headers['missing_accept'], '').status_code)
+        self.assertEqual(400, GET('/resource/index?id=0', http_headers['missing_proto_v'], '').status_code)
+        self.assertEqual(400, GET('/resource/index?id=0', http_headers['missing_request_id'], '').status_code)
+        self.assertEqual(400, GET('/resource/index?id=0', http_headers['inv_accept'], '').status_code)
+        self.assertEqual(400, GET('/resource/index?id=0', http_headers['inv_proto_v'], '').status_code)
+        self.assertEqual(400, GET('/resource/index?id=0', http_headers['inv_request_id_type'], '').status_code)
+        self.assertEqual(400, GET('/resource/index?id=0', http_headers['inv_request_id'], '').status_code)
 
         self.assertTrue(http_reason['missing_content_type'] in POST('/api/PING', http_headers['missing_content_type'], '').headers.get('Reason'))
         self.assertTrue(http_reason['missing_accept'] in POST('/api/PING', http_headers['missing_accept'], '').headers.get('Reason'))
@@ -733,15 +756,24 @@ class Test(unittest.TestCase):
         self.assertTrue(http_reason['get_preview_inv_height_type'] in GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=123, Height='abc').headers.get('Reason'))
         self.assertTrue(http_reason['get_preview_width_mismatch'] in GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=4206934, Height=123).headers.get('Reason'))
         self.assertTrue(http_reason['get_preview_height_mismatch'] in GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=428, Height=4206934).headers.get('Reason'))
+        self.assertTrue(http_reason['missing_accept'] in GET('/resource/index?id=0', http_headers['missing_accept'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['missing_proto_v'] in GET('/resource/index?id=0', http_headers['missing_proto_v'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['missing_request_id'] in GET('/resource/index?id=0', http_headers['missing_request_id'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_accept'] in GET('/resource/index?id=0', http_headers['inv_accept'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_proto_v'] in GET('/resource/index?id=0', http_headers['inv_proto_v'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_request_id_type'] in GET('/resource/index?id=0', http_headers['inv_request_id_type'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_request_id'] in GET('/resource/index?id=0', http_headers['inv_request_id'], '').headers.get('Reason'))
 
     def test_http_body(self):
         self.assertEqual(400, client.post('/api/PING', headers=http_headers['ok'], data='{{"key": "str }').status_code)
         self.assertEqual(400, POST('/api/PING', http_headers['ok'], {}).status_code)
         self.assertEqual(400, GET('/resource/preview?id=0', http_headers['get_preview_ok'], 'not empty', Width=123, Height=123).status_code)
+        self.assertEqual(400, GET('/resource/index?id=0', http_headers['get_index_ok'], 'not empty').status_code)
 
         self.assertTrue(http_reason['inv_json'] in client.post('/api/PING', headers=http_headers['ok'], data='{{"key": "str }').headers.get('Reason'))
         self.assertTrue(http_reason['empty_json'] in POST('/api/PING', http_headers['ok'], {}).headers.get('Reason'))
         self.assertTrue(http_reason['get_body_not_empty'] in GET('/resource/preview?id=0', http_headers['get_preview_ok'], 'not empty', Width=123, Height=123).headers.get('Reason'))
+        self.assertTrue(http_reason['get_body_not_empty'] in GET('/resource/index?id=0', http_headers['get_index_ok'], 'not empty').headers.get('Reason'))
     
     ### JSON ONLY ###
     
