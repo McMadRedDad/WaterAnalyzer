@@ -1,6 +1,7 @@
 from typing import Union
 import os, time, threading
 from flask import Flask, request, make_response
+import tempfile
 from io import BytesIO
 from PIL import Image
 import json
@@ -54,8 +55,13 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
             hdr_list = _check_header_list(mandatory_headers, headers)
             if hdr_list is not None:
                 return hdr_list
-        elif request.base_url.rpartition('/')[2] == '':
-            pass
+        elif request.base_url.rpartition('/')[2] == 'index':
+            mandatory_headers = ['Accept', 'Protocol-Version', 'Request-ID']
+            hdr_list = _check_header_list(mandatory_headers, headers)
+            if hdr_list is not None:
+                return hdr_list
+        else:
+            raise ValueError('Resource request with invalid resource type {} passed to "check_http_headers" function'.format(request.base_url.rpartition('/')[2]))
     else:
         raise ValueError(f'Invalid "request_type" argument passed to "check_http_headers" function: {request_type}')
 
@@ -96,8 +102,7 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
         accept = headers['Accept']
         if request.base_url.rpartition('/')[2] == 'preview':
             if accept != 'image/png':
-                return _http_response(request, '', 400, Reason=f'Invalid value "{accept}" of "Accept" header: must be "image/png" for /resource/preview request.')
-            
+                return _http_response(request, '', 400, Reason=f'Invalid value "{accept}" of "Accept" header: must be "image/png" for /resource/preview request.')            
             try:
                 int(headers['Width'])
             except ValueError:
@@ -106,8 +111,9 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
                 int(headers['Height'])
             except ValueError:
                 return _http_response(request, '', 400, Reason='Invalid type for "Height" header: must be of integer type.')
-        elif request.base_url.rpartition('/')[2] == '':
-            pass
+        elif request.base_url.rpartition('/')[2] == 'index':
+            if accept != 'image/tiff':
+                return _http_response(request, '', 400, Reason=f'Invalid value "{accept}" of "Accept" header: must be "image/tiff" for /resource/index request.')
     else:
         raise ValueError(f'Invalid "request_type" argument passed to "check_http_headers" function: {request_type}')
 
@@ -176,6 +182,8 @@ def shutdown():
     time.sleep(3)
     os._exit(0)
 
+tmp_times = []
+
 @server.get('/resource/<res_type>')
 def handle_resource(res_type):
     if len(request.query_string) == 0:
@@ -187,7 +195,7 @@ def handle_resource(res_type):
     except ValueError:
         return _http_response(request, '', 400, Reason='"id" parameter of the query string must be of integer type.')
 
-    if res_type not in ('preview'):
+    if res_type not in ('preview', 'index'):
         return _http_response(request, '', 400, Reason=f'The requested resource type "{res_type}" is not supported.')
 
     response = check_http_headers(request, 'resource')
@@ -198,22 +206,32 @@ def handle_resource(res_type):
     if response is not None:
         return response
 
-    try:
-        rgb = executor.pv_man.get(id_)
-    except KeyError:
-        return _http_response(request, '', 404, Reason=f'Requested preview "{request.path}" does not exist.')
-    
-    if int(request.headers['Width']) != rgb.width:
-        return _http_response(request, '', 400, Reason=f'Invalid width {request.headers['Width']} in the "Width" header: actual width of the requested preview is {rgb.width}.')
-    if int(request.headers['Height']) != rgb.height:
-        return _http_response(request, '', 400, Reason=f'Invalid height {request.headers['Height']} in the "Height" header: actual height of the requested preview is {rgb.height}.')
+    if res_type == 'preview':
+        try:
+            rgb = executor.pv_man.get(id_)
+        except KeyError:
+            return _http_response(request, '', 404, Reason=f'Requested preview "{request.path}" does not exist.')
+        
+        if int(request.headers['Width']) != rgb.width:
+            return _http_response(request, '', 400, Reason=f'Invalid width {request.headers['Width']} in the "Width" header: actual width of the requested preview is {rgb.width}.')
+        if int(request.headers['Height']) != rgb.height:
+            return _http_response(request, '', 400, Reason=f'Invalid height {request.headers['Height']} in the "Height" header: actual height of the requested preview is {rgb.height}.')
 
-    buf = BytesIO()
-    img = Image.fromarray(rgb.array)
-    img.save(buf, format='PNG')
-    buf.seek(0)
-    
-    return _http_response(request, buf, 200, Width=rgb.width, Height=rgb.height)
+        buf = BytesIO()
+        img = Image.fromarray(rgb.array)
+        img.save(buf, format='PNG')
+        buf.seek(0)
+        
+        return _http_response(request, buf, 200, Width=rgb.width, Height=rgb.height)
+        
+    if res_type == 'index':
+        with tempfile.NamedTemporaryFile(mode='w+b', delete=True, delete_on_close=True) as tmp:
+            dataset = executor.ds_man.get(id_)
+            dataset.GetDriver().CreateCopy(tmp.name, dataset, strict=False)
+            tmp.seek(0)
+            data = tmp.read()
+            
+            return _http_response(request, data, 200)
 
 @server.post('/api/<command>')
 def handle_command(command):

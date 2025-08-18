@@ -83,14 +83,14 @@ Reason: Invalid type for "Request-ID" header: must be of integer type.
 Reason: Invalid value "`value`" of "Request-ID" header: must be >= 0.
 
 The mandatory headers' values are considered valid for **resource** requests if:
-- Accept equals to "image/png" for preview requests and **TBA** for index requests
+- Accept equals to "image/png" for preview requests and "image/tiff" for index requests
 - Protocol-Version equals to the actual version of this protocol
 - Request-ID is of integer type and is greater than or equal to 0
 
 If any header is invalid, an HTTP 400 Bad Request response with an empty body and one of the following "Reason" headers is sent:
 
 Reason: Invalid value "`invalid value`" of "Accept" header: must be "image/png" for /resource/preview request.
-Reason: Invalid value "`invalid value`" of "Accept" header: must be "**TBA**" for /resource/index request.
+Reason: Invalid value "`invalid value`" of "Accept" header: must be "image/tiff" for /resource/index request.
 Reason: Invalid protocol version "`provided version`" in "Protocol-Version" header: used protocol version is "`used protocol version`".
 Reason: Invalid type for "Request-ID" header: must be of integer type.
 Reason: Invalid value "`value`" of "Request-ID" header: must be >= 0.
@@ -451,7 +451,7 @@ Reason: Requested preview "`request url`" does not exist.
 Requests for indices are ment to get the actual geographical image and save it on the client's machine. No extra mandatory headers are defined.
 
 GET /resource/index?id=`id` HTTP/2
-Accept: **TBA**
+Accept: image/tiff
 Protocol-Version: `this protocol's version`
 Request-ID: `id`
 
@@ -460,7 +460,7 @@ The response follows:
 
 HTTP/2 200 OK
 Server: `HTTP server`
-Content-Type: **TBA**
+Content-Type: image/tiff
 Content-Length: `response's body length in bytes`
 Protocol-Version: `this protocol's version`
 Request-ID: `request's id`

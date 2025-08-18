@@ -138,12 +138,13 @@ void MainWindow::handle_response(QNetworkReply *response) {
 }
 
 void MainWindow::process_get(QByteArray body) {
-  QPixmap preview;
-  preview.loadFromData(body, "PNG");
-  QLabel *l = new QLabel();
-  l->setAttribute(Qt::WA_DeleteOnClose);
-  l->setPixmap(preview);
-  l->show();
+  // QPixmap preview;
+  // preview.loadFromData(body, "PNG");
+  // QLabel *l = new QLabel();
+  // l->setAttribute(Qt::WA_DeleteOnClose);
+  // l->setPixmap(preview);
+  // l->show();
+  qDebug() << body.length();
 }
 
 void MainWindow::process_post(QUrl endpoint, QByteArray body) {
@@ -242,19 +243,31 @@ void MainWindow::on_pushButton_back_clicked() {
     connect(state.pages[0], &ClickableQWidget::clicked, this,
             &MainWindow::import_clicked);
 
-    int ids[3] = {-1, -1, -1};
-    for (QString f : state.selected_dir.entryList()) {
-      if (f.endsWith("_B4.TIF")) {
-        ids[0] = state.file_ids.value(state.selected_dir.absoluteFilePath(f));
-      }
-      if (f.endsWith("_B3.TIF")) {
-        ids[1] = state.file_ids.value(state.selected_dir.absoluteFilePath(f));
-      }
-      if (f.endsWith("_B2.TIF")) {
-        ids[2] = state.file_ids.value(state.selected_dir.absoluteFilePath(f));
-      }
+    // int ids[3] = {-1, -1, -1};
+    // for (QString f : state.selected_dir.entryList()) {
+    //   if (f.endsWith("_B4.TIF")) {
+    //     ids[0] =
+    //     state.file_ids.value(state.selected_dir.absoluteFilePath(f));
+    //   }
+    //   if (f.endsWith("_B3.TIF")) {
+    //     ids[1] =
+    //     state.file_ids.value(state.selected_dir.absoluteFilePath(f));
+    //   }
+    //   if (f.endsWith("_B2.TIF")) {
+    //     ids[2] =
+    //     state.file_ids.value(state.selected_dir.absoluteFilePath(f));
+    //   }
+    // }
+    // send_request("command", proto.calc_preview(ids[0], ids[1], ids[2]));
+    for (int i = 0; i < 17; i++) {
+      QNetworkRequest req("http://" + backend_ip.toString() + ":" +
+                          QString::number(backend_port) +
+                          QString("/resource/index?id=%1").arg(i));
+      req.setRawHeader("Accept", "image/tiff");
+      req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
+      req.setRawHeader("Request-ID", QString::number(i).toUtf8());
+      net_man->get(req);
     }
-    send_request("command", proto.calc_preview(ids[0], ids[1], ids[2]));
     state.selected_dir = QDir();
     state.file_ids.clear();
     break;
