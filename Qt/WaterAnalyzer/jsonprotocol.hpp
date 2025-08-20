@@ -17,6 +17,7 @@ public:
   QJsonObject shutdown();
   QJsonObject import_gtiff(QString file);
   QJsonObject calc_preview(int r, int g, int b);
+  QJsonObject calc_index(QString index, QList<uint> ids);
 
   void inc_counter();
   QString get_proto_version();

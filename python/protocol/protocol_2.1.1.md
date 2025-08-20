@@ -273,7 +273,7 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 0
     - `result` - {
         "id": `id`,                                     - [INT] id of loaded and cached GeoTiff image
-        "file": "`/path/to/loaded/file.tif`"            - [STRING] path of the file from the request
+        "file": "`/path/to/loaded/file.tif`"            - [STRING] path of the file from the request  !!!no local paths for remote servers; fine for now!!!
         "info": {                                       - [OBJECT] description of the GeoTiff image
             "width": `width`,                           - [INT] width of the image in pixels
             "height": `height`,                         - [INT] height of the image in pixels
@@ -330,7 +330,7 @@ Below are specifics for requests and responses for each supported command.
     -  HTTP 404 Not Found
 6. Raster dimensions do not match:
     - `status` - 20401
-    - `result` - { "error": "unable to create a preview from requested ids: rasters do not match in dimensions" }
+    - `result` - { "error": "unable to create preview from requested ids: rasters do not match in dimensions" }
     -  HTTP 400 Bad Request
 7. Unknown error:
     - `status` - 20402
@@ -343,8 +343,8 @@ Below are specifics for requests and responses for each supported command.
 
 - `operation`  - "calc_index"
 - `parameters` - {
-    "ids": [`id_1`, `id_2`, ...],    - [ARRAY of INTs] ids of the files (from cache) to use to generate the index. Provided ids are used in the same order as in the index' formula, e.g. for NDVI = (NIR - RED) / (NIR + RED) id_1 is used for NIR and id_2 is used for RED, because in the index's formula NIR appeared first.
     "index": "`name of the index`"   - [STRING] name of the index/algorithm to calculate
+    "ids": [`id_1`, `id_2`, ...],    - [ARRAY of INTs] ids of the files (from cache) to use to generate the index. Provided ids are used in the same order as in the index's formula, e.g. for NDVI = (NIR - RED) / (NIR + RED) id_1 is used for NIR and id_2 is used for RED, because in the index's formula NIR appears first.
     }
 
 *RESPONSE*
@@ -352,34 +352,43 @@ Below are specifics for requests and responses for each supported command.
 1. Success:
     - `status` - 0
     - `result` - {
-        "id": `id`,       - [INT] id of created spectral index (stored on the server)
-        "metadata": {     - [OBJECT] metadata of the index
-            ...
+        "url": "/resource/index?id=`id`",               - [STRING] url to be used for HTTP GET request
+        "info": {                                       - [OBJECT] description of the GeoTiff image
+            "width": `width`,                           - [INT] width of the image in pixels
+            "height": `height`,                         - [INT] height of the image in pixels
+            "projection": `projection`,                 - [STRING] in format "`authority`:`code`" identifying projection used
+            "unit": `measure unit`,                     - [STRING] the unit used in the image
+            "origin": [`x`, `y`],                       - [ARRAY of DOUBLEs] coordinates of the origin of the image
+            "pixel_size": [`size on x`, `size on y`]    - [ARRAY of DOUBLEs] size of the image pixel in measurement units
         }
     }
     -  HTTP 200 OK
-2. Invalid id:
+2. Invalid ids type:
     - `status` - 10500
-    - `result` - { "error": "invalid id '`id`' in '`parameters`'" }
+    - `result` - { "error": "invalid '`ids`' key: must be an array of integer values" }
     -  HTTP 400 Bad Request
-3. Invalid array length:
+3. Invalid id:
     - `status` - 10501
-    - `result` - { "error": "exactly `n` values must be specified in '`ids`' key for calculating '`index`' index: `k` values given" }
+    - `result` - { "error": "invalid id '`id`' in '`ids`' key" }
     -  HTTP 400 Bad Request
-4. Non-existent id:
+7. Unknown/unsupported index:
     - `status` - 20500
-    - `result` - { "error": "id '`provided id`' in '`ids`' does not exist" }
-    -  HTTP 404 Not Found
-5. Raster dimensions do not match:
-    - `status` - 20501
-    - `result` - { "error": "unable to create a preview from requested ids: rasters do not match in dimensions" }
-    -  HTTP 400 Bad Request
-6. Unknown/unsupported index:
-    - `status` - 20502
     - `result` - { "error": "index '`index`' is not supported or unknown" }
     -  HTTP 400 Bad Request
-7. Unknown error:
+4. Invalid array length:
+    - `status` - 20501
+    - `result` - { "error": "exactly `n` values must be specified in '`ids`' key for calculating '`index`' index, but `k` values given" }
+    -  HTTP 400 Bad Request
+5. Non-existent id:
+    - `status` - 20502
+    - `result` - { "error": "id '`provided id`' in '`ids`' does not exist" }
+    -  HTTP 404 Not Found
+6. Raster dimensions do not match:
     - `status` - 20503
+    - `result` - { "error": "unable to create index from requested ids: rasters do not match in dimensions" }
+    -  HTTP 400 Bad Request
+8. Unknown error:
+    - `status` - 20504
     - `result` - { "error": "unknown error" }
     -  HTTP 500 Internal Server Error
 

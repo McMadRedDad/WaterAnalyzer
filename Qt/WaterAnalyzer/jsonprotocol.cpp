@@ -24,6 +24,15 @@ QJsonObject JsonProtocol::calc_preview(int r, int g, int b) {
                         QJsonObject{{"ids", QJsonArray{r, g, b}}});
 }
 
+QJsonObject JsonProtocol::calc_index(QString index, QList<uint> ids) {
+  QJsonArray ids_arr;
+  for (uint id : ids) {
+    ids_arr.append(QJsonValue::fromVariant(id));
+  }
+  return construct_json("calc_index",
+                        QJsonObject{{"index", index}, {"ids", ids_arr}});
+}
+
 void JsonProtocol::inc_counter() { counter++; }
 
 QJsonObject JsonProtocol::construct_json(QString operation,

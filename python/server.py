@@ -152,12 +152,12 @@ def generate_http_response(request: request, response_json: dict) -> 'Response':
         code == 10100 or
         code == 10200 or
         code in range(10400, 10402+1) or code == 20401 or
-        code in range(10500, 10501+1) or code in range(20501, 20502+1)
+        code in range(10500, 10501+1) or code in range(20500, 20501+1) or code == 20503
     ):
         http_status = 400
     elif (
         code == 20400 or
-        code == 20500
+        code == 20502
     ):
         http_status = 404
     elif (
@@ -165,7 +165,7 @@ def generate_http_response(request: request, response_json: dict) -> 'Response':
         code == 20201 or
         code in range(20300, 20301+1) or
         code == 20402 or
-        code == 20503
+        code == 20504
     ):
         http_status = 500
     elif code == 20003:
@@ -231,7 +231,7 @@ def handle_resource(res_type):
             return _http_response(request, '', 404, Reason=f'Requested index "{id_}" does not exist.')
 
         with tempfile.NamedTemporaryFile(mode='w+b', delete=True, delete_on_close=True) as tmp:
-            dataset.GetDriver().CreateCopy(tmp.name, dataset, strict=False)
+            executor.geotiff().CreateCopy(tmp.name, dataset, strict=False)
             tmp.seek(0)
             data = tmp.read()
             
@@ -278,5 +278,7 @@ def handle_command(command):
         threading.Thread(target=shutdown).start()
     if command == 'calc_preview':
         response_json['result']['url'] = f'/resource/preview?id={response_json['result']['url']}'
+    if command == 'calc_index':
+        response_json['result']['url'] = f'/resource/index?id={response_json['result']['url']}'
 
     return generate_http_response(request, response_json)

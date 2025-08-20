@@ -65,6 +65,14 @@ class DatasetManager:
         self._counter = 0
         self._lock = threading.Lock()
 
+    def add(self, dataset: gdal.Dataset) -> int:
+        """Stores 'dataset' and returns its generated id."""
+
+        with self._lock:
+            self._datasets[self._counter] = dataset
+            self._counter += 1
+            return self._counter - 1
+
     def open(self, file: str) -> int:
         """Tries to open 'file' as a GDAL dataset and returns its generated id."""
 
@@ -108,7 +116,7 @@ class DatasetManager:
     def get_all(self) -> list[gdal.Dataset]:
         return self._datasets.values()
 
-    def read_band(self, dataset_id: int, band_id: int, step_size_percent: float | int, resolution_percent: float | int) -> np.ndarray:
+    def read_band(self, dataset_id: int, band_id: int, step_size_percent: float | int = 100, resolution_percent: float | int = 100) -> np.ndarray:
         """Reads a band from the dataset and returns it as a numpy array.
         'step_size' is the percent of the raster's rows or columns that will be read during one iteration. For example, if the raster is 100x100 pixels and 'step_size'=20, the band will be read entirely within 5 iterations with five 20x100 windows.
         'step_size' <=0 means the band will be read line by line. 'step_size' >=100 means the band will be read at once.
@@ -176,8 +184,9 @@ class DatasetManager:
         return data
 
 class GdalExecutor:
-    SUPPORTED_PROTOCOL_VERSIONS = ('2.1.1')
     VERSION = '1.0.0'
+    SUPPORTED_PROTOCOL_VERSIONS = ('2.1.1')
+    SUPPORTED_INDICES = {'test': 2}     # { 'name': number_of_datasets_to_calc_from }
     
     def __new__(cls, protocol):
         if protocol.get_version() not in GdalExecutor.SUPPORTED_PROTOCOL_VERSIONS:
@@ -263,11 +272,9 @@ class GdalExecutor:
                     ds.append(self.ds_man.get(i))
                 except KeyError:
                     return _response(20400, {"error": f"id {i} provided in 'ids' key does not exist"})
-            if not (
-                ds[0].RasterXSize == ds[1].RasterXSize == ds[2].RasterXSize and
-                ds[0].RasterYSize == ds[1].RasterYSize == ds[2].RasterYSize
-            ):
-                return _response(20401, {"error": "unable to create a preview from requested ids: rasters do not match in size"})
+            for i in ds:
+                if not (i.RasterXSize == ds[0].RasterXSize and i.RasterYSize == ds[0].RasterYSize):
+                    return _response(20401, {"error": "unable to create preview from requested ids: rasters do not match in dimensions"})
             # error 20402
 
             existing = self.pv_man.find(id_r, id_g, id_b)
@@ -279,8 +286,8 @@ class GdalExecutor:
                 })
             
             r, g, b = 0, 0, 0
-            r = self.ds_man.read_band(id_r, 1, 100, 5)
-            g = self.ds_man.read_band(id_g, 1, 100, 5) if ds[1] is not ds[0] else r
+            r = self.ds_man.read_band(id_r, 1, resolution_percent=5)
+            g = self.ds_man.read_band(id_g, 1, resolution_percent=5) if ds[1] is not ds[0] else r
             if ds[2] is ds[0]:
                 b = r
             elif ds[2] is ds[1]:
@@ -298,14 +305,68 @@ class GdalExecutor:
                 "width": self.pv_man.get(pv_id).width,
                 "height": self.pv_man.get(pv_id).height
             })
+
+        if operation == 'calc_index':
+            ids = parameters['ids']
+            index = parameters['index']
+            if index not in self.SUPPORTED_INDICES:
+                return _response(20500, {"error": f"index '{index}' is not supported or unknown"})
+            if len(ids) != self.SUPPORTED_INDICES[index]:
+                return _response(20501, {"error": "exactly {} values must be specified in 'ids' key for calculating '{}' index, but {} values given".format(self.SUPPORTED_INDICES[index], index, len(ids))})
+            ds = []
+            for i in ids:
+                try:
+                    ds.append(self.ds_man.get(i))
+                except KeyError:
+                    return _response(20502, {"error": f"id {i} provided in 'ids' key does not exist"})
+            for i in ds:
+                if not (i.RasterXSize == ds[0].RasterXSize and i.RasterYSize == ds[0].RasterYSize):
+                    return _response(20503, {"error": "unable to create index from requested ids: rasters do not match in dimensions"})
+            # error 20504
+
+            result, data_type, nodata = 0, 0, -99999
+            if index == 'test':
+                data_type = gdal.GDT_Float32
+                nodata = -99999.0
+                array1, array2 = self.ds_man.read_band(ids[0], 1), self.ds_man.read_band(ids[1], 1)
+                result = indcal._test(array1, array2, nodata)
+            if index == '':
+                pass
+
+            res_ds = gdal.GetDriverByName('MEM').Create('', ds[0].RasterXSize, ds[0].RasterYSize, 1, data_type)
+            res_ds.SetGeoTransform(ds[0].GetGeoTransform())
+            res_ds.SetProjection(ds[0].GetProjection())
+            res_ds.GetRasterBand(1).SetNoDataValue(nodata)            
+            res_ds.GetRasterBand(1).WriteArray(result)
+            dataset_id = self.ds_man.add(res_ds)
+
+            geotransform = res_ds.GetGeoTransform()
+            result = {
+                'url': dataset_id,
+                'info': {
+                    'width': res_ds.RasterXSize,
+                    'height': res_ds.RasterYSize,
+                    'projection': '{}:{}'.format(res_ds.GetSpatialRef().GetAuthorityName(None), res_ds.GetSpatialRef().GetAuthorityCode(None)),
+                    'unit': res_ds.GetSpatialRef().GetAttrValue('UNIT', 0),
+                    'origin': [geotransform[0], geotransform[3]],
+                    'pixel_size': [geotransform[1], geotransform[5]]
+                }
+            }
+            return _response(0, result)
         
         return _response(-1, {"error": "how's this even possible?"})
     
-    def get_supported_protocol_versions(self) -> tuple:
-        return self.SUPPORTED_PROTOCOL_VERSIONS
-
-    def get_supported_operations(self) -> tuple:
-        return self.supported_operations
+    def geotiff(self) -> gdal.Driver:
+        return gdal.GetDriverByName('GTiff')
 
     def get_version(self) -> str:
         return self.VERSION
+
+    def get_supported_protocol_versions(self) -> tuple[str]:
+        return self.SUPPORTED_PROTOCOL_VERSIONS
+
+    def get_supported_indices(self) -> tuple[str]:
+        return tuple(self.SUPPORTED_INDICES.keys())
+
+    def get_supported_operations(self) -> tuple[str]:
+        return self.supported_operations

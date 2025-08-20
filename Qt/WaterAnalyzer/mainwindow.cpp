@@ -120,14 +120,6 @@ void MainWindow::handle_response(QNetworkReply *response) {
   }
 
   if (response->operation() == QNetworkAccessManager::GetOperation) {
-
-    //
-
-    append_log("good", "w: " + response->rawHeader("Width"));
-    append_log("good", "h: " + response->rawHeader("Height"));
-
-    //
-
     process_get(response->request().url(), response->readAll());
   } else if (response->operation() == QNetworkAccessManager::PostOperation) {
     process_post(response->request().url(), response->readAll());
@@ -196,7 +188,7 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
     QJsonObject info = result["info"].toObject();
     state.file_ids[result["file"].toString()] = result["id"].toInt();
     append_log("info", "Id: " + QString::number(result["id"].toInt()) +
-                           ", file: " + result["file"].toString());
+                           ", file: " + result["file"].toString() + ".");
     set_status_message(true, "Изображение успешно загружено");
   } else if (command == "calc_preview") {
     append_log("info", result["url"].toString() + ", " +
@@ -204,6 +196,26 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
                            QString::number(result["height"].toInt()));
     set_status_message(true, "Превью успешно создано");
     send_request("resource", QJsonDocument::fromJson(body).object());
+  } else if (command == "calc_index") {
+    append_log("info", result["url"].toString() + " -> " +
+                           result["info"].toObject()["projection"].toString() +
+                           ".");
+    set_status_message(true, "Индекс успешно рассчитан");
+
+    //
+
+    QNetworkRequest req("http://" + backend_ip.toString() + ":" +
+                        QString::number(backend_port) +
+                        result["url"].toString());
+    req.setRawHeader("Accept", "image/tiff");
+    req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
+    req.setRawHeader("Request-ID",
+                     QString::number(proto.get_counter()).toUtf8());
+    proto.inc_counter();
+    net_man->get(req);
+
+    //
+
   } else {
     append_log("info",
                "Запрошена неизвестная команда, но сервер её обработал: " +
@@ -294,15 +306,18 @@ void MainWindow::on_pushButton_back_clicked() {
     // }
     // send_request("command", proto.calc_preview(ids[0], ids[1], ids[2]));
 
-    QNetworkRequest req("http://" + backend_ip.toString() + ":" +
-                        QString::number(backend_port) +
-                        QString("/resource/index?id=0"));
-    req.setRawHeader("Accept", "image/tiff");
-    req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
-    req.setRawHeader("Request-ID",
-                     QString::number(proto.get_counter()).toUtf8());
-    proto.inc_counter();
-    net_man->get(req);
+    // QNetworkRequest req("http://" + backend_ip.toString() + ":" +
+    //                     QString::number(backend_port) +
+    //                     QString("/resource/index?id=0"));
+    // req.setRawHeader("Accept", "image/tiff");
+    // req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
+    // req.setRawHeader("Request-ID",
+    //                  QString::number(proto.get_counter()).toUtf8());
+    // proto.inc_counter();
+    // net_man->get(req);
+
+    send_request("command", proto.calc_index("test", QList<uint>{0, 1}));
+
     state.selected_dir = QDir();
     state.file_ids.clear();
     break;

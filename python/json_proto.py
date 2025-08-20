@@ -4,12 +4,6 @@ class Protocol:
 
     def __init__(self):
         print(f'Using protocol version {self.VERSION}')
-    
-    def get_version(self) -> str:
-        return self.VERSION
-
-    def get_supported_operations(self) -> tuple:
-        return self.SUPPORTED_OPERATIONS
 
     def validate(self, request: dict) -> dict:
         """Checks for all protocol-specific request errors related to message structure, spelling, etc. and returns a dictionary. Does not check for data-specific errors (e.g. non-existent image id, server version, etc.) that can only be verified by the backend itself.
@@ -133,6 +127,18 @@ class Protocol:
                 if type(ids[i]) is not int:
                     return _response(10402, {"error": f"invalid id '{ids[i]}' in 'ids' key"})
             return _response(0, {})
+
+        if operation == 'calc_index':
+            params_check = _check_param_keys('calc_index', ['ids', 'index'], list(parameters.keys()))
+            if len(params_check) != 0:
+                return params_check
+            ids = parameters['ids']
+            if type(ids) is not list:
+                return _response(10500, {"error": "invalid 'ids' key: must be an array of integer values"})
+            for i in ids:
+                if type(i) is not int:
+                    return _response(10501, {"error": f"invalid id '{i}' in 'ids' key"})
+            return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})
 
@@ -162,3 +168,9 @@ class Protocol:
             return _response(10010, {"error": "values 'id' do not match in request and response"})
 
         return _response(result['status'], result['result'])
+
+    def get_version(self) -> str:
+        return self.VERSION
+
+    def get_supported_operations(self) -> tuple:
+        return self.SUPPORTED_OPERATIONS
