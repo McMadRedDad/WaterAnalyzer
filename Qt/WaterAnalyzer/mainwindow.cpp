@@ -142,6 +142,11 @@ void MainWindow::process_get(QUrl endpoint, QByteArray body) {
   } else if (type == "index") {
     QString path = QFileDialog::getSaveFileName(this, "Сохранить файл GeoTiff",
                                                 QDir::homePath());
+    if (path.isEmpty()) {
+      append_log("bad", "Запись файла отменена.");
+      set_status_message(false, "Файл не сохранён");
+      return;
+    }
     if (!(path.endsWith(".tif") || path.endsWith(".tiff") ||
           path.endsWith(".TIF") || path.endsWith(".TIFF"))) {
       path.append(".tif");
@@ -316,6 +321,9 @@ void MainWindow::on_pushButton_back_clicked() {
     // proto.inc_counter();
     // net_man->get(req);
 
+    send_request("command", proto.calc_index("test", QList<uint>{0, 1}));
+    send_request("command", proto.calc_index("test", QList<uint>{0, 1}));
+    send_request("command", proto.calc_index("test", QList<uint>{0, 1}));
     send_request("command", proto.calc_index("test", QList<uint>{0, 1}));
 
     state.selected_dir = QDir();

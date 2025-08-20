@@ -97,10 +97,9 @@ class DatasetManager:
     def close(self, id: int) -> None:
         with self._lock:
             try:
-                dataset = self._datasets.pop(id)
+                self._datasets.pop(id)
             except KeyError:
                 raise KeyError(f'Dataset {id} is not opened but "close" method called')
-            dataset = None
 
     def close_all(self) -> None:
         for id_ in self._datasets.keys():
@@ -114,7 +113,8 @@ class DatasetManager:
                 raise KeyError(f'Dataset {id} is not opened but "get" method called')
 
     def get_all(self) -> list[gdal.Dataset]:
-        return self._datasets.values()
+        with self._lock:
+            return self._datasets.values()
 
     def read_band(self, dataset_id: int, band_id: int, step_size_percent: float | int = 100, resolution_percent: float | int = 100) -> np.ndarray:
         """Reads a band from the dataset and returns it as a numpy array.
@@ -142,7 +142,8 @@ class DatasetManager:
         except KeyError:
             raise KeyError(f'Dataset {dataset_id} is not opened but "read_band" method called')
         try:
-            band = ds.GetRasterBand(band_id)
+            with self._lock:
+                band = ds.GetRasterBand(band_id)
         except RuntimeError:
             raise RuntimeError(f'Daraset {dataset_id} does not have band number {band_id}')
 
@@ -165,20 +166,26 @@ class DatasetManager:
         # we'll read along the side that is shorter
         # e.g. raster size 100x50 -> read along y=50
         if x_size >= y_size:
-            data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=x_size, win_ysize=1, buf_xsize=int(x_size * res), buf_ysize=int(1 * res))
+            with self._lock:
+                data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=x_size, win_ysize=1, buf_xsize=int(x_size * res), buf_ysize=int(1 * res))
             for i in range(1, y_size, step):
                 if y_size >= i + step:
-                    win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=step, buf_xsize=int(x_size * res), buf_ysize=int(step * res))
+                    with self._lock:
+                        win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=step, buf_xsize=int(x_size * res), buf_ysize=int(step * res))
                 else:
-                    win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=y_size - i, buf_xsize=int(x_size * res), buf_ysize=int((y_size - i) * res))
+                    with self._lock:
+                        win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=y_size - i, buf_xsize=int(x_size * res), buf_ysize=int((y_size - i) * res))
                 data = np.vstack((data, win))
         else:
-            data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=1, win_ysize=y_size, buf_xsize=int(1 * res), buf_ysize=int(y_size * res))
+            with self._lock:
+                data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=1, win_ysize=y_size, buf_xsize=int(1 * res), buf_ysize=int(y_size * res))
             for i in range(1, x_size, step):
                 if x_size >= i + step:
-                    win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=step, win_ysize=y_size, buf_xsize=int(step * res), buf_ysize=int(y_size * res))
+                    with self._lock:
+                        win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=step, win_ysize=y_size, buf_xsize=int(step * res), buf_ysize=int(y_size * res))
                 else:
-                    win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size, buf_xsize=int((x_size - i) * res), buf_ysize=int(y_size * res))
+                    with self._lock:
+                        win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size, buf_xsize=int((x_size - i) * res), buf_ysize=int(y_size * res))
                 data = np.hstack((data, win))
 
         return data

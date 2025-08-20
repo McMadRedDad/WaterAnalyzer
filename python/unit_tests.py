@@ -571,8 +571,99 @@ requests_json = {
         "parameters": {
             "ids": [0, 1, 5]
         }
-    }
-    # calc_preview 20502
+    },
+    # calc_preview 20402
+    'calc_index_ok1': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_index",
+        "parameters": {
+            "index": "test",
+            "ids": [0, 0]
+        }
+    },
+    'calc_index_inv_ids': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_index",
+        "parameters": {
+            "index": "test",
+            "ids": "abc"
+        }
+    },
+    'calc_index_inv_id1': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_index",
+        "parameters": {
+            "index": "test",
+            "ids": ["abc", 0]
+        }
+    },
+    'calc_index_inv_id2': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_index",
+        "parameters": {
+            "index": "test",
+            "ids": [0, {}]
+        }
+    },
+    'calc_index_inv_id3': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_index",
+        "parameters": {
+            "index": "test",
+            "ids": [0, 42069.34]
+        }
+    },
+    'calc_index_unsupported_index': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_index",
+        "parameters": {
+            "index": "unsupported",
+            "ids": [0, 0, 0]
+        }
+    },
+    'calc_index_inv_ids_length': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_index",
+        "parameters": {
+            "index": "test",
+            "ids": [0, 0, 0, 0]
+        }
+    },
+    'calc_index_non_existent_id': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_index",
+        "parameters": {
+            "index": "test",
+            "ids": [0, 0, 4206934]
+        }
+    },
+    'calc_index_dim_mismatch': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_index",
+        "parameters": {
+            "index": "test",
+            "ids": [0, 1]
+        }
+    },
+    # calc_index 20504
 }
 
 # Able to override the Content-Type and Content-Length headers.
@@ -635,6 +726,7 @@ class Test(unittest.TestCase):
         self.assertEqual(200, prev.status_code)
         width = prev.get_json()['result']['width']
         height = prev.get_json()['result']['height']
+        self.assertEqual(200, POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1']).status_code)
         self.assertEqual(200, GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=width, Height=height).status_code)
         self.assertEqual(200, GET('/resource/index?id=0', http_headers['get_index_ok'], '').status_code)
         
@@ -650,6 +742,7 @@ class Test(unittest.TestCase):
         self.assertIsNone(prev.headers.get('Reason'))
         width = prev.get_json()['result']['width']
         height = prev.get_json()['result']['height']
+        self.assertIsNone(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1']).headers.get('Reason'))
         self.assertIsNone(GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=width, Height=height).headers.get('Reason'))
         self.assertIsNone(GET('/resource/index?id=0', http_headers['get_index_ok'], '').headers.get('Reason'))
 
