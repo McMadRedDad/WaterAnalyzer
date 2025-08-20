@@ -23,8 +23,8 @@ MainWindow::MainWindow(QWidget *parent)
   backend_ip = QHostAddress::LocalHost;
   backend_port = 42069;
   net_man = new QNetworkAccessManager(this);
-  connect(net_man, &QNetworkAccessManager::finished, this,
-          &MainWindow::handle_response);
+  // connect(net_man, &QNetworkAccessManager::finished, this,
+  //         &MainWindow::handle_response);
   proto = JsonProtocol("1.0.0");
 
   connect(&timer_status, &QTimer::timeout, this,
@@ -55,7 +55,14 @@ void MainWindow::send_request(QString type, QJsonObject data) {
     req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
     req.setRawHeader("Request-ID",
                      QString::number(data["id"].toInt()).toUtf8());
-    net_man->post(req, QJsonDocument(data).toJson());
+    QNetworkReply *response = net_man->post(req, QJsonDocument(data).toJson());
+    connect(response, &QNetworkReply::finished, this,
+            [this, response] { handle_response(response); });
+    connect(response, &QNetworkReply::errorOccurred, [this, response] {
+      append_log("bad", "error");
+      response->deleteLater();
+    });
+    // net_man->post(req, QJsonDocument(data).toJson());
   } else if (type == "resource") {
     QJsonObject result = data["result"].toObject();
     QNetworkRequest req("http://" + backend_ip.toString() + ":" +
@@ -70,7 +77,14 @@ void MainWindow::send_request(QString type, QJsonObject data) {
                      QString::number(result["width"].toInt()).toUtf8());
     req.setRawHeader("Height",
                      QString::number(result["height"].toInt()).toUtf8());
-    net_man->get(req);
+    QNetworkReply *response = net_man->get(req);
+    connect(response, &QNetworkReply::finished, this,
+            [this, response] { handle_response(response); });
+    connect(response, &QNetworkReply::errorOccurred, [this, response] {
+      append_log("bad", "error");
+      response->deleteLater();
+    });
+    // net_man->get(req);
   } else {
     append_log("bad", QString("Неподдерживаемый тип запроса передан в "
                               "функцию 'send_request': %1.")
@@ -151,15 +165,13 @@ void MainWindow::process_get(QUrl endpoint, QByteArray body) {
           path.endsWith(".TIF") || path.endsWith(".TIFF"))) {
       path.append(".tif");
     }
-    QFile *file = new QFile(path);
-    if (!file->open(QIODevice::WriteOnly)) {
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly)) {
       append_log("bad", "Не удалось открыть файл " + path + " для записи.");
       set_status_message(false, "Не удалось открыть файл для записи");
-      delete file;
-      file = nullptr;
       return;
     }
-    qint64 written = file->write(body);
+    qint64 written = file.write(body);
     if (written != body.size()) {
       append_log("bad", "Не удалось записать файл " + path +
                             " целиком. Скорее всего, файл повреждён.");
@@ -168,8 +180,6 @@ void MainWindow::process_get(QUrl endpoint, QByteArray body) {
       append_log("good", "Файл " + path + " успешно сохранён.");
       set_status_message(true, "Файл успешно сохранён");
     }
-    delete file;
-    file = nullptr;
   } else {
     append_log("info",
                "Запрошена неизвестный тип ресурса, но сервер его обработал: " +
@@ -217,7 +227,11 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
     req.setRawHeader("Request-ID",
                      QString::number(proto.get_counter()).toUtf8());
     proto.inc_counter();
-    net_man->get(req);
+    QNetworkReply *response = net_man->get(req);
+    connect(response, &QNetworkReply::finished,
+            [this, response] { handle_response(response); });
+    connect(response, &QNetworkReply::errorOccurred,
+            [response] { response->deleteLater(); });
 
     //
 
@@ -321,10 +335,9 @@ void MainWindow::on_pushButton_back_clicked() {
     // proto.inc_counter();
     // net_man->get(req);
 
-    send_request("command", proto.calc_index("test", QList<uint>{0, 1}));
-    send_request("command", proto.calc_index("test", QList<uint>{0, 1}));
-    send_request("command", proto.calc_index("test", QList<uint>{0, 1}));
-    send_request("command", proto.calc_index("test", QList<uint>{0, 1}));
+    send_request("command", proto.calc_index("test", QList<uint>{0, 0}));
+    send_request("command", proto.calc_index("test", QList<uint>{0, 0}));
+    send_request("command", proto.calc_index("test", QList<uint>{0, 0}));
 
     state.selected_dir = QDir();
     state.file_ids.clear();
