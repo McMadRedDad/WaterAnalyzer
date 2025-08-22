@@ -335,8 +335,12 @@ void MainWindow::on_pushButton_back_clicked() {
     // proto.inc_counter();
     // net_man->get(req);
 
-    send_request("command", proto.calc_index("test", QList<uint>{0, 0}));
-    send_request("command", proto.calc_index("test", QList<uint>{0, 0}));
+    send_request(
+        "command",
+        proto.import_gtiff("/home/tim/Учёба/Test "
+                           "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
+                           "LC09_L1TP_188012_20230710_20230710_02_T1_B5.TIF"));
+    send_request("command", proto.calc_preview(0, 0, 0));
     send_request("command", proto.calc_index("test", QList<uint>{0, 0}));
 
     state.selected_dir = QDir();
@@ -365,23 +369,24 @@ void MainWindow::on_pushButton_showLog_clicked() {
 void MainWindow::closeEvent(QCloseEvent *e) {}
 
 void MainWindow::import_clicked() {
-  QDir dir = QFileDialog::getExistingDirectory(this, "Открыть директорию",
-                                               QDir::homePath());
-  int counter = 0;
-  for (QString f : dir.entryList()) {
-    if (f.endsWith(".tif") || f.endsWith(".tiff") || f.endsWith(".TIF") ||
-        f.endsWith(".TIFF")) {
-      send_request("command", proto.import_gtiff(dir.absolutePath() + "/" + f));
-      counter++;
-    }
-  }
-  if (counter == 0) {
-    append_log("bad", QString("В выбранной директории %1 нет снимков GeoTiff.")
-                          .arg(dir.absolutePath()));
-    set_status_message(false, "В выбранной директории нет снимков");
-    return;
-  }
-  state.selected_dir = dir;
+  // QDir dir = QFileDialog::getExistingDirectory(this, "Открыть директорию",
+  //                                              QDir::homePath());
+  // int counter = 0;
+  // for (QString f : dir.entryList()) {
+  //   if (f.endsWith(".tif") || f.endsWith(".tiff") || f.endsWith(".TIF") ||
+  //       f.endsWith(".TIFF")) {
+  //     // send_request("command", proto.import_gtiff(dir.absolutePath() + "/"
+  //     + f)); counter++;
+  //   }
+  // }
+  // if (counter == 0) {
+  //   append_log("bad", QString("В выбранной директории %1 нет снимков
+  //   GeoTiff.")
+  //                         .arg(dir.absolutePath()));
+  //   set_status_message(false, "В выбранной директории нет снимков");
+  //   return;
+  // }
+  // state.selected_dir = dir;
 
   // send_request(
   //     "command",

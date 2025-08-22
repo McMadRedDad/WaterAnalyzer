@@ -226,7 +226,7 @@ def handle_resource(res_type):
         
     if res_type == 'index':
         try:
-            dataset = executor.ds_man.get(id_)
+            dataset = executor.ds_man.get(id_).dataset
         except KeyError:
             return _http_response(request, '', 404, Reason=f'Requested index "{id_}" does not exist.')
 
