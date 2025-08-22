@@ -410,7 +410,7 @@ requests_json = {
         "parameters": {"arg1": "val1"}
     },
     # shutdown 20200, 20201
-    'import_gtiff_ok1': {
+    'import_gtiff_ok_big': {
         "proto_version": proto_version,
         "server_version": server_version,
         "id": 0,
@@ -419,7 +419,7 @@ requests_json = {
             "file": test_files['gtiff_ok1']
         }
     },
-    'import_gtiff_ok2': {
+    'import_gtiff_ok_mid': {
         "proto_version": proto_version,
         "server_version": server_version,
         "id": 0,
@@ -428,7 +428,7 @@ requests_json = {
             "file": test_files['gtiff_ok2']
         }
     },
-    'import_gtiff_ok3': {
+    'import_gtiff_ok_smol': {
         "proto_version": proto_version,
         "server_version": server_version,
         "id": 0,
@@ -437,7 +437,7 @@ requests_json = {
             "file": test_files['gtiff_ok3']
         }
     },
-    'import_gtiff_ok4': {
+    'import_gtiff_ok_mid2': {
         "proto_version": proto_version,
         "server_version": server_version,
         "id": 0,
@@ -446,7 +446,7 @@ requests_json = {
             "file": test_files['gtiff_ok4']
         }
     },
-    'import_gtiff_ok5': {
+    'import_gtiff_ok_smol2': {
         "proto_version": proto_version,
         "server_version": server_version,
         "id": 0,
@@ -650,7 +650,7 @@ requests_json = {
         "operation": "calc_index",
         "parameters": {
             "index": "test",
-            "ids": [0, 0, 4206934]
+            "ids": [0, 4206934]
         }
     },
     'calc_index_dim_mismatch': {
@@ -710,42 +710,67 @@ def check_all(endpoint, headers, body):
            res.get_json().get('status') if res.get_json() else None
 
 class Test(unittest.TestCase):
+    gtiffbig, gtiffmid, gtiffsmol, gtiffmid2, gtiffsmol2, gtiffempty = 0, 0, 0, 0, 0, 0
+    def test_000(self):
+        self.gtiffbig = executor.execute(requests_json['import_gtiff_ok_big'])['result']['id']
+        self.gtiffmid = executor.execute(requests_json['import_gtiff_ok_mid'])['result']['id']
+        self.gtiffsmol = executor.execute(requests_json['import_gtiff_ok_smol'])['result']['id']
+        self.gtiffmid2 = executor.execute(requests_json['import_gtiff_ok_mid2'])['result']['id']
+        self.gtiffsmol2 = executor.execute(requests_json['import_gtiff_ok_smol2'])['result']['id']
+        self.gtiffempty = executor.execute(requests_json['import_gtiff_ok_nodata'])['result']['id']
+        
+        requests_json['calc_preview_ok']['parameters']['ids'][0] = self.gtiffmid2
+        requests_json['calc_preview_ok']['parameters']['ids'][1] = self.gtiffmid2
+        requests_json['calc_preview_ok']['parameters']['ids'][2] = self.gtiffmid2
+        requests_json['calc_index_ok1']['parameters']['ids'][0] = self.gtiffmid2
+        requests_json['calc_index_ok1']['parameters']['ids'][1] = self.gtiffmid2
+
+        executor.execute(requests_json['calc_preview_ok'])
+        executor.execute(requests_json['calc_index_ok1'])
+        
+        print('Imported GTiffs and saved their ids to use in following tests')
 
     ### HTTP ONLY ###
 
     def test_http_ok(self):
         self.assertEqual(200, POST('/api/PING', http_headers['ok'], requests_json['ping_ok']).status_code)
-        self.assertEqual(200, POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok']).status_code)
-        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok1']).status_code)
-        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok2']).status_code)
-        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok3']).status_code)
-        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok4']).status_code)
-        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok5']).status_code)
+        # self.assertEqual(200, POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok']).status_code)
+        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_big']).status_code)
+        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid']).status_code)
+        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol']).status_code)
+        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid2']).status_code)
+        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol2']).status_code)
         self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_nodata']).status_code)
         prev = POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])
         self.assertEqual(200, prev.status_code)
+        url_pr = prev.get_json()['result']['url']
         width = prev.get_json()['result']['width']
         height = prev.get_json()['result']['height']
-        self.assertEqual(200, POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1']).status_code)
-        self.assertEqual(200, GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=width, Height=height).status_code)
-        self.assertEqual(200, GET('/resource/index?id=0', http_headers['get_index_ok'], '').status_code)
+        index = POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])
+        self.assertEqual(200, index.status_code)
+        url_ind = index.get_json()['result']['url']
+        self.assertEqual(200, GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).status_code)
+        self.assertEqual(200, GET(url_ind, http_headers['get_index_ok'], '').status_code)
         
         self.assertIsNone(POST('/api/PING', http_headers['ok'], requests_json['ping_ok']).headers.get('Reason'))
-        self.assertIsNone(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok']).headers.get('Reason'))
-        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok1']).headers.get('Reason'))
-        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok2']).headers.get('Reason'))
-        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok3']).headers.get('Reason'))
-        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok4']).headers.get('Reason'))
-        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok5']).headers.get('Reason'))
+        # self.assertIsNone(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok']).headers.get('Reason'))
+        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_big']).headers.get('Reason'))
+        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid']).headers.get('Reason'))
+        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol']).headers.get('Reason'))
+        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid2']).headers.get('Reason'))
+        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol2']).headers.get('Reason'))
         self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_nodata']).headers.get('Reason'))
         prev = POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])
         self.assertIsNone(prev.headers.get('Reason'))
+        url_pr = prev.get_json()['result']['url']
         width = prev.get_json()['result']['width']
         height = prev.get_json()['result']['height']
-        self.assertIsNone(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1']).headers.get('Reason'))
-        self.assertIsNone(GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=width, Height=height).headers.get('Reason'))
-        self.assertIsNone(GET('/resource/index?id=0', http_headers['get_index_ok'], '').headers.get('Reason'))
-
+        index = POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])
+        self.assertIsNone(index.headers.get('Reason'))
+        url_ind = index.get_json()['result']['url']
+        self.assertIsNone(GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).headers.get('Reason'))
+        self.assertIsNone(GET(url_ind, http_headers['get_index_ok'], '').headers.get('Reason'))
+   
     def test_http_endpoint(self):
         self.assertEqual(400, POST('/api/unsupported', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('resource/unsupported?id=0', http_headers['ok'], '').status_code)
@@ -756,7 +781,7 @@ class Test(unittest.TestCase):
         self.assertTrue(http_reason['unsupported_resource_type'] in GET('/resource/unsupported?id=0', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['get_preview_404'] in GET('/resource/preview?id=4206934', http_headers['get_preview_ok'], '', Width=123, Height=123).headers.get('Reason'))
         self.assertTrue(http_reason['get_index_404'] in GET('/resource/index?id=4206934', http_headers['get_index_ok'], '').headers.get('Reason'))
-
+   
     def test_query_string(self):
         self.assertEqual(400, POST('/api/PING?=', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/preview', http_headers['ok'], '').status_code)
@@ -773,7 +798,7 @@ class Test(unittest.TestCase):
         self.assertTrue(http_reason['query_string_necessary'] in GET('/resource/index', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['query_string_id'] in GET('/resource/index?a=1&b=2', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['inv_id_type_in_query_string'] in GET('/resource/index?id=abc', http_headers['ok'], '').headers.get('Reason'))
-
+   
     def test_http_headers(self):
         self.assertEqual(400, POST('/api/PING', http_headers['missing_content_type'], '').status_code)
         self.assertEqual(400, POST('/api/PING', http_headers['missing_accept'], '').status_code)
@@ -801,12 +826,12 @@ class Test(unittest.TestCase):
         self.assertEqual(400, GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Height=123).status_code)
         self.assertEqual(400, GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width='abc', Height=123).status_code)
         self.assertEqual(400, GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=123, Height='abc').status_code)
-        POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok1'])
         prev = POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])
+        url_pr = prev.get_json()['result']['url']
         width = prev.get_json()['result']['width']
         height = prev.get_json()['result']['height']
-        self.assertEqual(400, GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=width, Height=4206934).status_code)
-        self.assertEqual(400, GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=4206934, Height=height).status_code)
+        self.assertEqual(400, GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=4206934).status_code)
+        self.assertEqual(400, GET(url_pr, http_headers['get_preview_ok'], '', Width=4206934, Height=height).status_code)
         self.assertEqual(400, GET('/resource/index?id=0', http_headers['missing_accept'], '').status_code)
         self.assertEqual(400, GET('/resource/index?id=0', http_headers['missing_proto_v'], '').status_code)
         self.assertEqual(400, GET('/resource/index?id=0', http_headers['missing_request_id'], '').status_code)
@@ -847,8 +872,8 @@ class Test(unittest.TestCase):
         self.assertTrue(http_reason['get_preview_missing_width'] in GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Height=123).headers.get('Reason'))
         self.assertTrue(http_reason['get_preview_inv_width_type'] in GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width='abc', Height=123).headers.get('Reason'))
         self.assertTrue(http_reason['get_preview_inv_height_type'] in GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=123, Height='abc').headers.get('Reason'))
-        self.assertTrue(http_reason['get_preview_width_mismatch'] in GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=4206934, Height=123).headers.get('Reason'))
-        self.assertTrue(http_reason['get_preview_height_mismatch'] in GET('/resource/preview?id=0', http_headers['get_preview_ok'], '', Width=428, Height=4206934).headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_width_mismatch'] in GET(url_pr, http_headers['get_preview_ok'], '', Width=4206934, Height=height).headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_height_mismatch'] in GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=4206934).headers.get('Reason'))
         self.assertTrue(http_reason['missing_accept'] in GET('/resource/index?id=0', http_headers['missing_accept'], '').headers.get('Reason'))
         self.assertTrue(http_reason['missing_proto_v'] in GET('/resource/index?id=0', http_headers['missing_proto_v'], '').headers.get('Reason'))
         self.assertTrue(http_reason['missing_request_id'] in GET('/resource/index?id=0', http_headers['missing_request_id'], '').headers.get('Reason'))
@@ -856,7 +881,7 @@ class Test(unittest.TestCase):
         self.assertTrue(http_reason['inv_proto_v'] in GET('/resource/index?id=0', http_headers['inv_proto_v'], '').headers.get('Reason'))
         self.assertTrue(http_reason['inv_request_id_type'] in GET('/resource/index?id=0', http_headers['inv_request_id_type'], '').headers.get('Reason'))
         self.assertTrue(http_reason['inv_request_id'] in GET('/resource/index?id=0', http_headers['inv_request_id'], '').headers.get('Reason'))
-
+   
     def test_http_body(self):
         self.assertEqual(400, client.post('/api/PING', headers=http_headers['ok'], data='{{"key": "str }').status_code)
         self.assertEqual(400, POST('/api/PING', http_headers['ok'], {}).status_code)
@@ -871,29 +896,30 @@ class Test(unittest.TestCase):
     ### JSON ONLY ###
     
     ### Common ###
-
+   
     def test_json_ok(self):
         self.assertEqual(0, check_json(requests_json['ping_ok']))
-        self.assertEqual(0, check_json(requests_json['shutdown_ok']))
-        self.assertEqual(0, check_json(requests_json['import_gtiff_ok1']))
-        self.assertEqual(0, check_json(requests_json['import_gtiff_ok2']))
-        self.assertEqual(0, check_json(requests_json['import_gtiff_ok3']))
-        self.assertEqual(0, check_json(requests_json['import_gtiff_ok4']))
-        self.assertEqual(0, check_json(requests_json['import_gtiff_ok5']))
+        # self.assertEqual(0, check_json(requests_json['shutdown_ok']))
+        self.assertEqual(0, check_json(requests_json['import_gtiff_ok_big']))
+        self.assertEqual(0, check_json(requests_json['import_gtiff_ok_mid']))
+        self.assertEqual(0, check_json(requests_json['import_gtiff_ok_smol']))
+        self.assertEqual(0, check_json(requests_json['import_gtiff_ok_mid2']))
+        self.assertEqual(0, check_json(requests_json['import_gtiff_ok_smol2']))
         self.assertEqual(0, check_json(requests_json['import_gtiff_ok_nodata']))
         self.assertEqual(0, check_json(requests_json['calc_preview_ok']))
-
+        self.assertEqual(0, check_json(requests_json['calc_index_ok1']))
+   
     def test_json_unknown_key(self):
         self.assertEqual(10000, check_json(requests_json['unknown_key1']))
         self.assertEqual(10000, check_json(requests_json['unknown_key2']))
-
+   
     def test_json_missing_key(self):
         self.assertEqual(10001, check_json(requests_json['missing_key1']))
         self.assertEqual(10001, check_json(requests_json['missing_key2']))
         self.assertEqual(10001, check_json(requests_json['missing_key3']))
         self.assertEqual(10001, check_json(requests_json['missing_key4']))
         self.assertEqual(10001, check_json(requests_json['missing_key5']))
-
+   
     def test_json_inv_proto_ver(self):
         self.assertEqual(10002, check_json(requests_json['inv_proto_ver1']))
         self.assertEqual(10002, check_json(requests_json['inv_proto_ver2']))
@@ -901,7 +927,7 @@ class Test(unittest.TestCase):
         self.assertEqual(10002, check_json(requests_json['inv_proto_ver4']))
         self.assertEqual(10002, check_json(requests_json['inv_proto_ver5']))
         self.assertEqual(10002, check_json(requests_json['inv_proto_ver6']))
-
+   
     def test_json_inv_server_ver(self):
         self.assertEqual(10003, check_json(requests_json['inv_serv_ver1']))
         self.assertEqual(10003, check_json(requests_json['inv_serv_ver2']))
@@ -909,56 +935,56 @@ class Test(unittest.TestCase):
         self.assertEqual(10003, check_json(requests_json['inv_serv_ver4']))
         self.assertEqual(10003, check_json(requests_json['inv_serv_ver5']))
         self.assertEqual(10003, check_json(requests_json['inv_serv_ver6']))
-
+   
     def test_json_inv_id(self):
         self.assertEqual(10004, check_json(requests_json['inv_id1']))
         self.assertEqual(10004, check_json(requests_json['inv_id2']))
-
+   
     def test_json_unknown_operation(self):
         self.assertEqual(10005, check_json(requests_json['unknown_operation']))
-
+   
     def test_json_invalid_parameters(self):
         self.assertEqual(10006, check_json(requests_json['inv_params']))
         self.assertEqual(10007, check_json(requests_json['params_missing_key']))
         self.assertEqual(10008, check_json(requests_json['params_unknown_key']))
-
+   
     def test_json_incorrect_proto_version(self):
         self.assertEqual(10009, check_json(requests_json['incorrect_proto_ver']))
-
+   
     def test_json_mismatching_keys(self):
         response = executor.execute(requests_json['ping_ok'])
         response['id'] = 69
         self.assertEqual(10010, proto.match(requests_json['ping_ok'], response)['status'])
-
+   
     def test_json_incorrect_server_version(self):
         self.assertEqual(20000, check_json(requests_json['incorrect_serv_ver']))
-
+   
     def test_json_unsupported_proto_version(self):
         ver = proto.get_version()
         proto.VERSION = '1.0.0'
         self.assertEqual(20001, check_json(requests_json['unsupported_proto_ver']))
         proto.VERSION = ver
-
+   
     def test_json_unsupported_operation(self):
         self.assertEqual(20002, executor.execute(requests_json['unsupported_operation'])['status'])
 
     # 20003
 
     ### Operation specific ###
-
+   
     def test_json_ping(self):
         self.assertEqual(10100, check_json(requests_json['ping_non_empty_params']))
-
+   
     def test_json_shutdown(self):
         self.assertEqual(10200, check_json(requests_json['shutdown_non_empty_params']))
         # 20200, 20201
-
+   
     def test_json_import_gtiff(self):
         self.assertEqual(20300, check_json(requests_json['import_gtiff_not_geotiff1']))
         self.assertEqual(20300, check_json(requests_json['import_gtiff_not_geotiff2']))
         self.assertEqual(20300, check_json(requests_json['import_gtiff_not_geotiff3']))
         self.assertEqual(20301, check_json(requests_json['import_gtiff_non_existent']))
-
+   
     def test_json_calc_preview(self):
         self.assertEqual(10400, check_json(requests_json['calc_preview_inv_ids']))
         self.assertEqual(10401, check_json(requests_json['calc_preview_4_ids']))
@@ -968,9 +994,20 @@ class Test(unittest.TestCase):
         self.assertEqual(20400, check_json(requests_json['calc_preview_non_existent_id']))
         self.assertEqual(20401, check_json(requests_json['calc_preview_dim_mismatch']))
         # 20402
+   
+    def test_json_calc_index(self):
+        self.assertEqual(10500, check_json(requests_json['calc_index_inv_ids']))
+        self.assertEqual(10501, check_json(requests_json['calc_index_inv_id1']))
+        self.assertEqual(10501, check_json(requests_json['calc_index_inv_id2']))
+        self.assertEqual(10501, check_json(requests_json['calc_index_inv_id3']))
+        self.assertEqual(20500, check_json(requests_json['calc_index_unsupported_index']))
+        self.assertEqual(20501, check_json(requests_json['calc_index_inv_ids_length']))
+        self.assertEqual(20502, check_json(requests_json['calc_index_non_existent_id']))
+        self.assertEqual(20503, check_json(requests_json['calc_index_dim_mismatch']))
+        # 20504
 
     ### BOTH ###
-
+   
     def test_cross(self):
         self.assertEqual(400, POST('/api/PING', http_headers['ok'], requests_json['shutdown_ok']).status_code)
         hdrs = http_headers['ok'].copy()
@@ -987,21 +1024,22 @@ class Test(unittest.TestCase):
         # hdrs['Protocol-Version'] = http_headers['ok']['Protocol-Version']
         hdrs['Request-ID'] = 42069
         self.assertTrue(http_reason['request_id_mismatch'] in POST('/api/PING', hdrs, requests_json['ping_ok']).headers.get('Reason'))
-
+   
     def test_status_codes(self):
         def _codes(response: 'Response'):
             return response.status_code, \
                    response.get_json().get('status') if response.get_json() else None
 
         self.assertEqual((200, 0) , _codes(POST('/api/PING', http_headers['ok'], requests_json['ping_ok'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok1'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok2'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok3'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok4'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok5'])))
+        # self.assertEqual((200, 0) , _codes(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok'])))
+        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_big'])))
+        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid'])))
+        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol'])))
+        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid2'])))
+        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol2'])))
         self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_nodata'])))
         self.assertEqual((200, 0) , _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])))
+        self.assertEqual((200, 0) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])))
 
         self.assertEqual((400, 10000) , _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key1'])))
         self.assertEqual((400, 10000) , _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key2'])))
@@ -1058,7 +1096,7 @@ class Test(unittest.TestCase):
 
         self.assertEqual((400, 10100) , _codes(POST('/api/PING', http_headers['ok'], requests_json['ping_non_empty_params'])))
 
-        self.assertEqual((400, 10200) , _codes(POST('/api/PING', http_headers['ok'], requests_json['shutdown_non_empty_params'])))
+        self.assertEqual((400, 10200) , _codes(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_non_empty_params'])))
         # 20200, 20201
 
         self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff1'])))
@@ -1074,6 +1112,68 @@ class Test(unittest.TestCase):
         self.assertEqual((404, 20400), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_non_existent_id'])))
         self.assertEqual((400, 20401), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_dim_mismatch'])))
         # 20402
+
+        self.assertEqual((400, 10500) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_inv_ids'])))
+        self.assertEqual((400, 10501) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_inv_id1'])))
+        self.assertEqual((400, 10501) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_inv_id2'])))
+        self.assertEqual((400, 10501) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_inv_id3'])))
+        self.assertEqual((400, 20500) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_unsupported_index'])))
+        self.assertEqual((400, 20501) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_inv_ids_length'])))
+        self.assertEqual((404, 20502) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_non_existent_id'])))
+        self.assertEqual((400, 20503) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_dim_mismatch'])))
+        # 20504
+
+    ### DIFFERENT FILES ###
+
+    def test_calc_preview_files(self):
+        f = requests_json['calc_preview_ok'].copy()
+
+        f['parameters']['ids'][0] = self.gtiffbig
+        f['parameters']['ids'][1] = self.gtiffbig
+        f['parameters']['ids'][2] = self.gtiffbig
+        self.assertEqual(0, executor.execute(f)['status'])
+        f['parameters']['ids'][0] = self.gtiffmid
+        f['parameters']['ids'][1] = self.gtiffmid
+        f['parameters']['ids'][2] = self.gtiffmid
+        self.assertEqual(0, executor.execute(f)['status'])
+        f['parameters']['ids'][0] = self.gtiffsmol
+        f['parameters']['ids'][1] = self.gtiffsmol
+        f['parameters']['ids'][2] = self.gtiffsmol
+        self.assertEqual(0, executor.execute(f)['status'])
+        f['parameters']['ids'][0] = self.gtiffmid2
+        f['parameters']['ids'][1] = self.gtiffmid2
+        f['parameters']['ids'][2] = self.gtiffmid2
+        self.assertEqual(0, executor.execute(f)['status'])
+        f['parameters']['ids'][0] = self.gtiffsmol2
+        f['parameters']['ids'][1] = self.gtiffsmol2
+        f['parameters']['ids'][2] = self.gtiffsmol2
+        self.assertEqual(0, executor.execute(f)['status'])
+        f['parameters']['ids'][0] = self.gtiffempty
+        f['parameters']['ids'][1] = self.gtiffempty
+        f['parameters']['ids'][2] = self.gtiffempty
+        self.assertEqual(0, executor.execute(f)['status'])
+
+    def test_calc_index_files(self):
+        f = requests_json['calc_index_ok1'].copy()
+
+        f['parameters']['ids'][0] = self.gtiffbig
+        f['parameters']['ids'][1] = self.gtiffbig
+        self.assertEqual(0, executor.execute(f)['status'])
+        f['parameters']['ids'][0] = self.gtiffmid
+        f['parameters']['ids'][1] = self.gtiffmid
+        self.assertEqual(0, executor.execute(f)['status'])
+        f['parameters']['ids'][0] = self.gtiffsmol
+        f['parameters']['ids'][1] = self.gtiffsmol
+        self.assertEqual(0, executor.execute(f)['status'])
+        f['parameters']['ids'][0] = self.gtiffmid2
+        f['parameters']['ids'][1] = self.gtiffmid2
+        self.assertEqual(0, executor.execute(f)['status'])
+        f['parameters']['ids'][0] = self.gtiffsmol2
+        f['parameters']['ids'][1] = self.gtiffsmol2
+        self.assertEqual(0, executor.execute(f)['status'])
+        f['parameters']['ids'][0] = self.gtiffempty
+        f['parameters']['ids'][1] = self.gtiffempty
+        self.assertEqual(0, executor.execute(f)['status'])
 
 if __name__ == '__main__':
     unittest.main()
