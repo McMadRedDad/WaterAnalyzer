@@ -142,8 +142,7 @@ class DatasetManager:
         except KeyError:
             raise KeyError(f'Dataset {dataset_id} is not opened but "read_band" method called')
         try:
-            with self._lock:
-                band = ds.GetRasterBand(band_id)
+            band = ds.GetRasterBand(band_id)
         except RuntimeError:
             raise RuntimeError(f'Daraset {dataset_id} does not have band number {band_id}')
 
@@ -166,26 +165,34 @@ class DatasetManager:
         # we'll read along the side that is shorter
         # e.g. raster size 100x50 -> read along y=50
         if x_size >= y_size:
+            buf_x = int(x_size * res) if int(x_size * res) > 0 else 1
+            buf_y=int(1 * res) if int(1 * res) > 0 else 1
             with self._lock:
-                data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=x_size, win_ysize=1, buf_xsize=int(x_size * res), buf_ysize=int(1 * res))
+                data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=x_size, win_ysize=1, buf_xsize=buf_x, buf_ysize=buf_y)
+            buf_y = int(step * res) if int(step * res) > 0 else 1
             for i in range(1, y_size, step):
                 if y_size >= i + step:
                     with self._lock:
-                        win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=step, buf_xsize=int(x_size * res), buf_ysize=int(step * res))
+                        win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=step, buf_xsize=buf_x, buf_ysize=buf_y)
                 else:
+                    buf_y = int((y_size - i) * res) if int((y_size - i) * res) > 0 else 1
                     with self._lock:
-                        win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=y_size - i, buf_xsize=int(x_size * res), buf_ysize=int((y_size - i) * res))
+                        win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=y_size - i, buf_xsize=buf_x, buf_ysize=buf_y)
                 data = np.vstack((data, win))
         else:
+            buf_x = int(1 * res) if int(1 * res) > 0 else 1
+            buf_y = int(y_size * res) if int(y_size * res) > 0 else 1
             with self._lock:
-                data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=1, win_ysize=y_size, buf_xsize=int(1 * res), buf_ysize=int(y_size * res))
+                data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=1, win_ysize=y_size, buf_xsize=buf_x, buf_ysize=buf_y)
+            buf_x = int(step * res) if int(step * res) > 0 else 1
             for i in range(1, x_size, step):
                 if x_size >= i + step:
                     with self._lock:
-                        win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=step, win_ysize=y_size, buf_xsize=int(step * res), buf_ysize=int(y_size * res))
+                        win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=step, win_ysize=y_size, buf_xsize=buf_x, buf_ysize=buf_y)
                 else:
+                    buf_x = int((x_size - i) * res) if int((x_size - i) * res) > 0 else 1
                     with self._lock:
-                        win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size, buf_xsize=int((x_size - i) * res), buf_ysize=int(y_size * res))
+                        win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size, buf_xsize=buf_x, buf_ysize=buf_y)
                 data = np.hstack((data, win))
 
         return data
@@ -248,11 +255,11 @@ class GdalExecutor:
         if operation == 'import_gtiff':
             try:
                 dataset_id = self.ds_man.open(parameters['file'])
-                dataset = self.ds_man.get(dataset_id)
-            except (RuntimeError, KeyError):
+            except RuntimeError:
                 return _response(20301, {"error": f"failed to open file '{parameters['file']}'"})
             except ValueError:
                 return _response(20300, {"error": f"provided file '{parameters['file']}' is not a GeoTiff image"})
+            dataset = self.ds_man.get(dataset_id)
             if dataset.GetDriver().ShortName != 'GTiff':
                 return _response(20300, {"error": f"provided file '{parameters['file']}' is not a GeoTiff image"})
             
