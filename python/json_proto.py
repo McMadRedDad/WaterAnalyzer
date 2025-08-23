@@ -6,9 +6,8 @@ class Protocol:
         print(f'Using protocol version {self.VERSION}')
 
     def validate(self, request: dict) -> dict:
-        """Checks for all protocol-specific request errors related to message structure, spelling, etc. and returns a dictionary. Does not check for data-specific errors (e.g. non-existent image id, server version, etc.) that can only be verified by the backend itself.
-        Must be called first to validate the request.
-        The dictionary returned is guaranteed to be valid according to this protocol."""
+        """Checks for all protocol-specific request errors related to message structure, spelling, etc. and returns a dictionary. Does not check for data-specific errors (e.g. non-existent image id, server version, etc.).
+        Must be called first to validate the request."""
 
         proto_version = request.get('proto_version')
         server_version = request.get('server_version')
@@ -123,13 +122,13 @@ class Protocol:
                 return _response(10400, {"error": "invalid 'ids' key: must be an array of 3 integer values"})
             if len(ids) != 3:
                 return _response(10401, {"error": "exactly 3 values must be specified in 'ids' key"})
-            for i in range(3):
-                if type(ids[i]) is not int:
-                    return _response(10402, {"error": f"invalid id '{ids[i]}' in 'ids' key"})
+            for i in ids:
+                if type(i) is not int:
+                    return _response(10402, {"error": f"invalid id '{i}' in 'ids' key"})
             return _response(0, {})
 
         if operation == 'calc_index':
-            params_check = _check_param_keys('calc_index', ['ids', 'index'], list(parameters.keys()))
+            params_check = _check_param_keys('calc_index', ['index', 'ids'], list(parameters.keys()))
             if len(params_check) != 0:
                 return params_check
             ids = parameters['ids']
@@ -143,9 +142,8 @@ class Protocol:
         return _response(-1, {"error": "how's this even possible?"})
 
     def match(self, request: dict, result: dict) -> dict:
-        """Checks if 'result' correctly correlates with 'request' and returns a dictionary.
-        Must be called after 'Protocol.validate' and 'GdalExecutor.execute'.
-        The dictionary returned is guaranteed to be valid according to this protocol."""
+        """Checks if 'result' corresponds to 'request' and returns a dictionary.
+        Must be called after 'Protocol.validate' and 'GdalExecutor.execute'."""
 
         proto_version = request.get('proto_version')
         server_version = request.get('server_version')
@@ -172,5 +170,5 @@ class Protocol:
     def get_version(self) -> str:
         return self.VERSION
 
-    def get_supported_operations(self) -> tuple:
+    def get_supported_operations(self) -> tuple[str]:
         return self.SUPPORTED_OPERATIONS

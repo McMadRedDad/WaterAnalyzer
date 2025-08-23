@@ -19,7 +19,7 @@ class PreviewManager:
         self._lock = threading.Lock()
 
     def add(self, array: np.ndarray, red: int, green: int, blue: int) -> int:
-        """Stores a new numpy array referring to a preview image and returns its id. The array must be suitable for PIL.Image.fromarray() function.
+        """Stores 'array' referring to a preview image and returns its id. The array must be suitable for PIL.Image.fromarray() function, i.e. of shape (height, width, channels).
         'red', 'green' and 'blue' refer to the datasets' ids from which the preview was created."""
 
         with self._lock:
@@ -57,7 +57,8 @@ class PreviewManager:
                 raise KeyError(f'Preview {id} does not exist but "get" method called')
 
     def get_all(self) -> list[Preview]:
-        return self._previews.values()
+        with self._lock:
+            return list(self._previews.values())
 
 class Dataset:
     def __init__(self, dataset: gdal.Dataset, index: str=None, ids: tuple[int] | list[int]=None):
@@ -71,7 +72,7 @@ class DatasetManager:
         self._counter = 0
         self._lock = threading.Lock()
 
-    def add_index(self, dataset: gdal.Dataset, index: str, ids: tuple[int]) -> int:
+    def add_index(self, dataset: gdal.Dataset, index: str, ids: tuple[int] | list[int]) -> int:
         """Stores 'dataset' with its associated 'index' name and 'ids' and returns its own generated id."""
 
         with self._lock:
@@ -90,22 +91,19 @@ class DatasetManager:
                     return id_
             return None
 
-    def open(self, file: str) -> int:
+    def open(self, filename: str) -> int:
         """Tries to open 'file' as a GDAL dataset and returns its generated id."""
 
         try:
-            dataset = gdal.Open(file, gdal.GA_ReadOnly)
+            dataset = gdal.Open(filename, gdal.GA_ReadOnly)
         except RuntimeError:
-            dataset = None
-            raise RuntimeError(f'Cannot open file {file}')
+            raise RuntimeError(f'Cannot open file {filename}')
         if dataset.GetSpatialRef() is None:
-            dataset = None
-            raise ValueError(f'Opened file {file} is not a spatial image')
+            raise ValueError(f'Opened file {filename} is not a spatial image')
 
         with self._lock:
             for id_, ds in self._datasets.items():
                 if ds.dataset.GetDescription() == dataset.GetDescription():
-                    dataset = None
                     return id_
             self._datasets[self._counter] = Dataset(dataset)
             self._counter += 1
@@ -138,18 +136,12 @@ class DatasetManager:
         'step_size' is the percent of the raster's rows or columns that will be read during one iteration. For example, if the raster is 100x100 pixels and 'step_size'=20, the band will be read entirely within 5 iterations with five 20x100 windows.
         'step_size' <=0 means the band will be read line by line. 'step_size' >=100 means the band will be read at once.
         The less 'step_size' is, the less memory is used and the slower the function is.
-        'resolution_percent' controls the resulting array resolution. if <=0 resoltion is set to 0.01 percent of the original raster; if >=100 the band is read at full resolution."""
+        'resolution_percent' controls the resulting array resolution. if <=0, resoltion is set to 0.01 percent of the original raster; if >=100, the band will be read at full resolution."""
 
         def _to_percent(value):
-            if (
-                isclose(0, value, abs_tol=0.01) or
-                value < 0
-            ):
+            if isclose(0, value, abs_tol=0.01) or value < 0:
                 return 0
-            elif (
-                isclose(100, value, abs_tol=0.01) or
-                value > 100
-            ):
+            elif isclose(100, value, abs_tol=0.01) or value > 100:
                return 100
             else:
                 return value
@@ -224,17 +216,16 @@ class GdalExecutor:
             return None
         return super().__new__(cls)
     
-    def __init__(self, protocol: str):
-        self.proto_version = protocol.get_version()
+    def __init__(self, protocol: 'Protocol'):
         self.supported_operations = protocol.get_supported_operations()
         self.ds_man = DatasetManager()
         self.pv_man = PreviewManager()
+        self.geotiff = gdal.GetDriverByName('GTiff')
         print(f'Server running version {self.VERSION}')
 
     def execute(self, request: dict) -> dict:
         """Processes the request and returns a dictionary to be used by Protocol.send method.
-        Must be called after 'Protocol.validate'.
-        The dictionary returned is guaranteed to be valid according to the protocol used."""
+        Must be called after 'Protocol.validate'."""
 
         proto_version = request['proto_version']
         server_version = request['server_version']
@@ -303,7 +294,7 @@ class GdalExecutor:
                     ds.append(self.ds_man.get(i).dataset)
                 except KeyError:
                     return _response(20400, {"error": f"id {i} provided in 'ids' key does not exist"})
-            for i in ds:
+            for i in ds[1:]:
                 if not (i.RasterXSize == ds[0].RasterXSize and i.RasterYSize == ds[0].RasterYSize):
                     return _response(20401, {"error": "unable to create preview from requested ids: rasters do not match in dimensions"})
             # error 20402
@@ -318,17 +309,20 @@ class GdalExecutor:
             
             r, g, b = 0, 0, 0
             r = self.ds_man.read_band(id_r, 1, resolution_percent=5)
-            g = self.ds_man.read_band(id_g, 1, resolution_percent=5) if ds[1] is not ds[0] else r
-            if ds[2] is ds[0]:
+            r = indcal.map_to_8bit(r)
+            if id_g == id_r:
+                g = r
+            else:
+                g = self.ds_man.read_band(id_g, 1, resolution_percent=5)
+                g = indcal.map_to_8bit(g)
+            if id_b == id_r:
                 b = r
-            elif ds[2] is ds[1]:
+            elif id_b == id_g:
                 b = g
             else:
-                b = self.ds_man.read_band(id_b, 1, 100, 5)
+                b = self.ds_man.read_band(id_b, 1, resolution_percent=5)
+                b = indcal.map_to_8bit(b)
                 
-            r = indcal.map_to_8bit(r)
-            g = indcal.map_to_8bit(g)
-            b = indcal.map_to_8bit(b)            
             pv_id = self.pv_man.add(np.transpose(np.stack((r, g, b)), (1, 2, 0)), id_r, id_g, id_b)
             return _response(0, {
                 "url": pv_id,
@@ -401,9 +395,6 @@ class GdalExecutor:
             return _response(0, result)
         
         return _response(-1, {"error": "how's this even possible?"})
-    
-    def geotiff(self) -> gdal.Driver:
-        return gdal.GetDriverByName('GTiff')
 
     def get_version(self) -> str:
         return self.VERSION

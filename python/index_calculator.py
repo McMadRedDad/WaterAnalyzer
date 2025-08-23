@@ -5,7 +5,7 @@ FLOAT_PRECISION = 1e-10
 
 def map_to_8bit(array: np.ndarray) -> np.ndarray:
     """Fits 'array's values into [0; 255] range and returns a new array of uint8 type.
-    If 'array's range is 0, e.g. array.min() == array.max(), all values are set to 0."""
+    If 'array's range is 0, i.e. array.min() == array.max(), all values are set to 0."""
 
     min, max = array.min(), array.max()
     if isclose(min, max, rel_tol=FLOAT_PRECISION):
@@ -14,7 +14,7 @@ def map_to_8bit(array: np.ndarray) -> np.ndarray:
         return np.array((array - min) / (max - min) * 255, dtype=np.uint8)
 
 def _test(array1: np.ndarray, array2: np.ndarray, nodata: int | float) -> np.ndarray:
-    """arr1 / arr2"""
+    """array1 / array2"""
     
     test = np.empty(array1.shape, dtype=np.float32)
     zeros = np.isclose(array2, 0, rtol=FLOAT_PRECISION)

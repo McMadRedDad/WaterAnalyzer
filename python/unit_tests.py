@@ -785,17 +785,21 @@ class Test(unittest.TestCase):
     def test_query_string(self):
         self.assertEqual(400, POST('/api/PING?=', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/preview', http_headers['ok'], '').status_code)
+        self.assertEqual(400, GET('/resource/preview?a=1', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/preview?a=1&b=2', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/preview?id=abc', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/index', http_headers['ok'], '').status_code)
+        self.assertEqual(400, GET('/resource/index?a=1', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/index?a=1&b=2', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/index?id=abc', http_headers['ok'], '').status_code)
 
         self.assertTrue(http_reason['no_query_string'] in POST('/api/PING?=', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['query_string_necessary'] in GET('/resource/preview', http_headers['ok'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['query_string_id'] in GET('/resource/preview?a=1', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['query_string_id'] in GET('/resource/preview?a=1&b=2', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['inv_id_type_in_query_string'] in GET('/resource/preview?id=abc', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['query_string_necessary'] in GET('/resource/index', http_headers['ok'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['query_string_id'] in GET('/resource/index?a=1', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['query_string_id'] in GET('/resource/index?a=1&b=2', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['inv_id_type_in_query_string'] in GET('/resource/index?id=abc', http_headers['ok'], '').headers.get('Reason'))
    

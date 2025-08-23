@@ -61,9 +61,9 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
             if hdr_list is not None:
                 return hdr_list
         else:
-            raise ValueError('Resource request with invalid resource type {} passed to "check_http_headers" function'.format(request.base_url.rpartition('/')[2]))
+            raise ValueError('Resource request with invalid resource type "{}" passed to "check_http_headers" function'.format(request.base_url.rpartition('/')[2]))
     else:
-        raise ValueError(f'Invalid "request_type" argument passed to "check_http_headers" function: {request_type}')
+        raise ValueError(f'Invalid "request_type" argument passed to "check_http_headers" function: "{request_type}"')
 
     if headers['Protocol-Version'] != proto.get_version():
         return _http_response(request, '', 400, Reason=f'Invalid protocol version "{headers["Protocol-Version"]}" in "Protocol-Version" header: used protocol version is "{proto.get_version()}".')
@@ -77,16 +77,16 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
 
     if request_type == 'command':
         content_type = headers['Content-Type']
-        if (
-            content_type != 'application/json; charset=utf-8' and
-            content_type != 'application/json;charset=utf-8'
+        if not (
+            content_type == 'application/json; charset=utf-8' or
+            content_type == 'application/json;charset=utf-8'
         ):
             return _http_response(request, '', 400, Reason=f'Invalid value "{content_type}" of "Content-Type" header: must be "application/json; charset=utf-8" or "application/json;charset=utf-8" for "{request.path}" request.')
         
         accept = headers['Accept']
-        if (
-            accept != 'application/json; charset=utf-8' and
-            accept != 'application/json;charset=utf-8'
+        if not (
+            accept == 'application/json; charset=utf-8' or
+            accept == 'application/json;charset=utf-8'
         ):
             return _http_response(request, '', 400, Reason=f'Invalid value "{accept}" of "Accept" header: must be "application/json; charset=utf-8" or "application/json;charset=utf-8" for "{request.path}" request.')
 
@@ -98,7 +98,7 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
             return _http_response(request, '', 400, Reason=f'Invalid value "{content_length}" for "Content-Length" header: must be in [2, {_max_content_length}] for {request.path} request.')
         if content_length > _max_content_length:
             return _http_response(request, '', 413, Reason=f'Invalid value "{content_length}" for "Content-Length" header: must be in [2, {_max_content_length}] for {request.path} request.')
-    elif request_type == 'resource':
+    if request_type == 'resource':
         accept = headers['Accept']
         if request.base_url.rpartition('/')[2] == 'preview':
             if accept != 'image/png':
@@ -114,8 +114,6 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
         elif request.base_url.rpartition('/')[2] == 'index':
             if accept != 'image/tiff':
                 return _http_response(request, '', 400, Reason=f'Invalid value "{accept}" of "Accept" header: must be "image/tiff" for /resource/index request.')
-    else:
-        raise ValueError(f'Invalid "request_type" argument passed to "check_http_headers" function: {request_type}')
 
     return None
 
@@ -178,11 +176,9 @@ def generate_http_response(request: request, response_json: dict) -> 'Response':
     return _http_response(request, response_json, http_status, Content_Type='application/json; charset=utf-8')
 
 def shutdown():
-    # to be changed for chosen wsgi server
+    # to be changed for chosen wsgi server and gracefulness
     time.sleep(3)
     os._exit(0)
-
-tmp_times = []
 
 @server.get('/resource/<res_type>')
 def handle_resource(res_type):
@@ -190,8 +186,11 @@ def handle_resource(res_type):
         return _http_response(request, '', 400, Reason='Query string must be provided for resource requests.')
     if len(request.args) > 1:
         return _http_response(request, '', 400, Reason='Query string must only include "id" parameter for resource requests.')
+    id_ = request.args.get('id')
+    if id_ is None:
+        return _http_response(request, '', 400, Reason='Query string must only include "id" parameter for resource requests.')
     try:
-        id_ = int(request.args['id'])
+        id_ = int(id_)
     except ValueError:
         return _http_response(request, '', 400, Reason='"id" parameter of the query string must be of integer type.')
 
@@ -231,7 +230,7 @@ def handle_resource(res_type):
             return _http_response(request, '', 404, Reason=f'Requested index "{id_}" does not exist.')
 
         with tempfile.NamedTemporaryFile(mode='w+b', delete=True, delete_on_close=True) as tmp:
-            executor.geotiff().CreateCopy(tmp.name, dataset, strict=False)
+            executor.geotiff.CreateCopy(tmp.name, dataset, strict=False)
             tmp.seek(0)
             data = tmp.read()
             
