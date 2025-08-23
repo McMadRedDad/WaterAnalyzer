@@ -12,14 +12,12 @@ SOURCES += \
     clickableqwidget.cpp \
     jsonprotocol.cpp \
     main.cpp \
-    mainwindow.cpp \
-    uibuilder.cpp
+    mainwindow.cpp
 
 HEADERS += \
     clickableqwidget.hpp \
     jsonprotocol.hpp \
-    mainwindow.hpp \
-    uibuilder.hpp
+    mainwindow.hpp
 
 FORMS += \
     mainwindow.ui
