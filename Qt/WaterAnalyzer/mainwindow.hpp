@@ -1,9 +1,8 @@
 #ifndef MAINWINDOW_HPP
 #define MAINWINDOW_HPP
 
-#include "clickableqwidget.hpp"
+#include "importpage.hpp"
 #include "jsonprotocol.hpp"
-#include <QFileDialog>
 #include <QMainWindow>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -15,10 +14,12 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
+enum PAGE { BAD = -1, IMPORT, SELECTION, RESULT };
+
 struct STATE {
-  enum Page { BAD = -1, IMPORT, SELECTION, RESULT } page;
-  QList<ClickableQWidget *> pages; // same order as Page
-  QDir selected_dir;
+  ImportPage *import_p;
+  PAGE page;
+  QDir dir;
   QMap<QString, uint> file_ids;
 };
 
@@ -30,11 +31,11 @@ public:
   ~MainWindow();
 
 private slots:
-  void on_pushButton_back_clicked();
-  void on_pushButton_showLog_clicked();
+  void on_pb_back_clicked();
+  void on_pb_show_log_clicked();
 
 private:
-  STATE state;
+  STATE self;
   QHostAddress backend_ip;
   quint16 backend_port;
   QNetworkAccessManager *net_man;
@@ -50,7 +51,7 @@ private:
 
   void set_status_message(bool good, QString message, short msec = 3000);
   void append_log(QString type, QString line);
-  void change_page(STATE::Page to);
+  void change_page(PAGE to);
 
   void closeEvent(QCloseEvent *e) override;
   void import_clicked();

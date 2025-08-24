@@ -10,16 +10,19 @@ CONFIG += c++17
 
 SOURCES += \
     clickableqwidget.cpp \
+    importpage.cpp \
     jsonprotocol.cpp \
     main.cpp \
     mainwindow.cpp
 
 HEADERS += \
     clickableqwidget.hpp \
+    importpage.hpp \
     jsonprotocol.hpp \
     mainwindow.hpp
 
 FORMS += \
+    importpage.ui \
     mainwindow.ui
 
 # Default rules for deployment.

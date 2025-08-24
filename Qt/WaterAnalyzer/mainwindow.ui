@@ -31,7 +31,7 @@
        </spacer>
       </item>
       <item>
-       <widget class="QPushButton" name="pushButton_back">
+       <widget class="QPushButton" name="pb_back">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
           <horstretch>0</horstretch>
@@ -77,7 +77,20 @@
         <height>0</height>
        </size>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout_3"/>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+      </layout>
      </widget>
     </item>
     <item>
@@ -85,7 +98,7 @@
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
-         <widget class="QPushButton" name="pushButton_showLog">
+         <widget class="QPushButton" name="pb_show_log">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -105,12 +118,12 @@
            </size>
           </property>
           <property name="text">
-           <string>▴</string>
+           <string>▾</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QLabel" name="label_status">
+         <widget class="QLabel" name="lbl_status">
           <property name="text">
            <string/>
           </property>

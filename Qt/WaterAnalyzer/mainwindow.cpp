@@ -1,24 +1,14 @@
 #include "mainwindow.hpp"
 #include "ui_mainwindow.h"
-#include "uibuilder.hpp"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow) {
   ui->setupUi(this);
 
-  state.pages.append(UiBuilder::build_import_page(ui->widget_main));
-  state.pages.append(UiBuilder::build_selection_page(ui->widget_main));
-  state.pages.append(UiBuilder::build_results_page(ui->widget_main));
-  for (QWidget *w : state.pages) {
-    w->hide();
-  }
-  ui->widget_main->layout()->addWidget(state.pages[0]);
-  state.pages[0]->show();
-  connect(state.pages[0], &ClickableQWidget::clicked, this,
-          &MainWindow::import_clicked);
-
-  state.page = STATE::Page::IMPORT;
-  state.selected_dir = QDir();
+  self.import_p = new ImportPage();
+  //
+  //
+  change_page(PAGE::IMPORT);
 
   backend_ip = QHostAddress::LocalHost;
   backend_port = 42069;
@@ -27,12 +17,25 @@ MainWindow::MainWindow(QWidget *parent)
   //         &MainWindow::handle_response);
   proto = JsonProtocol("1.0.0");
 
-  connect(&timer_status, &QTimer::timeout, this,
-          [this]() { ui->label_status->clear(); });
+  connect(&timer_status, &QTimer::timeout,
+          [this]() { ui->lbl_status->clear(); });
 }
 
 MainWindow::~MainWindow() {
   delete ui;
+
+  if (self.import_p) {
+    delete self.import_p;
+    self.import_p = nullptr;
+  }
+  // if (self.import_p) {
+  //     delete self.import_p;
+  //     self.import_p = nullptr;
+  // }
+  // if (self.import_p) {
+  //     delete self.import_p;
+  //     self.import_p = nullptr;
+  // }
 
   if (net_man) {
     delete net_man;
@@ -201,7 +204,7 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
     set_status_message(true, "Сервер завершил работу");
   } else if (command == "import_gtiff") {
     QJsonObject info = result["info"].toObject();
-    state.file_ids[result["file"].toString()] = result["id"].toInt();
+    self.file_ids[result["file"].toString()] = result["id"].toInt();
     append_log("info", "Id: " + QString::number(result["id"].toInt()) +
                            ", file: " + result["file"].toString() + ".");
     set_status_message(true, "Изображение успешно загружено");
@@ -249,11 +252,11 @@ void MainWindow::set_status_message(bool good, QString message, short msec) {
   }
 
   if (good) {
-    ui->label_status->setStyleSheet("color: lightgreen;");
+    ui->lbl_status->setStyleSheet("color: lightgreen;");
   } else {
-    ui->label_status->setStyleSheet("color: tomato;");
+    ui->lbl_status->setStyleSheet("color: tomato;");
   }
-  ui->label_status->setText(message);
+  ui->lbl_status->setText(message);
 
   timer_status.start(msec);
 }
@@ -272,23 +275,48 @@ void MainWindow::append_log(QString type, QString line) {
   ui->plainTextEdit_log->appendHtml(html);
 }
 
-void MainWindow::change_page(STATE::Page to) {
-  for (QWidget *w : state.pages) {
+void MainWindow::change_page(PAGE to) {
+  QWidget *w = ui->widget_main->layout()->widget();
+  if (w) {
     w->hide();
     ui->widget_main->layout()->removeWidget(w);
+    w = nullptr;
   }
+
   switch (to) {
-  case STATE::Page::IMPORT:
-    ui->widget_main->layout()->addWidget(state.pages[0]);
-    state.pages[0]->show();
-    state.page = STATE::Page::IMPORT;
+  case PAGE::IMPORT:
+    connect(self.import_p, &ImportPage::directory, [this](QDir dir) {
+      int counter = 0;
+      for (QString f : dir.entryList()) {
+        if (f.endsWith(".tif") || f.endsWith(".tiff") || f.endsWith(".TIF") ||
+            f.endsWith(".TIFF")) {
+          send_request("command",
+                       proto.import_gtiff(dir.absolutePath() + "/" + f));
+          counter++;
+        }
+      }
+      if (counter == 0) {
+        append_log("bad",
+                   QString("В выбранной директории %1 нет снимков GeoTiff.")
+                       .arg(dir.absolutePath()));
+        set_status_message(false, "В выбранной директории нет снимков");
+        return;
+      }
+      self.dir = dir;
+    });
+    self.page = PAGE::IMPORT;
+    self.dir = QDir();
+    // self.file_ids.clear();
+    ui->pb_back->hide();
+    ui->widget_main->layout()->addWidget(self.import_p);
+    self.import_p->show();
     break;
-  case STATE::Page::SELECTION:
-    ui->widget_main->layout()->addWidget(state.pages[1]);
-    state.pages[1]->show();
-    state.page = STATE::Page::SELECTION;
+  case PAGE::SELECTION:
+    // ui->widget_main->layout()->addWidget(state.pages[1]);
+    // state.pages[1]->show();
+    self.page = PAGE::SELECTION;
     break;
-  case STATE::Page::RESULT:
+  case PAGE::RESULT:
     //
     break;
   default:
@@ -296,17 +324,17 @@ void MainWindow::change_page(STATE::Page to) {
   }
 }
 
-void MainWindow::on_pushButton_back_clicked() {
-  switch (state.page) {
-  case STATE::Page::IMPORT: {
+void MainWindow::on_pb_back_clicked() {
+  switch (self.page) {
+  case PAGE::IMPORT: {
     send_request("command", proto.shutdown());
-    state.page = STATE::Page::BAD;
+    self.page = PAGE::BAD;
     break;
   }
-  case STATE::Page::SELECTION: {
-    change_page(STATE::Page::IMPORT);
-    connect(state.pages[0], &ClickableQWidget::clicked, this,
-            &MainWindow::import_clicked);
+  case PAGE::SELECTION: {
+    change_page(PAGE::IMPORT);
+    // connect(state.pages[0], &ClickableQWidget::clicked, this,
+    //         &MainWindow::import_clicked);
 
     // int ids[3] = {-1, -1, -1};
     // for (QString f : state.selected_dir.entryList()) {
@@ -343,11 +371,11 @@ void MainWindow::on_pushButton_back_clicked() {
     send_request("command", proto.calc_preview(0, 0, 0));
     send_request("command", proto.calc_index("test", QList<uint>{0, 0}));
 
-    state.selected_dir = QDir();
-    state.file_ids.clear();
+    self.dir = QDir();
+    self.file_ids.clear();
     break;
   }
-  case STATE::Page::RESULT: {
+  case PAGE::RESULT: {
     //
     break;
   }
@@ -356,13 +384,13 @@ void MainWindow::on_pushButton_back_clicked() {
   }
 }
 
-void MainWindow::on_pushButton_showLog_clicked() {
+void MainWindow::on_pb_show_log_clicked() {
   if (ui->plainTextEdit_log->isVisible()) {
     ui->plainTextEdit_log->hide();
-    ui->pushButton_showLog->setText("▾");
+    ui->pb_show_log->setText("▴");
   } else {
     ui->plainTextEdit_log->show();
-    ui->pushButton_showLog->setText("▴");
+    ui->pb_show_log->setText("▾");
   }
 }
 
@@ -407,7 +435,7 @@ void MainWindow::import_clicked() {
   // //                             "/home/tim/Учёба/Test
   // //                             data/dacha_dist_10px.tif"));
 
-  change_page(STATE::Page::SELECTION);
-  disconnect(state.pages[0], &ClickableQWidget::clicked, this,
-             &MainWindow::import_clicked);
+  change_page(PAGE::SELECTION);
+  // disconnect(state.pages[0], &ClickableQWidget::clicked, this,
+  //            &MainWindow::import_clicked);
 }
