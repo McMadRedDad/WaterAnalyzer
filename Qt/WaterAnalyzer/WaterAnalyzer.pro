@@ -13,17 +13,20 @@ SOURCES += \
     importpage.cpp \
     jsonprotocol.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    processpage.cpp
 
 HEADERS += \
     clickableqwidget.hpp \
     importpage.hpp \
     jsonprotocol.hpp \
-    mainwindow.hpp
+    mainwindow.hpp \
+    processpage.hpp
 
 FORMS += \
     importpage.ui \
-    mainwindow.ui
+    mainwindow.ui \
+    processpage.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

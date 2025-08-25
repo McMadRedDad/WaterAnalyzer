@@ -3,6 +3,7 @@
 
 #include "importpage.hpp"
 #include "jsonprotocol.hpp"
+#include "processpage.hpp"
 #include <QMainWindow>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -18,9 +19,10 @@ enum PAGE { BAD = -1, IMPORT, SELECTION, RESULT };
 
 struct STATE {
   ImportPage *import_p;
+  ProcessPage *process_p;
   PAGE page;
   QDir dir;
-  QMap<QString, uint> file_ids;
+  QMap<QString, QPair<QString, uint>> files; // filename: {band/index, id}
 };
 
 class MainWindow : public QMainWindow {
@@ -54,6 +56,5 @@ private:
   void change_page(PAGE to);
 
   void closeEvent(QCloseEvent *e) override;
-  void import_clicked();
 };
 #endif // MAINWINDOW_HPP
