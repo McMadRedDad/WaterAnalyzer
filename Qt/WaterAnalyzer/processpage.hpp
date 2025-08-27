@@ -14,6 +14,9 @@ public:
   explicit ProcessPage(QWidget *parent = nullptr);
   ~ProcessPage();
 
+private slots:
+  void on_pb_refresh_clicked();
+
 private:
   Ui::ProcessPage *ui;
 };

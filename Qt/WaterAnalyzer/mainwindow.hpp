@@ -15,14 +15,14 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
-enum PAGE { BAD = -1, IMPORT, SELECTION, RESULT };
+enum PAGE { BAD = -1, IMPORT, IMPORT_CUSTOM_BANDS, SELECTION, RESULT };
 
 struct STATE {
   ImportPage *import_p;
   ProcessPage *process_p;
   PAGE page;
   QDir dir;
-  QMap<QString, QPair<QString, uint>> files; // filename: {band/index, id}
+  QMap<QString, QPair<QString, uint>> files; // band/index: {filename, id}
 };
 
 class MainWindow : public QMainWindow {
@@ -35,6 +35,9 @@ public:
 private slots:
   void on_pb_back_clicked();
   void on_pb_show_log_clicked();
+
+signals:
+  void to_satellite_select_page();
 
 private:
   STATE self;

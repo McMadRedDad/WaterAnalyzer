@@ -263,14 +263,17 @@ void MainWindow::set_status_message(bool good, QString message, short msec) {
 
 void MainWindow::append_log(QString type, QString line) {
   QString html;
+  QString time = QDateTime::currentDateTime().time().toString();
   if (type == "good") {
-    html = "<span style=\"color: lightgreen;\">" + line + "</span>";
+    html = "<span style=\"color: lightgreen;\"> [" + time + "]: " + line +
+           "</span>";
   } else if (type == "bad") {
-    html = "<span style=\"color: tomato;\">" + line + "</span>";
+    html =
+        "<span style=\"color: tomato;\"> [" + time + "]: " + line + "</span>";
   } else if (type == "info") {
-    html = line;
+    html = "[" + time + "]: " + line;
   } else {
-    html = line;
+    html = "[" + time + "]: " + line;
   }
   ui->plainTextEdit_log->appendHtml(html);
 }
@@ -283,62 +286,119 @@ void MainWindow::change_page(PAGE to) {
 
   switch (to) {
   case PAGE::IMPORT: {
-    auto dir = [this](QDir dir) {
+    auto directory = [this](QDir dir) {
       int counter = 0;
       for (QString f : dir.entryList()) {
-        if (f.endsWith(".tif") || f.endsWith(".tiff") || f.endsWith(".TIF") ||
-            f.endsWith(".TIFF")) {
+        if (f.toUpper().endsWith(".TIF") &&
+            f.right(7).toUpper().contains('B')) {
+          QPair<QString, uint> p{dir.absolutePath() + "/" + f, 0};
+          QString band = f.right(8);
+          if (band[0] == '_') {
+            band = band.mid(2, 2).prepend('L');
+          } else {
+            band = band.mid(3, 1).prepend('L');
+          }
+          self.files[band] = p;
           send_request("command",
                        proto.import_gtiff(dir.absolutePath() + "/" + f));
           counter++;
         }
       }
       if (counter == 0) {
-        append_log("bad",
-                   QString("В выбранной директории %1 нет снимков GeoTiff.")
-                       .arg(dir.absolutePath()));
+        append_log(
+            "bad",
+            QString(
+                "В выбранной директории %1 нет снимков Landsat или Sentinel.")
+                .arg(dir.absolutePath()));
         set_status_message(false, "В выбранной директории нет снимков");
         return;
       }
       self.dir = dir;
-      disconnect(self.import_p, &ImportPage::directory, nullptr, nullptr);
       change_page(PAGE::SELECTION);
     };
     auto files = [this](QStringList filenames) {
       int counter = 0;
       for (QString f : filenames) {
-        if (f.endsWith(".tif") || f.endsWith(".tiff") || f.endsWith(".TIF") ||
-            f.endsWith(".TIFF")) {
+        if (f.toUpper().endsWith(".TIF") &&
+            f.right(7).toUpper().contains("B")) {
+          QPair<QString, uint> p{f, 0};
+          QString band = f.right(8);
+          if (band[0] == '_') {
+            band = band.mid(2, 2).prepend('L');
+          } else {
+            band = band.mid(3, 1).prepend('L');
+          }
+          self.files[band] = p;
           send_request("command", proto.import_gtiff(f));
           counter++;
         }
       }
       if (counter == 0) {
-        append_log("bad", "Не выбрано ни одного файла GeoTiff.");
-        set_status_message(false, "Не выбрано файлов GeoTiff");
+        append_log("bad", "Не выбрано ни одного снимка Landsat или Sentinel.");
+        set_status_message(false, "Не выбрано ни одного снимка");
         return;
       }
       self.dir = filenames[0].section('/', 0, -2);
-      disconnect(self.import_p, &ImportPage::files, nullptr, nullptr);
+      change_page(PAGE::SELECTION);
+    };
+    auto custom_files = [this](QList<QPair<QString, QString>> bands_files) {
+      if (bands_files.isEmpty()) {
+        append_log("bad", "Не выбрано ни одного файла Tiff.");
+        set_status_message(false, "Файлы Tiff не выбраны");
+        return;
+      }
+      for (QPair f : bands_files) {
+        self.files[f.first.prepend('L')] = QPair<QString, uint>{f.second, 0};
+        send_request("command", proto.import_gtiff(f.second));
+      }
+      self.dir = bands_files[0].second.section('/', 0, -2);
       change_page(PAGE::SELECTION);
     };
 
-    connect(self.import_p, &ImportPage::directory, dir);
+    connect(self.import_p, &ImportPage::custom_bands_page, [this]() {
+      self.page = PAGE::IMPORT_CUSTOM_BANDS;
+      ui->pb_back->show();
+    });
+    connect(self.import_p, &ImportPage::satellite_select_page, [this]() {
+      self.page = PAGE::IMPORT;
+      ui->pb_back->hide();
+    });
+    connect(self.import_p, &ImportPage::bad_band, [this](QString file) {
+      append_log(
+          "bad",
+          QString("Выбранный файл %1 не является файлом Tiff.").arg(file));
+      set_status_message(false, "Выбранный файл не Tiff");
+    });
+    connect(this, &MainWindow::to_satellite_select_page, self.import_p,
+            &ImportPage::to_satellite_select_page);
+    connect(self.import_p, &ImportPage::directory, directory);
     connect(self.import_p, &ImportPage::files, files);
+    connect(self.import_p, &ImportPage::custom_files, custom_files);
+
     self.page = PAGE::IMPORT;
     self.dir = QDir();
     self.files.clear();
-    ui->pb_back->hide();
+
+    if (self.import_p->get_page() == ImportPage::MAIN) {
+      ui->pb_back->hide();
+    } else if (self.import_p->get_page() == ImportPage::CUSTOM_BANDS) {
+      self.page = PAGE::IMPORT_CUSTOM_BANDS;
+    }
     ui->widget_main->layout()->addWidget(self.import_p);
     self.import_p->show();
+
+    qDebug() << self.files;
     break;
   }
   case PAGE::SELECTION:
+    qDebug() << self.files;
+    disconnect(self.import_p, nullptr, nullptr, nullptr);
+
+    self.page = PAGE::SELECTION;
+
     ui->pb_back->show();
     ui->widget_main->layout()->addWidget(self.process_p);
     self.process_p->show();
-    self.page = PAGE::SELECTION;
-    qDebug() << self.dir;
     break;
   case PAGE::RESULT:
     //
@@ -353,6 +413,9 @@ void MainWindow::on_pb_back_clicked() {
   case PAGE::IMPORT:
     send_request("command", proto.shutdown());
     self.page = PAGE::BAD;
+    break;
+  case PAGE::IMPORT_CUSTOM_BANDS:
+    emit to_satellite_select_page();
     break;
   case PAGE::SELECTION:
     change_page(PAGE::IMPORT);
@@ -386,13 +449,13 @@ void MainWindow::on_pb_back_clicked() {
     // proto.inc_counter();
     // net_man->get(req);
 
-    send_request(
-        "command",
-        proto.import_gtiff("/home/tim/Учёба/Test "
-                           "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
-                           "LC09_L1TP_188012_20230710_20230710_02_T1_B5.TIF"));
-    send_request("command", proto.calc_preview(0, 0, 0));
-    send_request("command", proto.calc_index("test", QList<uint>{0, 0}));
+    // send_request(
+    //     "command",
+    //     proto.import_gtiff("/home/tim/Учёба/Test "
+    //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
+    //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B5.TIF"));
+    // send_request("command", proto.calc_preview(0, 0, 0));
+    // send_request("command", proto.calc_index("test", QList<uint>{0, 0}));
     break;
   case PAGE::RESULT:
     //
