@@ -208,7 +208,7 @@ class DatasetManager:
 
 class GdalExecutor:
     VERSION = '1.0.0'
-    SUPPORTED_PROTOCOL_VERSIONS = ('2.1.1')
+    SUPPORTED_PROTOCOL_VERSIONS = ('2.1.2')
     SUPPORTED_INDICES = {'test': 2}     # { 'name': number_of_datasets_to_calc_from }
     
     def __new__(cls, protocol):
@@ -288,6 +288,7 @@ class GdalExecutor:
 
         if operation == 'calc_preview':
             id_r, id_g, id_b = parameters['ids'][0], parameters['ids'][1], parameters['ids'][2]
+            width, height = parameters['width'], parameters['height']
             ds = []
             for i in (id_r, id_g, id_b):
                 try:
@@ -306,21 +307,26 @@ class GdalExecutor:
                     "width": self.pv_man.get(existing).width,
                     "height": self.pv_man.get(existing).height
                 })
-            
+
+            res = 0
+            if height >= width:
+                res = height / ds[0].RasterYSize * 100
+            else:
+                res = width / ds[0].RasterXSize * 100            
             r, g, b = 0, 0, 0
-            r = self.ds_man.read_band(id_r, 1, resolution_percent=5)
+            r = self.ds_man.read_band(id_r, 1, resolution_percent=res)
             r = indcal.map_to_8bit(r)
             if id_g == id_r:
                 g = r
             else:
-                g = self.ds_man.read_band(id_g, 1, resolution_percent=5)
+                g = self.ds_man.read_band(id_g, 1, resolution_percent=res)
                 g = indcal.map_to_8bit(g)
             if id_b == id_r:
                 b = r
             elif id_b == id_g:
                 b = g
             else:
-                b = self.ds_man.read_band(id_b, 1, resolution_percent=5)
+                b = self.ds_man.read_band(id_b, 1, resolution_percent=res)
                 b = indcal.map_to_8bit(b)
                 
             pv_id = self.pv_man.add(np.transpose(np.stack((r, g, b)), (1, 2, 0)), id_r, id_g, id_b)
@@ -343,7 +349,7 @@ class GdalExecutor:
                     ds.append(self.ds_man.get(i).dataset)
                 except KeyError:
                     return _response(20502, {"error": f"id {i} provided in 'ids' key does not exist"})
-            for i in ds:
+            for i in ds[1:]:
                 if not (i.RasterXSize == ds[0].RasterXSize and i.RasterYSize == ds[0].RasterYSize):
                     return _response(20503, {"error": "unable to create index from requested ids: rasters do not match in dimensions"})
             # error 20504

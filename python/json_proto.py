@@ -1,5 +1,5 @@
 class Protocol:
-    VERSION = '2.1.1'
+    VERSION = '2.1.2'
     SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index')
 
     def __init__(self):
@@ -114,10 +114,10 @@ class Protocol:
                 return _response(0, {})
             
         if operation == 'calc_preview':
-            params_check = _check_param_keys('calc_preview', ['ids'], list(parameters.keys()))
+            params_check = _check_param_keys('calc_preview', ['ids', 'width', 'height'], list(parameters.keys()))
             if len(params_check) != 0: 
                 return params_check
-            ids = parameters['ids']
+            ids, width, height = parameters['ids'], parameters['width'], parameters['height']
             if type(ids) is not list:
                 return _response(10400, {"error": "invalid 'ids' key: must be an array of 3 integer values"})
             if len(ids) != 3:
@@ -125,18 +125,28 @@ class Protocol:
             for i in ids:
                 if type(i) is not int:
                     return _response(10402, {"error": f"invalid id '{i}' in 'ids' key"})
+            if type(width) is not int:
+                return _response(10403, {"error": "invalid 'width' key: must be of integer type"})
+            if type(height) is not int:
+                return _response(10403, {"error": "invalid 'height' key: must be of integer type"})
+            if width <= 0:
+                return _response(10404, {"error": f"invalid width '{width}' in 'width' key: must be > 0"})
+            if height <= 0:
+                return _response(10404, {"error": f"invalid height '{height}' in 'height' key: must be > 0"})
             return _response(0, {})
 
         if operation == 'calc_index':
             params_check = _check_param_keys('calc_index', ['index', 'ids'], list(parameters.keys()))
             if len(params_check) != 0:
                 return params_check
-            ids = parameters['ids']
+            index, ids = parameters['index'], parameters['ids']
+            if type(index) is not str:
+                return _response(10500, {"error": "invalid 'index' key: must be of string type"})
             if type(ids) is not list:
-                return _response(10500, {"error": "invalid 'ids' key: must be an array of integer values"})
+                return _response(10501, {"error": "invalid 'ids' key: must be an array of integer values"})
             for i in ids:
                 if type(i) is not int:
-                    return _response(10501, {"error": f"invalid id '{i}' in 'ids' key"})
+                    return _response(10502, {"error": f"invalid id '{i}' in 'ids' key"})
             return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})
