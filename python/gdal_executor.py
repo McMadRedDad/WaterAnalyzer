@@ -27,15 +27,16 @@ class PreviewManager:
             self._counter += 1
             return self._counter - 1
 
-    def find(self, red: int, green: int, blue: int) -> int | None:
-        """Tries to find a preview created from 'red', 'green' and 'blue' dataset ids.
+    def find(self, red: int, green: int, blue: int, width: int, height: int) -> int | None:
+        """Tries to find a preview of 'width' x 'height' dimensions created from 'red', 'green' and 'blue' dataset ids.
         If the preview is found, returns its id, otherwise returns None."""
 
         ids = (red, green, blue)
         with self._lock:
             for id_, pr in self._previews.items():
                 if pr._ids == ids:
-                    return id_
+                    if pr.width == width and pr.height == height:
+                        return id_
             return None
 
     def remove(self, id: int) -> None:
@@ -300,7 +301,7 @@ class GdalExecutor:
                     return _response(20401, {"error": "unable to create preview from requested ids: rasters do not match in dimensions"})
             # error 20402
 
-            existing = self.pv_man.find(id_r, id_g, id_b)
+            existing = self.pv_man.find(id_r, id_g, id_b, width, height)
             if existing is not None:
                 return _response(0, {
                     "url": existing,
@@ -309,7 +310,7 @@ class GdalExecutor:
                 })
 
             res = 0
-            if height >= width:
+            if height <= width:
                 res = height / ds[0].RasterYSize * 100
             else:
                 res = width / ds[0].RasterXSize * 100            

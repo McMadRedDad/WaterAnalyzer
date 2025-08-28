@@ -327,7 +327,7 @@ void MainWindow::change_page(PAGE to) {
         set_status_message(false, "Файлы Tiff не выбраны");
         return;
       }
-      for (QPair f : bands_files) {
+      for (auto f : bands_files) {
         self.files[f.first.prepend('L')] = QPair<QString, uint>{f.second, 0};
         send_request("command", proto.import_gtiff(f.second));
       }

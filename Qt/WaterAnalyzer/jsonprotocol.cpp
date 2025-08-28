@@ -1,6 +1,6 @@
 #include "jsonprotocol.hpp"
 
-const QString JsonProtocol::proto_version = "2.1.1";
+const QString JsonProtocol::proto_version = "2.1.2";
 
 JsonProtocol::JsonProtocol(QString server_version) {
   this->server_version = server_version;
@@ -37,11 +37,11 @@ void JsonProtocol::inc_counter() { counter++; }
 
 QJsonObject JsonProtocol::construct_json(QString operation,
                                          QJsonObject parameters) {
-  QJsonObject json{{"proto_version", JsonProtocol::proto_version},
-                   {"server_version", this->server_version},
-                   {"id", this->counter},
-                   {"operation", operation},
-                   {"parameters", parameters}};
+  QJsonObject json = {{"proto_version", JsonProtocol::proto_version},
+                      {"server_version", this->server_version},
+                      {"id", this->counter},
+                      {"operation", operation},
+                      {"parameters", parameters}};
   counter++;
   return json;
 }
