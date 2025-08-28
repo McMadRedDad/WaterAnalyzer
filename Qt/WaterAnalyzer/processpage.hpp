@@ -14,6 +14,9 @@ public:
   explicit ProcessPage(QWidget *parent = nullptr);
   ~ProcessPage();
 
+  void set_preview(QPixmap image);
+  void clear_preview();
+
 private slots:
   void on_pb_refresh_clicked();
 

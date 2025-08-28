@@ -265,7 +265,7 @@ Below are specifics for requests and responses for each supported command.
 *REQUEST*
 
 - `operation`  - "import_gtiff"
-- `parameters` - { "file": "`/path/to/file.tif`" }  !!!no local paths for remote servers; fine for now!!!
+- `parameters` - { "file": "`/path/to/file.tif`" }  **!!!no local paths for remote servers; fine for now!!!**
 
 *RESPONSE*
 
@@ -273,7 +273,7 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 0
     - `result` - {
         "id": `id`,                                     - [INT] id of loaded and cached GeoTiff image
-        "file": "`/path/to/loaded/file.tif`"            - [STRING] path of the file from the request  !!!no local paths for remote servers; fine for now!!!
+        "file": "`/path/to/loaded/file.tif`"            - [STRING] path of the file from the request  **!!!no local paths for remote servers; fine for now!!!**
         "info": {                                       - [OBJECT] description of the GeoTiff image
             "width": `width`,                           - [INT] width of the image in pixels
             "height": `height`,                         - [INT] height of the image in pixels

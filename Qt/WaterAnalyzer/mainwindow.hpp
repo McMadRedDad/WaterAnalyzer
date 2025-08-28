@@ -50,7 +50,7 @@ private:
   QTimer timer_status;
 
   void send_request(QString type, QJsonObject data);
-  void handle_response(QNetworkReply *response);
+  void handle_error(QNetworkReply *response);
   void process_get(QUrl endpoint, QByteArray body);
   void process_post(QUrl endpoint, QByteArray body);
 

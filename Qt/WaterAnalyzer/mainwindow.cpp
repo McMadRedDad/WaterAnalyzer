@@ -13,8 +13,6 @@ MainWindow::MainWindow(QWidget *parent)
   backend_ip = QHostAddress::LocalHost;
   backend_port = 42069;
   net_man = new QNetworkAccessManager(this);
-  // connect(net_man, &QNetworkAccessManager::finished, this,
-  //         &MainWindow::handle_response);
   proto = JsonProtocol("1.0.0");
 
   connect(&timer_status, &QTimer::timeout,
@@ -59,103 +57,107 @@ void MainWindow::send_request(QString type, QJsonObject data) {
     req.setRawHeader("Request-ID",
                      QString::number(data["id"].toInt()).toUtf8());
     QNetworkReply *response = net_man->post(req, QJsonDocument(data).toJson());
-    connect(response, &QNetworkReply::finished, this,
-            [this, response] { handle_response(response); });
-    connect(response, &QNetworkReply::errorOccurred, [this, response] {
-      append_log("bad", "error");
+    connect(response, &QNetworkReply::errorOccurred, this, [this, response] {
+      handle_error(response);
       response->deleteLater();
     });
-    // net_man->post(req, QJsonDocument(data).toJson());
+    connect(response, &QNetworkReply::finished, [this, response] {
+      if (response->error() == QNetworkReply::NoError) {
+        process_post(response->request().url(), response->readAll());
+      }
+      response->deleteLater();
+    });
   } else if (type == "resource") {
     QJsonObject result = data["result"].toObject();
     QNetworkRequest req("http://" + backend_ip.toString() + ":" +
                         QString::number(backend_port) +
                         result["url"].toString());
-    req.setRawHeader("Accept", "image/png");
     req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
     req.setRawHeader("Request-ID",
                      QString::number(proto.get_counter()).toUtf8());
+
+    QString type = result["url"].toString();
+    type = type.split('?').first().split('/').last();
+    if (type == "preview") {
+      req.setRawHeader("Accept", "image/png");
+      req.setRawHeader("Width",
+                       QString::number(result["width"].toInt()).toUtf8());
+      req.setRawHeader("Height",
+                       QString::number(result["height"].toInt()).toUtf8());
+    } else if (type == "index") {
+      req.setRawHeader("Accept", "image/tiff");
+    } else {
+      return;
+    }
     proto.inc_counter();
-    req.setRawHeader("Width",
-                     QString::number(result["width"].toInt()).toUtf8());
-    req.setRawHeader("Height",
-                     QString::number(result["height"].toInt()).toUtf8());
+
     QNetworkReply *response = net_man->get(req);
-    connect(response, &QNetworkReply::finished, this,
-            [this, response] { handle_response(response); });
-    connect(response, &QNetworkReply::errorOccurred, [this, response] {
-      append_log("bad", "error");
+    connect(response, &QNetworkReply::errorOccurred, [this, response]() {
+      handle_error(response);
       response->deleteLater();
     });
-    // net_man->get(req);
-  } else {
-    append_log("bad", QString("Неподдерживаемый тип запроса передан в "
-                              "функцию 'send_request': %1.")
-                          .arg(type));
-    set_status_message(false, "Неподдерживаемый тип запроса");
+    connect(response, &QNetworkReply::finished, [this, response]() {
+      if (response->error() == QNetworkReply::NoError) {
+        process_get(response->request().url(), response->readAll());
+      }
+      response->deleteLater();
+    });
   }
 }
 
-void MainWindow::handle_response(QNetworkReply *response) {
-  if (response->error() != QNetworkReply::NoError) {
-    if (!response->attribute(QNetworkRequest::HttpStatusCodeAttribute)
-             .isValid()) {
-      append_log("bad", "Ошибка соединения с сервером: " +
-                            response->errorString() + ".");
-      set_status_message(false, "Ошибка соединения с сервером");
-      response->deleteLater();
-      return;
-    }
-
-    QList<QNetworkReply::RawHeaderPair> raw_headers =
-        response->rawHeaderPairs();
-    for (QNetworkReply::RawHeaderPair header : raw_headers) {
-      if (QString::fromUtf8(header.first).toLower() == "reason") {
-        append_log(
-            "bad",
-            QString("Некорректный HTTP-запрос к серверу: %1 %2, Reason: %3.")
-                .arg(response
-                         ->attribute(QNetworkRequest::HttpStatusCodeAttribute)
-                         .toString(),
-                     response
-                         ->attribute(QNetworkRequest::HttpReasonPhraseAttribute)
-                         .toString(),
-                     QString::fromUtf8(header.second)));
-        set_status_message(false, "Некорректный HTTP-запрос");
-        response->deleteLater();
-        return;
-      }
-    }
-
-    QJsonObject json = QJsonDocument::fromJson(response->readAll()).object();
-    append_log("bad", "Некорректный JSON-запрос к серверу: " +
-                          QString::number(json["status"].toInt()) + " " +
-                          json["result"].toObject()["error"].toString() + ".");
-    set_status_message(false, "Некорректный JSON-запрос");
-    response->deleteLater();
+void MainWindow::handle_error(QNetworkReply *response) {
+  if (!response->attribute(QNetworkRequest::HttpStatusCodeAttribute)
+           .isValid()) {
+    append_log("bad", "Ошибка соединения с сервером: " +
+                          response->errorString() + ".");
+    set_status_message(false, "Ошибка соединения с сервером");
     return;
   }
 
-  if (response->operation() == QNetworkAccessManager::GetOperation) {
-    process_get(response->request().url(), response->readAll());
-  } else if (response->operation() == QNetworkAccessManager::PostOperation) {
-    process_post(response->request().url(), response->readAll());
-  } else {
-    append_log("bad", "Неподдерживаемый тип запроса к серверу.");
-    set_status_message(false, "Неподдерживаемый тип запроса");
+  auto raw_header_pairs = response->rawHeaderPairs();
+  for (auto header : raw_header_pairs) {
+    if (QString::fromUtf8(header.first).toLower() == "reason") {
+      append_log(
+          "bad",
+          QString("Некорректный HTTP-запрос к серверу: %1 %2, Reason: %3.")
+              .arg(response->attribute(QNetworkRequest::HttpStatusCodeAttribute)
+                       .toString(),
+                   response
+                       ->attribute(QNetworkRequest::HttpReasonPhraseAttribute)
+                       .toString(),
+                   QString::fromUtf8(header.second)));
+      set_status_message(false, "Некорректный HTTP-запрос");
+      return;
+    }
   }
-  response->deleteLater();
+
+  QJsonDocument jdoc = QJsonDocument::fromJson(response->readAll());
+  if (jdoc.isNull()) {
+    append_log(
+        "bad",
+        QString("Неизвестная ошибка на сервере. Ответ сервера: %1 %2.")
+            .arg(response->attribute(QNetworkRequest::HttpStatusCodeAttribute)
+                     .toString(),
+                 response->attribute(QNetworkRequest::HttpReasonPhraseAttribute)
+                     .toString()));
+    set_status_message(false, "Неизвестная ошибка на сервере");
+    return;
+  }
+
+  QJsonObject json = jdoc.object();
+  append_log("bad", "Некорректный JSON-запрос к серверу: " +
+                        QString::number(json["status"].toInt()) + " " +
+                        json["result"].toObject()["error"].toString() + ".");
+  set_status_message(false, "Некорректный JSON-запрос");
 }
 
 void MainWindow::process_get(QUrl endpoint, QByteArray body) {
-  QString type = endpoint.toString().split("/").last().split("?").first();
+  QString type = endpoint.toString();
+  type = type.split('?').first().split('/').last();
   if (type == "preview") {
     QPixmap preview;
     preview.loadFromData(body, "PNG");
-    QLabel *l = new QLabel();
-    l->setAttribute(Qt::WA_DeleteOnClose);
-    l->setPixmap(preview);
-    l->show();
+    self.process_p->set_preview(preview);
   } else if (type == "index") {
     QString path = QFileDialog::getSaveFileName(this, "Сохранить файл GeoTiff",
                                                 QDir::homePath());
@@ -197,47 +199,25 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
       QJsonDocument::fromJson(body).object()["result"].toObject();
 
   if (command == "PING") {
-    append_log("good", "Ответ сервера: " + result["data"].toString() + ".");
-    set_status_message(true, result["data"].toString());
+    append_log("good", "Связь с сервером установлена.");
+    set_status_message(true, "Связь с сервером установлена");
   } else if (command == "SHUTDOWN") {
     append_log("good", "Сервер завершил работу.");
     set_status_message(true, "Сервер завершил работу");
   } else if (command == "import_gtiff") {
-    QJsonObject info = result["info"].toObject();
-    // self.file_ids[result["file"].toString()] = result["id"].toInt();
-    append_log("info", "Id: " + QString::number(result["id"].toInt()) +
-                           ", file: " + result["file"].toString() + ".");
-    set_status_message(true, "Изображение успешно загружено");
+    QMap<QString, QPair<QString, uint>> files = self.files;
+    for (auto i = files.cbegin(), end = files.cend(); i != end; ++i) {
+      if (i.value().first == result["file"].toString()) {
+        self.files[i.key()].second = result["id"].toInt();
+      }
+    }
+    append_log("info",
+               "Файл " + result["file"].toString() + " успешно загружен.");
+    set_status_message(true, "Файл успешно загружен");
   } else if (command == "calc_preview") {
-    append_log("info", result["url"].toString() + ", " +
-                           QString::number(result["width"].toInt()) + "x" +
-                           QString::number(result["height"].toInt()));
-    set_status_message(true, "Превью успешно создано");
     send_request("resource", QJsonDocument::fromJson(body).object());
   } else if (command == "calc_index") {
-    append_log("info", result["url"].toString() + " -> " +
-                           result["info"].toObject()["projection"].toString() +
-                           ".");
-    set_status_message(true, "Индекс успешно рассчитан");
-
-    //
-
-    QNetworkRequest req("http://" + backend_ip.toString() + ":" +
-                        QString::number(backend_port) +
-                        result["url"].toString());
-    req.setRawHeader("Accept", "image/tiff");
-    req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
-    req.setRawHeader("Request-ID",
-                     QString::number(proto.get_counter()).toUtf8());
-    proto.inc_counter();
-    QNetworkReply *response = net_man->get(req);
-    connect(response, &QNetworkReply::finished,
-            [this, response] { handle_response(response); });
-    connect(response, &QNetworkReply::errorOccurred,
-            [response] { response->deleteLater(); });
-
-    //
-
+    send_request("resource", QJsonDocument::fromJson(body).object());
   } else {
     append_log("info",
                "Запрошена неизвестная команда, но сервер её обработал: " +
@@ -291,7 +271,7 @@ void MainWindow::change_page(PAGE to) {
       for (QString f : dir.entryList()) {
         if (f.toUpper().endsWith(".TIF") &&
             f.right(7).toUpper().contains('B')) {
-          QPair<QString, uint> p{dir.absolutePath() + "/" + f, 0};
+          QPair<QString, uint> p = {dir.absolutePath() + "/" + f, 0};
           QString band = f.right(8);
           if (band[0] == '_') {
             band = band.mid(2, 2).prepend('L');
@@ -321,7 +301,7 @@ void MainWindow::change_page(PAGE to) {
       for (QString f : filenames) {
         if (f.toUpper().endsWith(".TIF") &&
             f.right(7).toUpper().contains("B")) {
-          QPair<QString, uint> p{f, 0};
+          QPair<QString, uint> p = {f, 0};
           QString band = f.right(8);
           if (band[0] == '_') {
             band = band.mid(2, 2).prepend('L');
@@ -379,6 +359,7 @@ void MainWindow::change_page(PAGE to) {
     self.dir = QDir();
     self.files.clear();
 
+    self.process_p->clear_preview();
     if (self.import_p->get_page() == ImportPage::MAIN) {
       ui->pb_back->hide();
     } else if (self.import_p->get_page() == ImportPage::CUSTOM_BANDS) {
@@ -386,12 +367,9 @@ void MainWindow::change_page(PAGE to) {
     }
     ui->widget_main->layout()->addWidget(self.import_p);
     self.import_p->show();
-
-    qDebug() << self.files;
     break;
   }
   case PAGE::SELECTION:
-    qDebug() << self.files;
     disconnect(self.import_p, nullptr, nullptr, nullptr);
 
     self.page = PAGE::SELECTION;
@@ -411,9 +389,7 @@ void MainWindow::change_page(PAGE to) {
 void MainWindow::on_pb_back_clicked() {
   switch (self.page) {
   case PAGE::IMPORT:
-    send_request("command", proto.shutdown());
-    self.page = PAGE::BAD;
-    break;
+    return;
   case PAGE::IMPORT_CUSTOM_BANDS:
     emit to_satellite_select_page();
     break;
