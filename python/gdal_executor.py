@@ -35,7 +35,7 @@ class PreviewManager:
         with self._lock:
             for id_, pr in self._previews.items():
                 if pr._ids == ids:
-                    if pr.width == width and pr.height == height:
+                    if pr.width == width or pr.height == height:
                         return id_
             return None
 
