@@ -17,12 +17,21 @@ QT_END_NAMESPACE
 
 enum PAGE { BAD = -1, IMPORT, IMPORT_CUSTOM_BANDS, SELECTION, RESULT };
 
+struct DATASET {
+  QString filename = "";
+  int id = -1;
+  uint width = -1, height = -1;
+  QString projection = "", unit = "";
+  double origin[2] = {0.0, 0.0};
+  double pixel_size[2] = {0.0, 0.0};
+};
+
 struct STATE {
   ImportPage *import_p;
   ProcessPage *process_p;
   PAGE page;
   QDir dir;
-  QMap<QString, QPair<QString, int>> files; // band/index: {filename, id}
+  QMap<QString, DATASET> files; // band/index: DATASET
 };
 
 class MainWindow : public QMainWindow {

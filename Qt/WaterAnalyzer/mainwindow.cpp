@@ -205,10 +205,18 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
     append_log("good", "Сервер завершил работу.");
     set_status_message(true, "Сервер завершил работу");
   } else if (command == "import_gtiff") {
-    QMap<QString, QPair<QString, int>> files = self.files;
-    for (auto i = files.cbegin(), end = files.cend(); i != end; ++i) {
-      if (i.value().first == result["file"].toString()) {
-        self.files[i.key()].second = result["id"].toInt();
+    for (auto i = self.files.begin(), end = self.files.end(); i != end; ++i) {
+      if (i.value().filename == result["file"].toString()) {
+        i.value().id = result["id"].toInt();
+        QJsonObject info = result["info"].toObject();
+        i.value().width = info["width"].toInt();
+        i.value().height = info["height"].toInt();
+        i.value().projection = info["projection"].toString();
+        i.value().unit = info["unit"].toString();
+        i.value().origin[0] = info["origin"].toArray()[0].toDouble();
+        i.value().origin[1] = info["origin"].toArray()[1].toDouble();
+        i.value().pixel_size[0] = info["pixel_size"].toArray()[0].toDouble();
+        i.value().pixel_size[1] = info["pixel_size"].toArray()[1].toDouble();
         break;
       }
     }
@@ -272,16 +280,16 @@ void MainWindow::change_page(PAGE to) {
       for (QString f : dir.entryList()) {
         if (f.toUpper().endsWith(".TIF") &&
             f.right(7).toUpper().contains('B')) {
-          QPair<QString, int> p = {dir.absolutePath() + "/" + f, -1};
+          DATASET ds;
+          ds.filename = dir.absolutePath() + "/" + f;
           QString band = f.right(8);
           if (band[0] == '_') {
             band = band.mid(2, 2).prepend('L');
           } else {
             band = band.mid(3, 1).prepend('L');
           }
-          self.files[band] = p;
-          send_request("command",
-                       proto.import_gtiff(dir.absolutePath() + "/" + f));
+          self.files[band] = ds;
+          send_request("command", proto.import_gtiff(ds.filename));
           counter++;
         }
       }
@@ -302,15 +310,16 @@ void MainWindow::change_page(PAGE to) {
       for (QString f : filenames) {
         if (f.toUpper().endsWith(".TIF") &&
             f.right(7).toUpper().contains("B")) {
-          QPair<QString, int> p = {f, -1};
+          DATASET ds;
+          ds.filename = f;
           QString band = f.right(8);
           if (band[0] == '_') {
             band = band.mid(2, 2).prepend('L');
           } else {
             band = band.mid(3, 1).prepend('L');
           }
-          self.files[band] = p;
-          send_request("command", proto.import_gtiff(f));
+          self.files[band] = ds;
+          send_request("command", proto.import_gtiff(ds.filename));
           counter++;
         }
       }
@@ -329,8 +338,10 @@ void MainWindow::change_page(PAGE to) {
         return;
       }
       for (auto f : bands_files) {
-        self.files[f.first.prepend('L')] = QPair<QString, int>{f.second, -1};
-        send_request("command", proto.import_gtiff(f.second));
+        DATASET ds;
+        ds.filename = f.second;
+        self.files[f.first.prepend('L')] = ds;
+        send_request("command", proto.import_gtiff(ds.filename));
       }
       self.dir = bands_files[0].second.section('/', 0, -2);
       change_page(PAGE::SELECTION);
@@ -382,10 +393,9 @@ void MainWindow::change_page(PAGE to) {
               it_b == self.files.end()) {
             send_request("command", proto.calc_preview(0, 0, 0, width, height));
           } else {
-            send_request("command", proto.calc_preview(it_r.value().second,
-                                                       it_g.value().second,
-                                                       it_b.value().second,
-                                                       width, height));
+            send_request("command",
+                         proto.calc_preview(it_r.value().id, it_g.value().id,
+                                            it_b.value().id, width, height));
           }
         });
 
