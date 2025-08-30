@@ -14,4 +14,7 @@ void ProcessPage::set_preview(QPixmap image) {
 
 void ProcessPage::clear_preview() { ui->lbl_preview->clear(); }
 
-void ProcessPage::on_pb_refresh_clicked() {}
+void ProcessPage::on_pb_refresh_clicked() {
+  ui->lbl_preview->clear();
+  emit preview(ui->lbl_preview->width() - 6, ui->lbl_preview->height() - 6);
+}

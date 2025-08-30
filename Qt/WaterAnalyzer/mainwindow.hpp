@@ -22,7 +22,7 @@ struct STATE {
   ProcessPage *process_p;
   PAGE page;
   QDir dir;
-  QMap<QString, QPair<QString, uint>> files; // band/index: {filename, id}
+  QMap<QString, QPair<QString, int>> files; // band/index: {filename, id}
 };
 
 class MainWindow : public QMainWindow {

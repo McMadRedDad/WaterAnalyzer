@@ -20,6 +20,9 @@ public:
 private slots:
   void on_pb_refresh_clicked();
 
+signals:
+  void preview(uint w, uint h);
+
 private:
   Ui::ProcessPage *ui;
 };

@@ -205,10 +205,11 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
     append_log("good", "Сервер завершил работу.");
     set_status_message(true, "Сервер завершил работу");
   } else if (command == "import_gtiff") {
-    QMap<QString, QPair<QString, uint>> files = self.files;
+    QMap<QString, QPair<QString, int>> files = self.files;
     for (auto i = files.cbegin(), end = files.cend(); i != end; ++i) {
       if (i.value().first == result["file"].toString()) {
         self.files[i.key()].second = result["id"].toInt();
+        break;
       }
     }
     append_log("info",
@@ -271,7 +272,7 @@ void MainWindow::change_page(PAGE to) {
       for (QString f : dir.entryList()) {
         if (f.toUpper().endsWith(".TIF") &&
             f.right(7).toUpper().contains('B')) {
-          QPair<QString, uint> p = {dir.absolutePath() + "/" + f, 0};
+          QPair<QString, int> p = {dir.absolutePath() + "/" + f, -1};
           QString band = f.right(8);
           if (band[0] == '_') {
             band = band.mid(2, 2).prepend('L');
@@ -301,7 +302,7 @@ void MainWindow::change_page(PAGE to) {
       for (QString f : filenames) {
         if (f.toUpper().endsWith(".TIF") &&
             f.right(7).toUpper().contains("B")) {
-          QPair<QString, uint> p = {f, 0};
+          QPair<QString, int> p = {f, -1};
           QString band = f.right(8);
           if (band[0] == '_') {
             band = band.mid(2, 2).prepend('L');
@@ -328,13 +329,14 @@ void MainWindow::change_page(PAGE to) {
         return;
       }
       for (auto f : bands_files) {
-        self.files[f.first.prepend('L')] = QPair<QString, uint>{f.second, 0};
+        self.files[f.first.prepend('L')] = QPair<QString, int>{f.second, -1};
         send_request("command", proto.import_gtiff(f.second));
       }
       self.dir = bands_files[0].second.section('/', 0, -2);
       change_page(PAGE::SELECTION);
     };
 
+    disconnect(self.process_p, nullptr, nullptr, nullptr);
     connect(self.import_p, &ImportPage::custom_bands_page, [this]() {
       self.page = PAGE::IMPORT_CUSTOM_BANDS;
       ui->pb_back->show();
@@ -371,6 +373,21 @@ void MainWindow::change_page(PAGE to) {
   }
   case PAGE::SELECTION:
     disconnect(self.import_p, nullptr, nullptr, nullptr);
+    connect(
+        self.process_p, &ProcessPage::preview, [this](uint width, uint height) {
+          auto it_r = self.files.find("L4");
+          auto it_g = self.files.find("L3");
+          auto it_b = self.files.find("L2");
+          if (it_r == self.files.end() || it_g == self.files.end() ||
+              it_b == self.files.end()) {
+            send_request("command", proto.calc_preview(0, 0, 0, width, height));
+          } else {
+            send_request("command", proto.calc_preview(it_r.value().second,
+                                                       it_g.value().second,
+                                                       it_b.value().second,
+                                                       width, height));
+          }
+        });
 
     self.page = PAGE::SELECTION;
 
