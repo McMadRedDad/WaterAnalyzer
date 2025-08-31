@@ -1,6 +1,7 @@
 #ifndef PROCESSPAGE_HPP
 #define PROCESSPAGE_HPP
 
+#include <QTableWidget>
 #include <QWidget>
 
 namespace Ui {
@@ -16,15 +17,19 @@ public:
 
   void set_preview(QPixmap image);
   void clear_preview();
+  void fill_metadata(QStringList metadata);
 
 private slots:
   void on_pb_refresh_clicked();
+  void on_pb_meta_clicked();
 
 signals:
   void preview(uint w, uint h);
+  void require_metadata();
 
 private:
   Ui::ProcessPage *ui;
+  QTableWidget *tb;
 };
 
 #endif // PROCESSPAGE_HPP

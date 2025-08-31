@@ -47,6 +47,7 @@ private slots:
 
 signals:
   void to_satellite_select_page();
+  void metadata(QStringList);
 
 private:
   STATE self;

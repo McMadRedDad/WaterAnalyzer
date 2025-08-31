@@ -348,6 +348,7 @@ void MainWindow::change_page(PAGE to) {
     };
 
     disconnect(self.process_p, nullptr, nullptr, nullptr);
+    disconnect(this, &MainWindow::metadata, nullptr, nullptr);
     connect(self.import_p, &ImportPage::custom_bands_page, [this]() {
       self.page = PAGE::IMPORT_CUSTOM_BANDS;
       ui->pb_back->show();
@@ -382,22 +383,50 @@ void MainWindow::change_page(PAGE to) {
     self.import_p->show();
     break;
   }
-  case PAGE::SELECTION:
+  case PAGE::SELECTION: {
+    auto preview = [this](uint width, uint height) {
+      auto it_r = self.files.find("L4");
+      auto it_g = self.files.find("L3");
+      auto it_b = self.files.find("L2");
+      if (it_r == self.files.end() || it_g == self.files.end() ||
+          it_b == self.files.end()) {
+        send_request("command", proto.calc_preview(0, 0, 0, width, height));
+      } else {
+        send_request("command",
+                     proto.calc_preview(it_r.value().id, it_g.value().id,
+                                        it_b.value().id, width, height));
+      }
+    };
+    auto metadata = [this]() {
+      QStringList vals;
+      DATASET ds = self.files.first();
+      QStringList keys_l = self.files.keys();
+      keys_l.sort();
+      QString keys;
+      for (QString k : keys_l) {
+        keys.append(k.replace('L', 'B') + ", ");
+      }
+      keys.chop(2);
+      vals.append("Landsat 8/9");
+      vals.append(QString::number(self.files.size()));
+      vals.append(keys);
+      vals.append(QString::number(ds.width));
+      vals.append(QString::number(ds.height));
+      vals.append(ds.projection);
+      vals.append(ds.unit);
+      vals.append(QString::number(ds.origin[0]) + ", " +
+                  QString::number(ds.origin[1]));
+      vals.append(QString::number(ds.pixel_size[0]) + ", " +
+                  QString::number(ds.pixel_size[1]));
+      emit this->metadata(vals);
+    };
+
     disconnect(self.import_p, nullptr, nullptr, nullptr);
-    connect(
-        self.process_p, &ProcessPage::preview, [this](uint width, uint height) {
-          auto it_r = self.files.find("L4");
-          auto it_g = self.files.find("L3");
-          auto it_b = self.files.find("L2");
-          if (it_r == self.files.end() || it_g == self.files.end() ||
-              it_b == self.files.end()) {
-            send_request("command", proto.calc_preview(0, 0, 0, width, height));
-          } else {
-            send_request("command",
-                         proto.calc_preview(it_r.value().id, it_g.value().id,
-                                            it_b.value().id, width, height));
-          }
-        });
+    disconnect(this, &MainWindow::to_satellite_select_page, nullptr, nullptr);
+    connect(self.process_p, &ProcessPage::preview, preview);
+    connect(self.process_p, &ProcessPage::require_metadata, metadata);
+    connect(this, &MainWindow::metadata, self.process_p,
+            &ProcessPage::fill_metadata);
 
     self.page = PAGE::SELECTION;
 
@@ -405,6 +434,7 @@ void MainWindow::change_page(PAGE to) {
     ui->widget_main->layout()->addWidget(self.process_p);
     self.process_p->show();
     break;
+  }
   case PAGE::RESULT:
     //
     break;
