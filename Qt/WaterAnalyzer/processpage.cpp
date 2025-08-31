@@ -27,11 +27,7 @@ ProcessPage::ProcessPage(QWidget *parent)
 
 ProcessPage::~ProcessPage() {
   delete ui;
-
-  if (tb) {
-    delete tb;
-    tb = nullptr;
-  }
+  delete tb;
 }
 
 void ProcessPage::set_preview(QPixmap image) {

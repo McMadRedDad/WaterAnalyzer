@@ -7,7 +7,7 @@ MainWindow::MainWindow(QWidget *parent)
 
   self.import_p = new ImportPage();
   self.process_p = new ProcessPage();
-  //
+  self.result_p = new ResultPage();
   change_page(PAGE::IMPORT);
 
   backend_ip = QHostAddress::LocalHost;
@@ -21,24 +21,10 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow() {
   delete ui;
-
-  if (self.import_p) {
-    delete self.import_p;
-    self.import_p = nullptr;
-  }
-  if (self.process_p) {
-    delete self.process_p;
-    self.process_p = nullptr;
-  }
-  // if (self.import_p) {
-  //     delete self.import_p;
-  //     self.import_p = nullptr;
-  // }
-
-  if (net_man) {
-    delete net_man;
-    net_man = nullptr;
-  }
+  delete self.import_p;
+  delete self.process_p;
+  delete self.result_p;
+  delete net_man;
 }
 
 void MainWindow::send_request(QString type, QJsonObject data) {
@@ -280,8 +266,10 @@ void MainWindow::append_log(QString type, QString line) {
 void MainWindow::change_page(PAGE to) {
   self.import_p->hide();
   self.process_p->hide();
+  self.result_p->hide();
   ui->widget_main->layout()->removeWidget(self.import_p);
   ui->widget_main->layout()->removeWidget(self.process_p);
+  ui->widget_main->layout()->removeWidget(self.result_p);
 
   switch (to) {
   case PAGE::IMPORT: {
@@ -358,6 +346,7 @@ void MainWindow::change_page(PAGE to) {
     };
 
     disconnect(self.process_p, nullptr, nullptr, nullptr);
+    disconnect(self.result_p, nullptr, nullptr, nullptr);
     disconnect(this, &MainWindow::metadata, nullptr, nullptr);
     connect(self.import_p, &ImportPage::custom_bands_page, [this]() {
       self.page = PAGE::IMPORT_CUSTOM_BANDS;
@@ -431,14 +420,16 @@ void MainWindow::change_page(PAGE to) {
       emit this->metadata(vals);
     };
     auto indices = [this](QStringList indices) {
-      for (QString s : indices) {
-        send_request("command",
-                     proto.calc_index(s.toLower(), select_bands(s.toLower())));
-      }
+      // for (QString s : indices) {
+      //   send_request("command",
+      //                proto.calc_index(s.toLower(),
+      //                select_bands(s.toLower())));
+      // }
       change_page(PAGE::RESULT);
     };
 
     disconnect(self.import_p, nullptr, nullptr, nullptr);
+    disconnect(self.result_p, nullptr, nullptr, nullptr);
     disconnect(this, &MainWindow::to_satellite_select_page, nullptr, nullptr);
     connect(self.process_p, &ProcessPage::preview, preview);
     connect(self.process_p, &ProcessPage::require_metadata, metadata);
@@ -454,7 +445,14 @@ void MainWindow::change_page(PAGE to) {
     break;
   }
   case PAGE::RESULT:
-    //
+    disconnect(self.import_p, nullptr, nullptr, nullptr);
+    disconnect(self.process_p, nullptr, nullptr, nullptr);
+
+    self.page = PAGE::RESULT;
+
+    ui->pb_back->show();
+    ui->widget_main->layout()->addWidget(self.result_p);
+    self.result_p->show();
     break;
   default:
     return;
@@ -470,46 +468,9 @@ void MainWindow::on_pb_back_clicked() {
     break;
   case PAGE::SELECTION:
     change_page(PAGE::IMPORT);
-    // connect(state.pages[0], &ClickableQWidget::clicked, this,
-    //         &MainWindow::import_clicked);
-
-    // int ids[3] = {-1, -1, -1};
-    // for (QString f : state.selected_dir.entryList()) {
-    //   if (f.endsWith("_B4.TIF")) {
-    //     ids[0] =
-    //     state.file_ids.value(state.selected_dir.absoluteFilePath(f));
-    //   }
-    //   if (f.endsWith("_B3.TIF")) {
-    //     ids[1] =
-    //     state.file_ids.value(state.selected_dir.absoluteFilePath(f));
-    //   }
-    //   if (f.endsWith("_B2.TIF")) {
-    //     ids[2] =
-    //     state.file_ids.value(state.selected_dir.absoluteFilePath(f));
-    //   }
-    // }
-    // send_request("command", proto.calc_preview(ids[0], ids[1], ids[2]));
-
-    // QNetworkRequest req("http://" + backend_ip.toString() + ":" +
-    //                     QString::number(backend_port) +
-    //                     QString("/resource/index?id=0"));
-    // req.setRawHeader("Accept", "image/tiff");
-    // req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
-    // req.setRawHeader("Request-ID",
-    //                  QString::number(proto.get_counter()).toUtf8());
-    // proto.inc_counter();
-    // net_man->get(req);
-
-    // send_request(
-    //     "command",
-    //     proto.import_gtiff("/home/tim/Учёба/Test "
-    //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
-    //                        "LC09_L1TP_188012_20230710_20230710_02_T1_B5.TIF"));
-    // send_request("command", proto.calc_preview(0, 0, 0));
-    // send_request("command", proto.calc_index("test", QList<uint>{0, 0}));
     break;
   case PAGE::RESULT:
-    //
+    change_page(PAGE::SELECTION);
     break;
   default:
     return;
@@ -527,48 +488,3 @@ void MainWindow::on_pb_show_log_clicked() {
 }
 
 void MainWindow::closeEvent(QCloseEvent *e) {}
-
-// void MainWindow::import_clicked() {
-//   // QDir dir = QFileDialog::getExistingDirectory(this, "Открыть директорию",
-//   //                                              QDir::homePath());
-//   // int counter = 0;
-//   // for (QString f : dir.entryList()) {
-//   //   if (f.endsWith(".tif") || f.endsWith(".tiff") || f.endsWith(".TIF") ||
-//   //       f.endsWith(".TIFF")) {
-//   //     // send_request("command", proto.import_gtiff(dir.absolutePath() +
-//   "/"
-//   //     + f)); counter++;
-//   //   }
-//   // }
-//   // if (counter == 0) {
-//   //   append_log("bad", QString("В выбранной директории %1 нет снимков
-//   //   GeoTiff.")
-//   //                         .arg(dir.absolutePath()));
-//   //   set_status_message(false, "В выбранной директории нет снимков");
-//   //   return;
-//   // }
-//   // state.selected_dir = dir;
-
-//   // send_request(
-//   //     "command",
-//   //     proto.import_gtiff("/home/tim/Учёба/Test "
-//   //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
-//   // "LC09_L1TP_188012_20230710_20230710_02_T1_B2.TIF"));
-//   // send_request(
-//   //     "command",
-//   //     proto.import_gtiff("/home/tim/Учёба/Test "
-//   //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
-//   // "LC09_L1TP_188012_20230710_20230710_02_T1_B3.TIF"));
-//   // send_request(
-//   //     "command",
-//   //     proto.import_gtiff("/home/tim/Учёба/Test "
-//   //                        "data/LC09_L1TP_188012_20230710_20230710_02_T1/"
-//   // "LC09_L1TP_188012_20230710_20230710_02_T1_B4.TIF"));
-//   // // send_request("command", proto.import_gtiff(
-//   // //                             "/home/tim/Учёба/Test
-//   // //                             data/dacha_dist_10px.tif"));
-
-//   change_page(PAGE::SELECTION);
-//   // disconnect(state.pages[0], &ClickableQWidget::clicked, this,
-//   //            &MainWindow::import_clicked);
-// }

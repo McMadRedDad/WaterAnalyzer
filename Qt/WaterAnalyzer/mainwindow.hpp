@@ -4,6 +4,7 @@
 #include "importpage.hpp"
 #include "jsonprotocol.hpp"
 #include "processpage.hpp"
+#include "resultpage.hpp"
 #include <QMainWindow>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -29,6 +30,7 @@ struct DATASET {
 struct STATE {
   ImportPage *import_p;
   ProcessPage *process_p;
+  ResultPage *result_p;
   PAGE page;
   QDir dir;
   QMap<QString, DATASET> files; // band/index: DATASET

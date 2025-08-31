@@ -9,24 +9,28 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    clickableqwidget.cpp \
     importpage.cpp \
     jsonprotocol.cpp \
     main.cpp \
     mainwindow.cpp \
-    processpage.cpp
+    processpage.cpp \
+    resultpage.cpp \
+    resulttab.cpp
 
 HEADERS += \
-    clickableqwidget.hpp \
     importpage.hpp \
     jsonprotocol.hpp \
     mainwindow.hpp \
-    processpage.hpp
+    processpage.hpp \
+    resultpage.hpp \
+    resulttab.hpp
 
 FORMS += \
     importpage.ui \
     mainwindow.ui \
-    processpage.ui
+    processpage.ui \
+    resultpage.ui \
+    resulttab.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

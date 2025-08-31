@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ResultPage</class>
+ <widget class="QWidget" name="ResultPage">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>828</width>
+    <height>540</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tab_summary">
+      <attribute name="title">
+       <string>Итог</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_7"/>
+     </widget>
+     <widget class="QWidget" name="tab_water">
+      <attribute name="title">
+       <string>Границы воды</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_3"/>
+     </widget>
+     <widget class="QWidget" name="tab_chloro">
+      <attribute name="title">
+       <string>Chlorophyll-a</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_4"/>
+     </widget>
+     <widget class="QWidget" name="tab_tss">
+      <attribute name="title">
+       <string>TSS</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_5"/>
+     </widget>
+     <widget class="QWidget" name="tab_cdom">
+      <attribute name="title">
+       <string>CDOM</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_2"/>
+     </widget>
+     <widget class="QWidget" name="tab_temp">
+      <attribute name="title">
+       <string>Темепратура</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_6"/>
+     </widget>
+     <widget class="QWidget" name="tab_export">
+      <attribute name="title">
+       <string>Экспорт</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="3" column="1" alignment="Qt::AlignmentFlag::AlignRight">
+        <widget class="QCheckBox" name="chk_ind_tss">
+         <property name="text">
+          <string>Индекс</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1" alignment="Qt::AlignmentFlag::AlignRight">
+        <widget class="QCheckBox" name="chk_ind_water">
+         <property name="layoutDirection">
+          <enum>Qt::LayoutDirection::LeftToRight</enum>
+         </property>
+         <property name="text">
+          <string>Индекс</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="lbl_water">
+         <property name="text">
+          <string>Границы воды</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1" alignment="Qt::AlignmentFlag::AlignRight">
+        <widget class="QCheckBox" name="chk_ind_cdom">
+         <property name="text">
+          <string>Индекс</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="1" alignment="Qt::AlignmentFlag::AlignRight">
+        <widget class="QCheckBox" name="chk_ind_temp">
+         <property name="text">
+          <string>Индекс</string>
+         </property>
+        </widget>
+       </item>
+       <item row="8" column="0">
+        <widget class="QPushButton" name="pb_go">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Ok</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="0">
+        <widget class="QLabel" name="lbl_summary">
+         <property name="text">
+          <string>Итог</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="lbl_chloro">
+         <property name="text">
+          <string>Chlorophyll-a</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2" alignment="Qt::AlignmentFlag::AlignLeft">
+        <widget class="QCheckBox" name="chk_desc_water">
+         <property name="text">
+          <string>Описание</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="2" alignment="Qt::AlignmentFlag::AlignLeft">
+        <widget class="QCheckBox" name="chk_desc_chloro">
+         <property name="text">
+          <string>Описание</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="2" alignment="Qt::AlignmentFlag::AlignLeft">
+        <widget class="QCheckBox" name="chk_desc_cdom">
+         <property name="text">
+          <string>Описание</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QLabel" name="lbl_tss">
+         <property name="text">
+          <string>TSS</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1" alignment="Qt::AlignmentFlag::AlignRight">
+        <widget class="QCheckBox" name="chk_ind_chloro">
+         <property name="text">
+          <string>Индекс</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="0" colspan="2">
+        <widget class="QLineEdit" name="le_dir">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="2" alignment="Qt::AlignmentFlag::AlignLeft">
+        <widget class="QCheckBox" name="chk_desc_tss">
+         <property name="text">
+          <string>Описание</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="2" alignment="Qt::AlignmentFlag::AlignLeft">
+        <widget class="QCheckBox" name="chk_desc_summary">
+         <property name="text">
+          <string>Описание</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0">
+        <widget class="QLabel" name="lbl_temp">
+         <property name="text">
+          <string>Температура</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="0">
+        <widget class="QLabel" name="lbl_cdom">
+         <property name="text">
+          <string>CDOM</string>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="2" alignment="Qt::AlignmentFlag::AlignLeft">
+        <widget class="QCheckBox" name="chk_desc_temp">
+         <property name="text">
+          <string>Описание</string>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="2">
+        <widget class="QPushButton" name="pb_browse">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Открыть</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
