@@ -22,10 +22,12 @@ public:
 private slots:
   void on_pb_refresh_clicked();
   void on_pb_meta_clicked();
+  void on_pb_go_clicked();
 
 signals:
   void preview(uint w, uint h);
   void require_metadata();
+  void indices(QStringList);
 
 private:
   Ui::ProcessPage *ui;

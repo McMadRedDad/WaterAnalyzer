@@ -235,6 +235,16 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
   }
 }
 
+QList<int> MainWindow::select_bands(QString index) {
+  if (index == "test") {
+    return QList<int>{self.files["L1"].id, self.files["L2"].id};
+  } else if (index == "") {
+    return QList<int>{-1};
+  } else {
+    return QList<int>{-1};
+  }
+}
+
 void MainWindow::set_status_message(bool good, QString message, short msec) {
   if (timer_status.isActive()) {
     timer_status.stop();
@@ -420,6 +430,13 @@ void MainWindow::change_page(PAGE to) {
                   QString::number(ds.pixel_size[1]));
       emit this->metadata(vals);
     };
+    auto indices = [this](QStringList indices) {
+      for (QString s : indices) {
+        send_request("command",
+                     proto.calc_index(s.toLower(), select_bands(s.toLower())));
+      }
+      change_page(PAGE::RESULT);
+    };
 
     disconnect(self.import_p, nullptr, nullptr, nullptr);
     disconnect(this, &MainWindow::to_satellite_select_page, nullptr, nullptr);
@@ -427,6 +444,7 @@ void MainWindow::change_page(PAGE to) {
     connect(self.process_p, &ProcessPage::require_metadata, metadata);
     connect(this, &MainWindow::metadata, self.process_p,
             &ProcessPage::fill_metadata);
+    connect(self.process_p, &ProcessPage::indices, indices);
 
     self.page = PAGE::SELECTION;
 

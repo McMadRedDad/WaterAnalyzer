@@ -19,7 +19,7 @@ QJsonObject JsonProtocol::import_gtiff(QString file) {
   return construct_json("import_gtiff", QJsonObject{{"file", file}});
 }
 
-QJsonObject JsonProtocol::calc_preview(uint r, uint g, uint b, uint width,
+QJsonObject JsonProtocol::calc_preview(int r, int g, int b, int width,
                                        uint height) {
   return construct_json("calc_preview",
                         QJsonObject{{"ids", QJsonArray{(int)r, (int)g, (int)b}},
@@ -27,7 +27,7 @@ QJsonObject JsonProtocol::calc_preview(uint r, uint g, uint b, uint width,
                                     {"height", (int)height}});
 }
 
-QJsonObject JsonProtocol::calc_index(QString index, QList<uint> ids) {
+QJsonObject JsonProtocol::calc_index(QString index, QList<int> ids) {
   QJsonArray ids_arr;
   for (uint id : ids) {
     ids_arr.append((int)id);

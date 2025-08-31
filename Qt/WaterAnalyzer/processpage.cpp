@@ -56,3 +56,10 @@ void ProcessPage::on_pb_refresh_clicked() {
 }
 
 void ProcessPage::on_pb_meta_clicked() { emit require_metadata(); }
+
+void ProcessPage::on_pb_go_clicked() {
+  QStringList indices;
+  indices.append(ui->combo_water->currentText());
+  //
+  emit this->indices(indices);
+}

@@ -63,6 +63,7 @@ private:
   void handle_error(QNetworkReply *response);
   void process_get(QUrl endpoint, QByteArray body);
   void process_post(QUrl endpoint, QByteArray body);
+  QList<int> select_bands(QString index);
 
   void set_status_message(bool good, QString message, short msec = 3000);
   void append_log(QString type, QString line);
