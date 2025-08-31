@@ -27,7 +27,8 @@ MainWindow::~MainWindow() {
   delete net_man;
 }
 
-void MainWindow::send_request(QString type, QJsonObject data) {
+void MainWindow::send_request(QString type, QJsonObject data,
+                              QMap<QString, QString> options) {
   if (backend_ip.isNull()) {
     return;
   }
@@ -47,9 +48,9 @@ void MainWindow::send_request(QString type, QJsonObject data) {
       handle_error(response);
       response->deleteLater();
     });
-    connect(response, &QNetworkReply::finished, [this, response] {
+    connect(response, &QNetworkReply::finished, [this, response, options] {
       if (response->error() == QNetworkReply::NoError) {
-        process_post(response->request().url(), response->readAll());
+        process_post(response->request().url(), response->readAll(), options);
       }
       response->deleteLater();
     });
@@ -82,9 +83,9 @@ void MainWindow::send_request(QString type, QJsonObject data) {
       handle_error(response);
       response->deleteLater();
     });
-    connect(response, &QNetworkReply::finished, [this, response]() {
+    connect(response, &QNetworkReply::finished, [this, response, options]() {
       if (response->error() == QNetworkReply::NoError) {
-        process_get(response->request().url(), response->readAll());
+        process_get(response->request().url(), response->readAll(), options);
       }
       response->deleteLater();
     });
@@ -137,13 +138,31 @@ void MainWindow::handle_error(QNetworkReply *response) {
   set_status_message(false, "Некорректный JSON-запрос");
 }
 
-void MainWindow::process_get(QUrl endpoint, QByteArray body) {
+void MainWindow::process_get(QUrl endpoint, QByteArray body,
+                             QMap<QString, QString> options) {
   QString type = endpoint.toString();
   type = type.split('?').first().split('/').last();
   if (type == "preview") {
+    if (!options.contains("preview_type")) {
+      return;
+    }
     QPixmap preview;
     preview.loadFromData(body, "PNG");
-    self.process_p->set_preview(preview);
+    if (options.value("preview_type") == "color") {
+      self.process_p->set_preview(preview);
+    } else if (options.value("preview_type") == "water") {
+      self.result_p->set_water_preview(preview);
+    } else if (options.value("preview_type") == "chloro") {
+      self.result_p->set_chloro_preview(preview);
+    } else if (options.value("preview_type") == "tss") {
+      self.result_p->set_tss_preview(preview);
+    } else if (options.value("preview_type") == "cdom") {
+      self.result_p->set_cdom_preview(preview);
+    } else if (options.value("preview_type") == "temp") {
+      self.result_p->set_temp_preview(preview);
+    } else {
+      return;
+    }
   } else if (type == "index") {
     QString path = QFileDialog::getSaveFileName(this, "Сохранить файл GeoTiff",
                                                 QDir::homePath());
@@ -179,7 +198,8 @@ void MainWindow::process_get(QUrl endpoint, QByteArray body) {
   }
 }
 
-void MainWindow::process_post(QUrl endpoint, QByteArray body) {
+void MainWindow::process_post(QUrl endpoint, QByteArray body,
+                              QMap<QString, QString> options) {
   QString command = endpoint.toString().split("/").last();
   QJsonObject result =
       QJsonDocument::fromJson(body).object()["result"].toObject();
@@ -193,8 +213,8 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
   } else if (command == "import_gtiff") {
     for (auto i = self.files.begin(), end = self.files.end(); i != end; ++i) {
       if (i.value().filename == result["file"].toString()) {
-        i.value().id = result["id"].toInt();
         QJsonObject info = result["info"].toObject();
+        i.value().id = result["id"].toInt();
         i.value().width = info["width"].toInt();
         i.value().height = info["height"].toInt();
         i.value().projection = info["projection"].toString();
@@ -210,9 +230,30 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
                "Файл " + result["file"].toString() + " успешно загружен.");
     set_status_message(true, "Файл успешно загружен");
   } else if (command == "calc_preview") {
-    send_request("resource", QJsonDocument::fromJson(body).object());
+    send_request("resource", QJsonDocument::fromJson(body).object(), options);
   } else if (command == "calc_index") {
-    send_request("resource", QJsonDocument::fromJson(body).object());
+    DATASET ds;
+    QJsonObject info = result["info"].toObject();
+    ds.id = result["url"].toString().split('?').last().toInt();
+    ds.width = info["width"].toInt();
+    ds.height = info["height"].toInt();
+    ds.projection = info["projection"].toString();
+    ds.unit = info["unit"].toString();
+    ds.origin[0] = info["origin"].toArray()[0].toDouble();
+    ds.origin[1] = info["origin"].toArray()[1].toDouble();
+    ds.pixel_size[0] = info["pixel_size"].toArray()[0].toDouble();
+    ds.pixel_size[1] = info["pixel_size"].toArray()[1].toDouble();
+    self.files[result["index"].toString()] = ds;
+
+    uint width = self.result_p->get_preview_width();
+    uint height = self.result_p->get_preview_height();
+    send_request("command",
+                 proto.calc_preview(ds.id, ds.id, ds.id, width, height),
+                 options);
+
+    append_log("info",
+               "Индекс " + result["index"].toString() + " успешно рассчитан.");
+    set_status_message(true, "Индекс успешно рассчитан");
   } else {
     append_log("info",
                "Запрошена неизвестная команда, но сервер её обработал: " +
@@ -221,7 +262,17 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body) {
   }
 }
 
-QList<int> MainWindow::select_bands(QString index) {
+QMap<QString, QString> MainWindow::generate_options_for_index(QString index) {
+  if (index == "test") {
+    return QMap<QString, QString>{{"preview_type", "water"}};
+  } else if (index == "") {
+    return QMap<QString, QString>();
+  } else {
+    return QMap<QString, QString>();
+  }
+}
+
+QList<int> MainWindow::select_bands_for_index(QString index) {
   if (index == "test") {
     return QList<int>{self.files["L1"].id, self.files["L2"].id};
   } else if (index == "") {
@@ -387,13 +438,16 @@ void MainWindow::change_page(PAGE to) {
       auto it_r = self.files.find("L4");
       auto it_g = self.files.find("L3");
       auto it_b = self.files.find("L2");
+      QMap<QString, QString> options = {{"preview_type", "color"}};
       if (it_r == self.files.end() || it_g == self.files.end() ||
           it_b == self.files.end()) {
-        send_request("command", proto.calc_preview(0, 0, 0, width, height));
+        send_request("command", proto.calc_preview(0, 0, 0, width, height),
+                     options);
       } else {
         send_request("command",
                      proto.calc_preview(it_r.value().id, it_g.value().id,
-                                        it_b.value().id, width, height));
+                                        it_b.value().id, width, height),
+                     options);
       }
     };
     auto metadata = [this]() {
@@ -420,11 +474,12 @@ void MainWindow::change_page(PAGE to) {
       emit this->metadata(vals);
     };
     auto indices = [this](QStringList indices) {
-      // for (QString s : indices) {
-      //   send_request("command",
-      //                proto.calc_index(s.toLower(),
-      //                select_bands(s.toLower())));
-      // }
+      for (QString s : indices) {
+        send_request(
+            "command",
+            proto.calc_index(s.toLower(), select_bands_for_index(s.toLower())),
+            generate_options_for_index(s.toLower()));
+      }
       change_page(PAGE::RESULT);
     };
 

@@ -34,6 +34,8 @@ void ProcessPage::set_preview(QPixmap image) {
   ui->lbl_preview->setPixmap(image);
 }
 
+QPixmap ProcessPage::get_preview() { return ui->lbl_preview->pixmap(); }
+
 void ProcessPage::clear_preview() { ui->lbl_preview->clear(); }
 
 void ProcessPage::fill_metadata(QStringList metadata) {

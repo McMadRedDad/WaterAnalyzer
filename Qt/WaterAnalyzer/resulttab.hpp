@@ -7,16 +7,19 @@ namespace Ui {
 class ResultTab;
 }
 
-class ResultTab : public QWidget
-{
-    Q_OBJECT
+class ResultTab : public QWidget {
+  Q_OBJECT
 
 public:
-    explicit ResultTab(QWidget *parent = nullptr);
-    ~ResultTab();
+  explicit ResultTab(QWidget *parent = nullptr);
+  ~ResultTab();
+
+  void set_preview(QPixmap image);
+  uint get_preview_width();
+  uint get_preview_height();
 
 private:
-    Ui::ResultTab *ui;
+  Ui::ResultTab *ui;
 };
 
 #endif // RESULTTAB_HPP

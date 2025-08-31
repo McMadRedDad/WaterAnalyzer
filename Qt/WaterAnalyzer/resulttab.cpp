@@ -1,14 +1,16 @@
 #include "resulttab.hpp"
 #include "ui_resulttab.h"
 
-ResultTab::ResultTab(QWidget *parent)
-    : QWidget(parent)
-    , ui(new Ui::ResultTab)
-{
-    ui->setupUi(this);
+ResultTab::ResultTab(QWidget *parent) : QWidget(parent), ui(new Ui::ResultTab) {
+  ui->setupUi(this);
 }
 
-ResultTab::~ResultTab()
-{
-    delete ui;
+ResultTab::~ResultTab() { delete ui; }
+
+void ResultTab::set_preview(QPixmap image) {
+  ui->lbl_preview->setPixmap(image);
 }
+
+uint ResultTab::get_preview_width() { return ui->lbl_preview->width() - 6; }
+
+uint ResultTab::get_preview_height() { return ui->lbl_preview->height() - 6; }

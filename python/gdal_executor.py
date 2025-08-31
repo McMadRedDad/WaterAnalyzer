@@ -361,6 +361,7 @@ class GdalExecutor:
                 geotransform = ind.GetGeoTransform()
                 return _response(0, {
                     'url': existing,
+                    'index': index,
                     'info': {
                         'width': ind.RasterXSize,
                         'height': ind.RasterYSize,
@@ -390,6 +391,7 @@ class GdalExecutor:
             geotransform = res_ds.GetGeoTransform()
             result = {
                 'url': dataset_id,
+                'index': index,
                 'info': {
                     'width': res_ds.RasterXSize,
                     'height': res_ds.RasterYSize,

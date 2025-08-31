@@ -15,6 +15,15 @@ public:
   explicit ResultPage(QWidget *parent = nullptr);
   ~ResultPage();
 
+  void set_summary_preview(QPixmap image);
+  void set_water_preview(QPixmap image);
+  void set_chloro_preview(QPixmap image);
+  void set_tss_preview(QPixmap image);
+  void set_cdom_preview(QPixmap image);
+  void set_temp_preview(QPixmap image);
+  uint get_preview_width();
+  uint get_preview_height();
+
 private:
   Ui::ResultPage *ui;
   ResultTab *summary;

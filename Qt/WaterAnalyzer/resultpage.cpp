@@ -27,3 +27,23 @@ ResultPage::~ResultPage() {
   delete cdom;
   delete temp;
 }
+
+void ResultPage::set_summary_preview(QPixmap image) {
+  summary->set_preview(image);
+}
+
+void ResultPage::set_water_preview(QPixmap image) { water->set_preview(image); }
+
+void ResultPage::set_chloro_preview(QPixmap image) {
+  chloro->set_preview(image);
+}
+
+void ResultPage::set_tss_preview(QPixmap image) { tss->set_preview(image); }
+
+void ResultPage::set_cdom_preview(QPixmap image) { cdom->set_preview(image); }
+
+void ResultPage::set_temp_preview(QPixmap image) { temp->set_preview(image); }
+
+uint ResultPage::get_preview_width() { return summary->get_preview_width(); }
+
+uint ResultPage::get_preview_height() { return summary->get_preview_height(); }
