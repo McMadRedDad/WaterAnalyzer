@@ -240,6 +240,8 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body,
     send_request("command",
                  proto.calc_preview(ds.id, ds.id, ds.id, width, height),
                  options);
+    self.result_p->set_caption(get_index_type(result["index"].toString()),
+                               result["index"].toString().toUpper());
 
     append_log("info",
                "Индекс " + result["index"].toString() + " успешно рассчитан.");
@@ -252,14 +254,14 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body,
   }
 }
 
-QMap<QString, QString> MainWindow::generate_options_for_index(QString index) {
+QString MainWindow::get_index_type(QString index) {
   QString indx = index.toLower();
   if (indx == "test") {
-    return QMap<QString, QString>{{"preview_type", "water"}};
+    return "water";
   } else if (indx == "") {
-    return QMap<QString, QString>();
+    return "";
   } else {
-    return QMap<QString, QString>();
+    return "";
   }
 }
 
@@ -466,11 +468,13 @@ void MainWindow::change_page(PAGE to) {
       emit this->metadata(vals);
     };
     auto indices = [this](QStringList indices) {
-      for (QString indx : indices) {
-        send_request(
-            "command",
-            proto.calc_index(indx.toLower(), select_bands_for_index(indx)),
-            generate_options_for_index(indx));
+      for (QString index : indices) {
+        index = index.toLower();
+        QMap<QString, QString> options = {
+            {"preview_type", get_index_type(index)}};
+        send_request("command",
+                     proto.calc_index(index, select_bands_for_index(index)),
+                     options);
       }
       change_page(PAGE::RESULT);
     };

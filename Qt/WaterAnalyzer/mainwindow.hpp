@@ -69,7 +69,7 @@ private:
   void process_post(QUrl endpoint, QByteArray body,
                     QMap<QString, QString> options = {});
   QList<int> select_bands_for_index(QString index);
-  QMap<QString, QString> generate_options_for_index(QString index);
+  QString get_index_type(QString index);
 
   void set_status_message(bool good, QString message, short msec = 3000);
   void append_log(QString type, QString line);

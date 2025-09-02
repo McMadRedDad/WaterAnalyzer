@@ -17,7 +17,6 @@ public:
   void set_preview(QPixmap image);
   uint get_preview_width();
   uint get_preview_height();
-  void hide_scale();
   void set_caption(QString caption);
 
 private:

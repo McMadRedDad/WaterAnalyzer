@@ -18,6 +18,7 @@ public:
   void set_preview(QString page, QPixmap image);
   uint get_preview_width();
   uint get_preview_height();
+  void set_caption(QString page, QString caption);
 
 private:
   Ui::ResultPage *ui;

@@ -16,7 +16,6 @@ ResultPage::ResultPage(QWidget *parent)
   ui->tab_tss->layout()->addWidget(tss);
   ui->tab_cdom->layout()->addWidget(cdom);
   ui->tab_temp->layout()->addWidget(temp);
-  summary->hide_scale();
   summary->set_caption("Итог");
 }
 
@@ -49,3 +48,19 @@ void ResultPage::set_preview(QString page, QPixmap image) {
 uint ResultPage::get_preview_width() { return summary->get_preview_width(); }
 
 uint ResultPage::get_preview_height() { return summary->get_preview_height(); }
+
+void ResultPage::set_caption(QString page, QString caption) {
+  if (page == "summary") {
+    summary->set_caption(caption);
+  } else if (page == "water") {
+    water->set_caption(caption);
+  } else if (page == "chloro") {
+    chloro->set_caption(caption);
+  } else if (page == "tss") {
+    tss->set_caption(caption);
+  } else if (page == "cdom") {
+    cdom->set_caption(caption);
+  } else if (page == "temp") {
+    temp->set_caption(caption);
+  }
+}
