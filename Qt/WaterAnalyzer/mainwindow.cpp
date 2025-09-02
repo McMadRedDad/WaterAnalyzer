@@ -150,18 +150,8 @@ void MainWindow::process_get(QUrl endpoint, QByteArray body,
     preview.loadFromData(body, "PNG");
     if (options.value("preview_type") == "color") {
       self.process_p->set_preview(preview);
-    } else if (options.value("preview_type") == "water") {
-      self.result_p->set_water_preview(preview);
-    } else if (options.value("preview_type") == "chloro") {
-      self.result_p->set_chloro_preview(preview);
-    } else if (options.value("preview_type") == "tss") {
-      self.result_p->set_tss_preview(preview);
-    } else if (options.value("preview_type") == "cdom") {
-      self.result_p->set_cdom_preview(preview);
-    } else if (options.value("preview_type") == "temp") {
-      self.result_p->set_temp_preview(preview);
     } else {
-      return;
+      self.result_p->set_preview(options.value("preview_type"), preview);
     }
   } else if (type == "index") {
     QString path = QFileDialog::getSaveFileName(this, "Сохранить файл GeoTiff",
@@ -263,9 +253,10 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body,
 }
 
 QMap<QString, QString> MainWindow::generate_options_for_index(QString index) {
-  if (index == "test") {
+  QString indx = index.toLower();
+  if (indx == "test") {
     return QMap<QString, QString>{{"preview_type", "water"}};
-  } else if (index == "") {
+  } else if (indx == "") {
     return QMap<QString, QString>();
   } else {
     return QMap<QString, QString>();
@@ -273,9 +264,10 @@ QMap<QString, QString> MainWindow::generate_options_for_index(QString index) {
 }
 
 QList<int> MainWindow::select_bands_for_index(QString index) {
-  if (index == "test") {
+  QString indx = index.toLower();
+  if (indx == "test") {
     return QList<int>{self.files["L1"].id, self.files["L2"].id};
-  } else if (index == "") {
+  } else if (indx == "") {
     return QList<int>{-1};
   } else {
     return QList<int>{-1};
@@ -474,11 +466,11 @@ void MainWindow::change_page(PAGE to) {
       emit this->metadata(vals);
     };
     auto indices = [this](QStringList indices) {
-      for (QString s : indices) {
+      for (QString indx : indices) {
         send_request(
             "command",
-            proto.calc_index(s.toLower(), select_bands_for_index(s.toLower())),
-            generate_options_for_index(s.toLower()));
+            proto.calc_index(indx.toLower(), select_bands_for_index(indx)),
+            generate_options_for_index(indx));
       }
       change_page(PAGE::RESULT);
     };
@@ -499,7 +491,26 @@ void MainWindow::change_page(PAGE to) {
     self.process_p->show();
     break;
   }
-  case PAGE::RESULT:
+  case PAGE::RESULT: {
+    auto preview = [this]() {
+      auto it_r = self.files.find("L4");
+      auto it_g = self.files.find("L3");
+      auto it_b = self.files.find("L2");
+      uint width = self.result_p->get_preview_width();
+      uint height = self.result_p->get_preview_height();
+      QMap<QString, QString> options = {{"preview_type", "summary"}};
+      if (it_r == self.files.end() || it_g == self.files.end() ||
+          it_b == self.files.end()) {
+        send_request("command", proto.calc_preview(0, 0, 0, width, height),
+                     options);
+      } else {
+        send_request("command",
+                     proto.calc_preview(it_r.value().id, it_g.value().id,
+                                        it_b.value().id, width, height),
+                     options);
+      }
+    };
+
     disconnect(self.import_p, nullptr, nullptr, nullptr);
     disconnect(self.process_p, nullptr, nullptr, nullptr);
 
@@ -508,7 +519,9 @@ void MainWindow::change_page(PAGE to) {
     ui->pb_back->show();
     ui->widget_main->layout()->addWidget(self.result_p);
     self.result_p->show();
+    preview();
     break;
+  }
   default:
     return;
   }

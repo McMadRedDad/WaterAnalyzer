@@ -16,7 +16,6 @@ public:
   ~ProcessPage();
 
   void set_preview(QPixmap image);
-  QPixmap get_preview();
   void clear_preview();
   void fill_metadata(QStringList metadata);
 

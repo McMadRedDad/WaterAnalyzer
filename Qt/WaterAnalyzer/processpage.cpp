@@ -34,8 +34,6 @@ void ProcessPage::set_preview(QPixmap image) {
   ui->lbl_preview->setPixmap(image);
 }
 
-QPixmap ProcessPage::get_preview() { return ui->lbl_preview->pixmap(); }
-
 void ProcessPage::clear_preview() { ui->lbl_preview->clear(); }
 
 void ProcessPage::fill_metadata(QStringList metadata) {
@@ -50,7 +48,7 @@ void ProcessPage::fill_metadata(QStringList metadata) {
 
 void ProcessPage::on_pb_refresh_clicked() {
   clear_preview();
-  emit preview(ui->lbl_preview->width() - 6, ui->lbl_preview->height() - 6);
+  emit preview(ui->lbl_preview->width() - 2, ui->lbl_preview->height() - 2);
 }
 
 void ProcessPage::on_pb_meta_clicked() { emit require_metadata(); }
