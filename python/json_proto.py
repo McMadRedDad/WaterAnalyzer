@@ -1,5 +1,5 @@
 class Protocol:
-    VERSION = '2.1.2'
+    VERSION = '2.1.4'
     SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index')
 
     def __init__(self):

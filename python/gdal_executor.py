@@ -8,9 +8,9 @@ gdal.UseExceptions()
 class Preview:
     def __init__(self, array: np.ndarray, r: int, g: int, b: int):
         self.array = array
+        self._ids = (r, g, b)
         self.width = array.shape[1]
         self.height = array.shape[0]
-        self._ids = (r, g, b)
 
 class PreviewManager:
     def __init__(self):
@@ -39,23 +39,23 @@ class PreviewManager:
                         return id_
             return None
 
-    def remove(self, id: int) -> None:
+    def remove(self, id_: int) -> None:
         with self._lock:
             try:
-                self._previews.pop(id)
+                self._previews.pop(id_)
             except KeyError:
-                raise KeyError(f'Preview {id} does not exist but "remove" method called')
+                raise KeyError(f'Preview {id_} does not exist but "remove" method called')
 
     def remove_all(self) -> None:
         for id_ in self._previews.keys():
             self.remove(id_)
 
-    def get(self, id: int) -> Preview:
+    def get(self, id_: int) -> Preview:
         with self._lock:
             try:
-                return self._previews[id]
+                return self._previews[id_]
             except KeyError:
-                raise KeyError(f'Preview {id} does not exist but "get" method called')
+                raise KeyError(f'Preview {id_} does not exist but "get" method called')
 
     def get_all(self) -> list[Preview]:
         with self._lock:
@@ -110,23 +110,26 @@ class DatasetManager:
             self._counter += 1
             return self._counter - 1
 
-    def close(self, id: int) -> None:
+    def close(self, id_: int) -> None:
         with self._lock:
             try:
-                self._datasets.pop(id)
+                self._datasets.pop(id_)
             except KeyError:
-                raise KeyError(f'Dataset {id} is not opened but "close" method called')
+                raise KeyError(f'Dataset {id_} is not opened but "close" method called')
 
     def close_all(self) -> None:
         for id_ in self._datasets.keys():
             self.close(id_)
 
-    def get(self, id: int) -> Dataset:
+    def get(self, id_: int) -> Dataset:
         with self._lock:
             try:
-                return self._datasets[id]
+                return self._datasets[id_]
             except KeyError:
-                raise KeyError(f'Dataset {id} is not opened but "get" method called')
+                raise KeyError(f'Dataset {id_} is not opened but "get" method called')
+
+    def get_as_array(self, id_: int) -> np.array:
+        return self.read_band(id_, 1)
 
     def get_all(self) -> list[Dataset]:
         with self._lock:
@@ -154,7 +157,7 @@ class DatasetManager:
         try:
             band = ds.GetRasterBand(band_id)
         except RuntimeError:
-            raise RuntimeError(f'Daraset {dataset_id} does not have band number {band_id}')
+            raise RuntimeError(f'Dataset {dataset_id} does not have band number {band_id}')
 
         x_size, y_size, step, res, data = ds.RasterXSize, ds.RasterYSize, 0, 0, 0
         if _to_percent(step_size_percent) == 0:
@@ -204,12 +207,12 @@ class DatasetManager:
                     with self._lock:
                         win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size, buf_xsize=buf_x, buf_ysize=buf_y)
                 data = np.hstack((data, win))
-
+                
         return data
 
 class GdalExecutor:
     VERSION = '1.0.0'
-    SUPPORTED_PROTOCOL_VERSIONS = ('2.1.2')
+    SUPPORTED_PROTOCOL_VERSIONS = ('2.1.4')
     SUPPORTED_INDICES = {'test': 2}     # { 'name': number_of_datasets_to_calc_from }
     
     def __new__(cls, protocol):

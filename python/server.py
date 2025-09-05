@@ -3,10 +3,12 @@ import os, time, threading
 from flask import Flask, request, make_response
 import tempfile
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
+import numpy as np
 import json
 from json_proto import Protocol
 from gdal_executor import GdalExecutor
+import index_calculator as indcal
 
 proto = Protocol()
 executor = GdalExecutor(proto)
@@ -180,22 +182,65 @@ def shutdown():
     time.sleep(3)
     os._exit(0)
 
+def image_with_scalebar(src_image: Image, gap: int, values: np.ndarray) -> Image:
+    """Generates a scalebar (bar diagram flled with gradient) with min and max values from 'values' array and returns a new PIL.Image with 'src_image', the scalebar and a 'gap' in between."""
+
+    scalebar_w, scalebar_h = max(25, src_image.width // 20), src_image.height
+    total_w, total_h = src_image.width + gap + scalebar_w, src_image.height
+    min_, mid, max_ = float(values.min()), values.max() / 2, float(values.max())
+    
+    gradient = Image.new('L', (1, scalebar_h))
+    line = np.linspace(255, 0, scalebar_h, dtype=np.uint8)
+    gradient.putdata(line)
+    gradient = gradient.resize((scalebar_w, scalebar_h))
+
+    draw = ImageDraw.Draw(Image.new('1', (0, 0)))
+    font = ImageFont.load_default(14)
+    str_max = draw.textlength(str(max_), font)
+    str_mid = draw.textlength(str(mid), font)
+    str_min = draw.textlength(str(min_), font)
+
+    ret = Image.new('RGBA', (total_w + int(max(str_min, str_mid, str_max)) + 2, total_h), (0, 0, 0, 0))
+    ret.paste(src_image)
+    ret.paste(gradient, (src_image.width + gap - 1, 0))
+    draw = ImageDraw.Draw(ret)
+
+    draw.rectangle([(src_image.width + gap - 1, 0), (total_w - 2, total_h - 1)], outline=(128, 128, 128, 255), width=2)
+    draw.text((total_w + 2, 0), str(max_), fill=(0, 0, 0, 255), font=font, anchor='lt')
+    draw.text((total_w + 2, scalebar_h // 2), str(mid), fill=(0, 0, 0, 255), font=font, anchor='lm')
+    draw.text((total_w + 2, scalebar_h), str(min_), fill=(0, 0, 0, 255), font=font, anchor='lb')
+
+    return ret
+
 @server.get('/resource/<res_type>')
 def handle_resource(res_type):
     if len(request.query_string) == 0:
         return _http_response(request, '', 400, Reason='Query string must be provided for resource requests.')
-    if len(request.args) > 1:
-        return _http_response(request, '', 400, Reason='Query string must only include "id" parameter for resource requests.')
-    id_ = request.args.get('id')
+
+    id_, scalebar = request.args.get('id'), request.args.get('sb')
     if id_ is None:
-        return _http_response(request, '', 400, Reason='Query string must only include "id" parameter for resource requests.')
+        return _http_response(request, '', 400, Reason='Query string must include "id" parameter for resource requests.')
     try:
         id_ = int(id_)
     except ValueError:
         return _http_response(request, '', 400, Reason='"id" parameter of the query string must be of integer type.')
+    if id_ < 0:
+        return _http_response(request, '', 400, Reason=f'Invalid value "{id_}" for "id" parameter of the query string: must be >= 0.')
 
     if res_type not in ('preview', 'index'):
         return _http_response(request, '', 400, Reason=f'The requested resource type "{res_type}" is not supported.')
+
+    if res_type == 'preview':
+        if scalebar is None:
+            return _http_response(request, '', 400, Reason='Query string must include "sb" parameter for preview requests.')
+        if len(request.args) != 2:
+            return _http_response(request, '', 400, Reason='Query string must only include "id" and "sb" parameters for preview requests.')
+        if not (scalebar == '0' or scalebar == '1'):
+            return _http_response(request, '', 400, Reason='"sb" parameter of the query string must be either 0 or 1.')
+
+    if res_type == 'index':
+        if len(request.args) != 1:
+            return _http_response(request, '', 400, Reason='Query string must only include "id" parameter for index requests.')
 
     response = check_http_headers(request, 'resource')
     if response is not None:
@@ -215,13 +260,20 @@ def handle_resource(res_type):
             return _http_response(request, '', 400, Reason=f'Invalid width {request.headers['Width']} in the "Width" header: actual width of the requested preview is {rgb.width}.')
         if int(request.headers['Height']) != rgb.height:
             return _http_response(request, '', 400, Reason=f'Invalid height {request.headers['Height']} in the "Height" header: actual height of the requested preview is {rgb.height}.')
+        
+        if scalebar == '1':
+            for i in range(1, len(rgb._ids)):
+                if rgb._ids[0] != rgb._ids[i]:
+                    return _http_response(request, '', 400, Reason='Unable to generate a scalebar for non-grayscale preview.')
 
         buf = BytesIO()
         img = Image.fromarray(rgb.array)
+        if scalebar == '1':
+            img = image_with_scalebar(img, 10, executor.ds_man.get_as_array(id_))
         img.save(buf, format='PNG')
         buf.seek(0)
         
-        return _http_response(request, buf, 200, Width=rgb.width, Height=rgb.height)
+        return _http_response(request, buf, 200, Content_Type='image/png', Width=img.width, Height=img.height)
         
     if res_type == 'index':
         try:
@@ -234,7 +286,7 @@ def handle_resource(res_type):
             tmp.seek(0)
             data = tmp.read()
             
-            return _http_response(request, data, 200)
+            return _http_response(request, data, 200, Content_Type='image/tiff')
 
 @server.post('/api/<command>')
 def handle_command(command):
