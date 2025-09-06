@@ -8,7 +8,7 @@ gdal.UseExceptions()
 class Preview:
     def __init__(self, array: np.ndarray, r: int, g: int, b: int):
         self.array = array
-        self._ids = (r, g, b)
+        self.ids = (r, g, b)
         self.width = array.shape[1]
         self.height = array.shape[0]
 
@@ -34,7 +34,7 @@ class PreviewManager:
         ids = (red, green, blue)
         with self._lock:
             for id_, pr in self._previews.items():
-                if pr._ids == ids:
+                if pr.ids == ids:
                     if pr.width == width or pr.height == height:
                         return id_
             return None

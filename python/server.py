@@ -262,14 +262,14 @@ def handle_resource(res_type):
             return _http_response(request, '', 400, Reason=f'Invalid height {request.headers['Height']} in the "Height" header: actual height of the requested preview is {rgb.height}.')
         
         if scalebar == '1':
-            for i in range(1, len(rgb._ids)):
-                if rgb._ids[0] != rgb._ids[i]:
+            for i in range(1, len(rgb.ids)):
+                if rgb.ids[0] != rgb.ids[i]:
                     return _http_response(request, '', 400, Reason='Unable to generate a scalebar for non-grayscale preview.')
 
         buf = BytesIO()
         img = Image.fromarray(rgb.array)
         if scalebar == '1':
-            img = image_with_scalebar(img, 10, executor.ds_man.get_as_array(id_))
+            img = image_with_scalebar(img, 10, executor.ds_man.get_as_array(rgb.ids[0]))
         img.save(buf, format='PNG')
         buf.seek(0)
         
