@@ -66,6 +66,11 @@ void MainWindow::send_request(QString type, QJsonObject data,
     QString type = result["url"].toString();
     type = type.split('?').first().split('/').last();
     if (type == "preview") {
+      if (!options.contains("scalebar")) {
+        return;
+      }
+
+      req.setUrl(req.url().toString() + "&sb=" + options.value("scalebar"));
       req.setRawHeader("Accept", "image/png");
       req.setRawHeader("Width",
                        QString::number(result["width"].toInt()).toUtf8());
@@ -224,7 +229,15 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body,
   } else if (command == "calc_index") {
     DATASET ds;
     QJsonObject info = result["info"].toObject();
-    ds.id = result["url"].toString().split('?').last().toInt();
+    ds.id = result["url"]
+                .toString()
+                .split('?')
+                .last()
+                .split('&')
+                .first()
+                .split('=')
+                .last()
+                .toInt();
     ds.width = info["width"].toInt();
     ds.height = info["height"].toInt();
     ds.projection = info["projection"].toString();
@@ -432,7 +445,8 @@ void MainWindow::change_page(PAGE to) {
       auto it_r = self.files.find("L4");
       auto it_g = self.files.find("L3");
       auto it_b = self.files.find("L2");
-      QMap<QString, QString> options = {{"preview_type", "color"}};
+      QMap<QString, QString> options = {{"preview_type", "color"},
+                                        {"scalebar", "0"}};
       if (it_r == self.files.end() || it_g == self.files.end() ||
           it_b == self.files.end()) {
         send_request("command", proto.calc_preview(0, 0, 0, width, height),
@@ -471,7 +485,7 @@ void MainWindow::change_page(PAGE to) {
       for (QString index : indices) {
         index = index.toLower();
         QMap<QString, QString> options = {
-            {"preview_type", get_index_type(index)}};
+            {"preview_type", get_index_type(index)}, {"scalebar", "1"}};
         send_request("command",
                      proto.calc_index(index, select_bands_for_index(index)),
                      options);
@@ -502,7 +516,8 @@ void MainWindow::change_page(PAGE to) {
       auto it_b = self.files.find("L2");
       uint width = self.result_p->get_preview_width();
       uint height = self.result_p->get_preview_height();
-      QMap<QString, QString> options = {{"preview_type", "summary"}};
+      QMap<QString, QString> options = {{"preview_type", "summary"},
+                                        {"scalebar", "0"}};
       if (it_r == self.files.end() || it_g == self.files.end() ||
           it_b == self.files.end()) {
         send_request("command", proto.calc_preview(0, 0, 0, width, height),

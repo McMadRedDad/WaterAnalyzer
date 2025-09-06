@@ -1,6 +1,6 @@
 #include "jsonprotocol.hpp"
 
-const QString JsonProtocol::proto_version = "2.1.2";
+const QString JsonProtocol::proto_version = "2.1.4";
 
 JsonProtocol::JsonProtocol(QString server_version) {
   this->server_version = server_version;
@@ -19,7 +19,7 @@ QJsonObject JsonProtocol::import_gtiff(QString file) {
   return construct_json("import_gtiff", QJsonObject{{"file", file}});
 }
 
-QJsonObject JsonProtocol::calc_preview(int r, int g, int b, int width,
+QJsonObject JsonProtocol::calc_preview(int r, int g, int b, uint width,
                                        uint height) {
   return construct_json("calc_preview",
                         QJsonObject{{"ids", QJsonArray{(int)r, (int)g, (int)b}},

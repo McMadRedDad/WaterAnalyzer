@@ -378,7 +378,7 @@ class GdalExecutor:
             result, data_type, nodata = 0, 0, -99999
             if index == 'test':
                 data_type = gdal.GDT_Float32
-                nodata = -99999.0
+                nodata = 0.0
                 array1, array2 = self.ds_man.read_band(ids[0], 1), self.ds_man.read_band(ids[1], 1)
                 result = indcal._test(array1, array2, nodata)
             if index == '':

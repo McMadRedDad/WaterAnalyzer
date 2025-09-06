@@ -8,6 +8,7 @@ ResultTab::ResultTab(QWidget *parent) : QWidget(parent), ui(new Ui::ResultTab) {
 ResultTab::~ResultTab() { delete ui; }
 
 void ResultTab::set_preview(QPixmap image) {
+  ui->lbl_preview->clear();
   ui->lbl_preview->setPixmap(image);
 }
 
