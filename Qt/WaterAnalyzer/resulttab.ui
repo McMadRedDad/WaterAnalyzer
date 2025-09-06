@@ -80,7 +80,7 @@
 	border: 1px solid lightgray;
 }</string>
      </property>
-     <layout class="QGridLayout" name="gridLayout_2" columnstretch="8,1">
+     <layout class="QGridLayout" name="gridLayout_2" columnstretch="8,1,0">
       <item row="0" column="0" colspan="2">
        <widget class="QLabel" name="lbl_caption">
         <property name="sizePolicy">
@@ -97,7 +97,32 @@
         </property>
        </widget>
       </item>
-      <item row="2" column="0" colspan="2">
+      <item row="0" column="2">
+       <widget class="QPushButton" name="pb_refresh">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>24</width>
+          <height>24</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>24</width>
+          <height>24</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>⟳</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0" colspan="3">
        <widget class="QLabel" name="lbl_preview">
         <property name="text">
          <string/>

@@ -20,6 +20,9 @@ public:
   uint get_preview_height();
   void set_caption(QString page, QString caption);
 
+signals:
+  void update_all_previews();
+
 private:
   Ui::ResultPage *ui;
   ResultTab *summary;

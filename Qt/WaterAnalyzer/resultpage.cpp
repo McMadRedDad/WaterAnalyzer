@@ -10,6 +10,18 @@ ResultPage::ResultPage(QWidget *parent)
   tss = new ResultTab();
   cdom = new ResultTab();
   temp = new ResultTab();
+  connect(summary, &ResultTab::refresh_preview, this,
+          &ResultPage::update_all_previews);
+  connect(water, &ResultTab::refresh_preview, this,
+          &ResultPage::update_all_previews);
+  connect(chloro, &ResultTab::refresh_preview, this,
+          &ResultPage::update_all_previews);
+  connect(tss, &ResultTab::refresh_preview, this,
+          &ResultPage::update_all_previews);
+  connect(cdom, &ResultTab::refresh_preview, this,
+          &ResultPage::update_all_previews);
+  connect(temp, &ResultTab::refresh_preview, this,
+          &ResultPage::update_all_previews);
   ui->tab_summary->layout()->addWidget(summary);
   ui->tab_water->layout()->addWidget(water);
   ui->tab_chloro->layout()->addWidget(chloro);

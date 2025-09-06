@@ -19,6 +19,12 @@ public:
   uint get_preview_height();
   void set_caption(QString caption);
 
+private slots:
+  void on_pb_refresh_clicked();
+
+signals:
+  void refresh_preview();
+
 private:
   Ui::ResultTab *ui;
 };

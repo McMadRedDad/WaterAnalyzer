@@ -530,8 +530,30 @@ void MainWindow::change_page(PAGE to) {
       }
     };
 
+    auto refresh_previews = [this, preview]() {
+      uint width = self.result_p->get_preview_width();
+      uint height = self.result_p->get_preview_height();
+      for (auto it = self.files.cbegin(), end = self.files.cend(); it != end;
+           ++it) {
+        QString key = it.key();
+        bool num;
+        key.right(key.size() - 1).toInt(&num);
+        if (key[0] == 'L' && num) {
+          continue;
+        }
+
+        int id = it.value().id;
+        QMap<QString, QString> options = {{"preview_type", get_index_type(key)},
+                                          {"scalebar", "1"}};
+        send_request("command", proto.calc_preview(id, id, id, width, height),
+                     options);
+      }
+      preview();
+    };
+
     disconnect(self.import_p, nullptr, nullptr, nullptr);
     disconnect(self.process_p, nullptr, nullptr, nullptr);
+    connect(self.result_p, &ResultPage::update_all_previews, refresh_previews);
 
     self.page = PAGE::RESULT;
 
