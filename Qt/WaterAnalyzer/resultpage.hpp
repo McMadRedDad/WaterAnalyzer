@@ -9,30 +9,30 @@ class ResultPage;
 }
 
 class ResultPage : public QWidget {
-  Q_OBJECT
+    Q_OBJECT
 
 public:
-  explicit ResultPage(QWidget *parent = nullptr);
-  ~ResultPage();
+    explicit ResultPage(QWidget *parent = nullptr);
+    ~ResultPage();
 
-  void set_preview(QString page, QPixmap image);
-  uint get_preview_width();
-  uint get_preview_height();
-  void set_caption(QString page, QString caption);
+    void set_preview(QString page, QPixmap image);
+    uint get_preview_width();
+    uint get_preview_height();
+    void set_caption(QString page, QString caption);
 
 signals:
-  void update_all_previews();
-  void export_index(QString);
-  void export_text(QString);
+    void update_all_previews();
+    void export_index(QString);
+    void export_text(QString);
 
 private:
-  Ui::ResultPage *ui;
-  ResultTab *summary;
-  ResultTab *water;
-  ResultTab *chloro;
-  ResultTab *tss;
-  ResultTab *cdom;
-  ResultTab *temp;
+    Ui::ResultPage *ui;
+    ResultTab      *summary;
+    ResultTab      *water;
+    ResultTab      *chloro;
+    ResultTab      *tss;
+    ResultTab      *cdom;
+    ResultTab      *temp;
 };
 
 #endif // RESULTPAGE_HPP
