@@ -187,7 +187,7 @@ def image_with_scalebar(src_image: Image, gap: int, values: np.ndarray) -> Image
 
     scalebar_w, scalebar_h = max(25, src_image.width // 20), src_image.height
     total_w, total_h = src_image.width + gap + scalebar_w, src_image.height
-    min_, mid, max_ = float(values.min()), values.max() / 2, float(values.max())
+    min_, mid, max_ = round(float(values.min()), 3), round(values.max() / 2, 3), round(float(values.max()), 3)
     
     gradient = Image.new('L', (1, scalebar_h))
     line = np.linspace(255, 0, scalebar_h, dtype=np.uint8)
