@@ -10,6 +10,7 @@ ResultPage::ResultPage(QWidget *parent)
   tss = new ResultTab();
   cdom = new ResultTab();
   temp = new ResultTab();
+
   connect(summary, &ResultTab::refresh_preview, this,
           &ResultPage::update_all_previews);
   connect(water, &ResultTab::refresh_preview, this,
@@ -22,6 +23,27 @@ ResultPage::ResultPage(QWidget *parent)
           &ResultPage::update_all_previews);
   connect(temp, &ResultTab::refresh_preview, this,
           &ResultPage::update_all_previews);
+
+  connect(summary, &ResultTab::export_index,
+          [this]() { emit export_index("summary"); });
+  connect(water, &ResultTab::export_index,
+          [this]() { emit export_index("water"); });
+  connect(chloro, &ResultTab::export_index,
+          [this]() { emit export_index("chloro"); });
+  connect(tss, &ResultTab::export_index,
+          [this]() { emit export_index("tss"); });
+  connect(cdom, &ResultTab::export_index,
+          [this]() { emit export_index("cdom"); });
+  connect(temp, &ResultTab::export_index,
+          [this]() { emit export_index("temp"); });
+
+  connect(summary, &ResultTab::export_text, this, &ResultPage::export_text);
+  connect(water, &ResultTab::export_text, this, &ResultPage::export_text);
+  connect(chloro, &ResultTab::export_text, this, &ResultPage::export_text);
+  connect(tss, &ResultTab::export_text, this, &ResultPage::export_text);
+  connect(cdom, &ResultTab::export_text, this, &ResultPage::export_text);
+  connect(temp, &ResultTab::export_text, this, &ResultPage::export_text);
+
   ui->tab_summary->layout()->addWidget(summary);
   ui->tab_water->layout()->addWidget(water);
   ui->tab_chloro->layout()->addWidget(chloro);
@@ -29,6 +51,7 @@ ResultPage::ResultPage(QWidget *parent)
   ui->tab_cdom->layout()->addWidget(cdom);
   ui->tab_temp->layout()->addWidget(temp);
   summary->set_caption("Итог");
+  summary->hide_export_button("index");
 }
 
 ResultPage::~ResultPage() {
@@ -57,9 +80,9 @@ void ResultPage::set_preview(QString page, QPixmap image) {
   }
 }
 
-uint ResultPage::get_preview_width() { return summary->get_preview_width(); }
+uint ResultPage::get_preview_width() { return water->get_preview_width(); }
 
-uint ResultPage::get_preview_height() { return summary->get_preview_height(); }
+uint ResultPage::get_preview_height() { return water->get_preview_height(); }
 
 void ResultPage::set_caption(QString page, QString caption) {
   if (page == "summary") {

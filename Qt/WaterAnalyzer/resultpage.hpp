@@ -22,6 +22,8 @@ public:
 
 signals:
   void update_all_previews();
+  void export_index(QString);
+  void export_text(QString);
 
 private:
   Ui::ResultPage *ui;

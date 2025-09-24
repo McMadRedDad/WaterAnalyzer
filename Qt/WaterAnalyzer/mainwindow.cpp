@@ -229,6 +229,7 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body,
   } else if (command == "calc_index") {
     DATASET ds;
     QJsonObject info = result["info"].toObject();
+    ds.url = result["url"].toString();
     ds.id = result["url"]
                 .toString()
                 .split('?')
@@ -253,7 +254,7 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body,
     send_request("command",
                  proto.calc_preview(ds.id, ds.id, ds.id, width, height),
                  options);
-    self.result_p->set_caption(get_index_type(result["index"].toString()),
+    self.result_p->set_caption(get_type_by_index(result["index"].toString()),
                                result["index"].toString().toUpper());
 
     append_log("info",
@@ -267,12 +268,34 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body,
   }
 }
 
-QString MainWindow::get_index_type(QString index) {
+QString MainWindow::get_type_by_index(QString index) {
   QString indx = index.toLower();
   if (indx == "test") {
     return "water";
   } else if (indx == "") {
     return "";
+  } else {
+    return "";
+  }
+}
+
+QString MainWindow::get_index_by_type(QString type) {
+  if (type == "summary") {
+    return "";
+  } else if (type == "water") {
+    for (auto it = self.files.cbegin(), end = self.files.cend(); it != end;
+         ++it) {
+      if (it.key() == "test" || it.key() == "" || 0) {
+        return it.key();
+      }
+    }
+  } else if (type == "") {
+    // for (auto it = self.files.cbegin(), end = self.files.cend(); it != end;
+    //      ++it) {
+    //   if (it.key() == "test" || it.key() == "" || 0) {
+    //     return it.key();
+    //   }
+    // }
   } else {
     return "";
   }
@@ -485,7 +508,7 @@ void MainWindow::change_page(PAGE to) {
       for (QString index : indices) {
         index = index.toLower();
         QMap<QString, QString> options = {
-            {"preview_type", get_index_type(index)}, {"scalebar", "1"}};
+            {"preview_type", get_type_by_index(index)}, {"scalebar", "1"}};
         send_request("command",
                      proto.calc_index(index, select_bands_for_index(index)),
                      options);
@@ -529,7 +552,6 @@ void MainWindow::change_page(PAGE to) {
                      options);
       }
     };
-
     auto refresh_previews = [this, preview]() {
       uint width = self.result_p->get_preview_width();
       uint height = self.result_p->get_preview_height();
@@ -543,17 +565,26 @@ void MainWindow::change_page(PAGE to) {
         }
 
         int id = it.value().id;
-        QMap<QString, QString> options = {{"preview_type", get_index_type(key)},
-                                          {"scalebar", "1"}};
+        QMap<QString, QString> options = {
+            {"preview_type", get_type_by_index(key)}, {"scalebar", "1"}};
         send_request("command", proto.calc_preview(id, id, id, width, height),
                      options);
       }
       preview();
     };
+    auto export_index = [this](QString type) {
+      QString index = get_index_by_type(type);
+      QJsonObject data = {
+          {"result", QJsonObject{{"url", self.files.value(index).url}}}};
+      send_request("resource", data);
+    };
 
     disconnect(self.import_p, nullptr, nullptr, nullptr);
     disconnect(self.process_p, nullptr, nullptr, nullptr);
     connect(self.result_p, &ResultPage::update_all_previews, refresh_previews);
+    connect(self.result_p, &ResultPage::export_index, export_index);
+    connect(self.result_p, &ResultPage::export_text,
+            [](QString t) { qDebug() << t; });
 
     self.page = PAGE::RESULT;
 

@@ -21,6 +21,7 @@ enum PAGE { BAD = -1, IMPORT, IMPORT_CUSTOM_BANDS, SELECTION, RESULT };
 struct DATASET {
   QString filename = "";
   int id = -1;
+  QString url = "";
   uint width = -1, height = -1;
   QString projection = "", unit = "";
   double origin[2] = {0.0, 0.0};
@@ -69,7 +70,8 @@ private:
   void process_post(QUrl endpoint, QByteArray body,
                     QMap<QString, QString> options = {});
   QList<int> select_bands_for_index(QString index);
-  QString get_index_type(QString index);
+  QString get_type_by_index(QString index);
+  QString get_index_by_type(QString type);
 
   void set_status_message(bool good, QString message, short msec = 3000);
   void append_log(QString type, QString line);

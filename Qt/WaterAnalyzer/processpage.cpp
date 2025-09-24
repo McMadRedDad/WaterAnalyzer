@@ -31,6 +31,7 @@ ProcessPage::~ProcessPage() {
 }
 
 void ProcessPage::set_preview(QPixmap image) {
+  ui->lbl_preview->clear();
   ui->lbl_preview->setPixmap(image);
 }
 
