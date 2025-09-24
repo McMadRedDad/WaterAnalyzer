@@ -145,7 +145,7 @@ void MainWindow::process_get(QUrl endpoint, QByteArray body, QMap<QString, QStri
             self.result_p->set_preview(options.value("preview_type"), preview);
         }
     } else if (type == "index") {
-        QString path = QFileDialog::getSaveFileName(this, "Сохранить файл GeoTiff", QDir::homePath());
+        QString path = QFileDialog::getSaveFileName(this, "Сохранить файл GeoTiff", self.dir.path());
         if (path.isEmpty()) {
             append_log("bad", "Запись файла отменена.");
             set_status_message(false, "Файл не сохранён");
@@ -250,7 +250,7 @@ QString MainWindow::get_index_by_type(QString type) {
         return "";
     } else if (type == "water") {
         for (auto it = self.files.cbegin(), end = self.files.cend(); it != end; ++it) {
-            if (it.key() == "test" || it.key() == "" || 0) {
+            if (it.key() == "test" || it.key() == "wi2015") {
                 return it.key();
             }
         }
@@ -272,8 +272,8 @@ QList<int> MainWindow::select_bands_for_index(QString index) {
     QString indx = index.toLower();
     if (indx == "test") {
         return QList<int>{self.files["L1"].id, self.files["L2"].id};
-    } else if (indx == "") {
-        return QList<int>{-1};
+    } else if (indx == "wi2015") {
+        return QList<int>{self.files["L3"].id, self.files["L4"].id, self.files["L5"].id, self.files["L6"].id, self.files["L7"].id};
     } else {
         return QList<int>{-1};
     }
