@@ -91,15 +91,15 @@ void MainWindow::send_request(QString type, QJsonObject data, QMap<QString, QStr
 
 void MainWindow::handle_error(QNetworkReply *response) {
     lock_interface(false);
-
     if (!response->attribute(QNetworkRequest::HttpStatusCodeAttribute).isValid()) {
         append_log("bad", "Ошибка соединения с сервером: " + response->errorString() + ".");
         set_status_message(false, "Ошибка соединения с сервером");
+        change_page(PAGE::IMPORT);
         return;
     }
 
     auto raw_header_pairs = response->rawHeaderPairs();
-    for (auto header : raw_header_pairs) {
+    for (const auto &header : raw_header_pairs) {
         if (QString::fromUtf8(header.first).toLower() == "reason") {
             append_log("bad",
                        QString("Некорректный HTTP-запрос к серверу: %1 %2, Reason: %3.")
@@ -130,7 +130,6 @@ void MainWindow::handle_error(QNetworkReply *response) {
 
 void MainWindow::process_get(QUrl endpoint, QByteArray body, QMap<QString, QString> options) {
     lock_interface(false);
-
     QString type = endpoint.toString();
     type = type.split('?').first().split('/').last();
     if (type == "preview") {
@@ -176,7 +175,6 @@ void MainWindow::process_get(QUrl endpoint, QByteArray body, QMap<QString, QStri
 
 void MainWindow::process_post(QUrl endpoint, QByteArray body, QMap<QString, QString> options) {
     lock_interface(false);
-
     QString     command = endpoint.toString().split("/").last();
     QJsonObject result = QJsonDocument::fromJson(body).object()["result"].toObject();
 
@@ -236,7 +234,7 @@ void MainWindow::process_post(QUrl endpoint, QByteArray body, QMap<QString, QStr
 
 QString MainWindow::get_type_by_index(QString index) {
     QString indx = index.toLower();
-    if (indx == "test") {
+    if (indx == "test" || indx == "wi2015") {
         return "water";
     } else if (indx == "") {
         return "";
@@ -321,7 +319,7 @@ void MainWindow::change_page(PAGE to) {
     case PAGE::IMPORT: {
         auto directory = [this](QDir dir) {
             int counter = 0;
-            for (QString f : dir.entryList()) {
+            for (const QString &f : dir.entryList()) {
                 if (f.toUpper().endsWith(".TIF") && f.right(7).toUpper().contains('B')) {
                     DATASET ds;
                     ds.filename = dir.absolutePath() + "/" + f;
@@ -346,7 +344,7 @@ void MainWindow::change_page(PAGE to) {
         };
         auto files = [this](QStringList filenames) {
             int counter = 0;
-            for (QString f : filenames) {
+            for (const QString &f : filenames) {
                 if (f.toUpper().endsWith(".TIF") && f.right(7).toUpper().contains("B")) {
                     DATASET ds;
                     ds.filename = f;
@@ -375,7 +373,7 @@ void MainWindow::change_page(PAGE to) {
                 set_status_message(false, "Файлы Tiff не выбраны");
                 return;
             }
-            for (auto f : bands_files) {
+            for (auto &f : bands_files) {
                 DATASET ds;
                 ds.filename = f.second;
                 self.files[f.first.prepend('L')] = ds;
@@ -437,7 +435,7 @@ void MainWindow::change_page(PAGE to) {
             QStringList keys_l = self.files.keys();
             keys_l.sort();
             QString keys;
-            for (QString k : keys_l) {
+            for (QString &k : keys_l) {
                 keys.append(k.replace('L', 'B') + ", ");
             }
             keys.chop(2);
