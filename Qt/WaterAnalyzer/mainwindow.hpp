@@ -73,7 +73,7 @@ private:
     void set_status_message(bool good, QString message, short msec = 3000);
     void append_log(QString type, QString line);
     void change_page(PAGE to);
-
+    void lock_interface(bool on);
     void closeEvent(QCloseEvent *e) override;
 };
 #endif // MAINWINDOW_HPP

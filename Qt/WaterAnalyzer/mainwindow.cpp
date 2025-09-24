@@ -38,6 +38,7 @@ void MainWindow::send_request(QString type, QJsonObject data, QMap<QString, QStr
         req.setRawHeader("Accept", "application/json; charset=utf-8");
         req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
         req.setRawHeader("Request-ID", QString::number(data["id"].toInt()).toUtf8());
+        lock_interface(true);
         QNetworkReply *response = net_man->post(req, QJsonDocument(data).toJson());
         connect(response, &QNetworkReply::errorOccurred, this, [this, response] {
             handle_error(response);
@@ -73,6 +74,7 @@ void MainWindow::send_request(QString type, QJsonObject data, QMap<QString, QStr
         }
         proto.inc_counter();
 
+        lock_interface(true);
         QNetworkReply *response = net_man->get(req);
         connect(response, &QNetworkReply::errorOccurred, [this, response]() {
             handle_error(response);
@@ -88,6 +90,8 @@ void MainWindow::send_request(QString type, QJsonObject data, QMap<QString, QStr
 }
 
 void MainWindow::handle_error(QNetworkReply *response) {
+    lock_interface(false);
+
     if (!response->attribute(QNetworkRequest::HttpStatusCodeAttribute).isValid()) {
         append_log("bad", "Ошибка соединения с сервером: " + response->errorString() + ".");
         set_status_message(false, "Ошибка соединения с сервером");
@@ -125,6 +129,8 @@ void MainWindow::handle_error(QNetworkReply *response) {
 }
 
 void MainWindow::process_get(QUrl endpoint, QByteArray body, QMap<QString, QString> options) {
+    lock_interface(false);
+
     QString type = endpoint.toString();
     type = type.split('?').first().split('/').last();
     if (type == "preview") {
@@ -169,6 +175,8 @@ void MainWindow::process_get(QUrl endpoint, QByteArray body, QMap<QString, QStri
 }
 
 void MainWindow::process_post(QUrl endpoint, QByteArray body, QMap<QString, QString> options) {
+    lock_interface(false);
+
     QString     command = endpoint.toString().split("/").last();
     QJsonObject result = QJsonDocument::fromJson(body).object()["result"].toObject();
 
@@ -246,6 +254,7 @@ QString MainWindow::get_index_by_type(QString type) {
                 return it.key();
             }
         }
+        return "";
     } else if (type == "") {
         // for (auto it = self.files.cbegin(), end = self.files.cend(); it != end;
         //      ++it) {
@@ -253,6 +262,7 @@ QString MainWindow::get_index_by_type(QString type) {
         //     return it.key();
         //   }
         // }
+        return "";
     } else {
         return "";
     }
@@ -520,6 +530,12 @@ void MainWindow::change_page(PAGE to) {
     default:
         return;
     }
+}
+
+void MainWindow::lock_interface(bool on) {
+    self.import_p->setEnabled(!on);
+    self.process_p->setEnabled(!on);
+    self.result_p->setEnabled(!on);
 }
 
 void MainWindow::on_pb_back_clicked() {
