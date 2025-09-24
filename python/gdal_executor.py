@@ -137,8 +137,8 @@ class DatasetManager:
 
     def read_band(self, dataset_id: int, band_id: int, step_size_percent: float | int=100, resolution_percent: float | int=100) -> np.ndarray:
         """Reads a band from the dataset and returns it as a numpy array.
-        'step_size' is the percent of the raster's rows or columns that will be read during one iteration. For example, if the raster is 100x100 pixels and 'step_size'=20, the band will be read entirely within 5 iterations with five 20x100 windows.
-        'step_size' <=0 means the band will be read line by line. 'step_size' >=100 means the band will be read at once.
+        'step_size_percent' is the percent of the raster's rows or columns that will be read during one iteration. For example, if the raster is 100x100 pixels and 'step_size'=20, the band will be read entirely within 5 iterations with five 20x100 windows.
+        'step_size_percent' <=0 means the band will be read line by line. 'step_size' >=100 means the band will be read at once.
         The less 'step_size' is, the less memory is used and the slower the function is.
         'resolution_percent' controls the resulting array resolution. if <=0, resoltion is set to 0.01 percent of the original raster; if >=100, the band will be read at full resolution."""
 
@@ -208,12 +208,12 @@ class DatasetManager:
                         win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size, buf_xsize=buf_x, buf_ysize=buf_y)
                 data = np.hstack((data, win))
                 
-        return data
+        return np.array(data, dtype=np.float32)
 
 class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('2.1.4')
-    SUPPORTED_INDICES = {'test': 2}     # { 'name': number_of_datasets_to_calc_from }
+    SUPPORTED_INDICES = {'test': 2, 'wi2015': 5}     # { 'name': number_of_datasets_to_calc_from }
     
     def __new__(cls, protocol):
         if protocol.get_version() not in GdalExecutor.SUPPORTED_PROTOCOL_VERSIONS:
@@ -381,8 +381,16 @@ class GdalExecutor:
                 nodata = 0.0
                 array1, array2 = self.ds_man.read_band(ids[0], 1), self.ds_man.read_band(ids[1], 1)
                 result = indcal._test(array1, array2, nodata)
-            if index == '':
-                pass
+            if index == 'wi2015':
+                data_type = gdal.GDT_Float32
+                nodata = 0.0
+                green = self.ds_man.read_band(ids[0], 1)
+                red = self.ds_man.read_band(ids[1], 1)
+                nir = self.ds_man.read_band(ids[2], 1)
+                swir1 = self.ds_man.read_band(ids[3], 1)
+                swir2 = self.ds_man.read_band(ids[4], 1)
+                result = indcal.wi2015(green, red, nir, swir1, swir2, nodata)
+                print(green.dtype, result.dtype)
 
             res_ds = gdal.GetDriverByName('MEM').Create('', ds[0].RasterXSize, ds[0].RasterYSize, 1, data_type)
             res_ds.SetGeoTransform(ds[0].GetGeoTransform())

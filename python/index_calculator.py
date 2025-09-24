@@ -21,3 +21,9 @@ def _test(array1: np.ndarray, array2: np.ndarray, nodata: int | float) -> np.nda
     test[zeros] = nodata
     test[~zeros] = array1[~zeros] / array2[~zeros]
     return test
+
+def wi2015(green: np.ndarray, red: np.ndarray, nir: np.ndarray, swir1: np.ndarray, swir2: np.ndarray, nodata: int | float) -> np.ndarray:
+    wi2015 = np.zeros(green.shape, dtype=np.float32)
+    wi2015 = 1.7204 + 171*green + 3*red - 70*nir - 45*swir1 - 71*swir2
+
+    return wi2015
