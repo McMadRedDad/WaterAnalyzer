@@ -213,7 +213,11 @@ class DatasetManager:
 class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('2.1.4')
-    SUPPORTED_INDICES = {'test': 2, 'wi2015': 5}     # { 'name': number_of_datasets_to_calc_from }
+    SUPPORTED_INDICES = {   # { 'name': number_of_datasets_to_calc_from }
+        'test': 2,
+        'wi2015': 5,
+        'nsmi': 3
+    }
     
     def __new__(cls, protocol):
         if protocol.get_version() not in GdalExecutor.SUPPORTED_PROTOCOL_VERSIONS:
@@ -390,6 +394,13 @@ class GdalExecutor:
                 swir1 = self.ds_man.read_band(ids[3], 1)
                 swir2 = self.ds_man.read_band(ids[4], 1)
                 result = indcal.wi2015(green, red, nir, swir1, swir2, nodata)
+            if index == 'nsmi':
+                data_type = gdal.GDT_Float32
+                nodata = 0.0
+                red = self.ds_man.read_band(ids[0], 1)
+                green = self.ds_man.read_band(ids[1], 1)
+                blue = self.ds_man.read_band(ids[2], 1)
+                result = indcal.nsmi(red, green, blue, nodata)
 
             res_ds = gdal.GetDriverByName('MEM').Create('', ds[0].RasterXSize, ds[0].RasterYSize, 1, data_type)
             res_ds.SetGeoTransform(ds[0].GetGeoTransform())

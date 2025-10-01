@@ -111,7 +111,7 @@
       <number>6</number>
      </property>
      <property name="bottomMargin">
-      <number>6</number>
+      <number>10</number>
      </property>
      <item row="7" column="0" rowspan="2" colspan="3" alignment="Qt::AlignmentFlag::AlignHCenter">
       <widget class="QPushButton" name="pb_go">
@@ -247,6 +247,11 @@
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <item>
+        <property name="text">
+         <string>NSMI</string>
+        </property>
+       </item>
       </widget>
      </item>
      <item row="5" column="2">

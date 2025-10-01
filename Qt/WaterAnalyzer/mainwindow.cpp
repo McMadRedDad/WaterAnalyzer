@@ -9,13 +9,13 @@ MainWindow::MainWindow(QWidget *parent)
     self.process_p = new ProcessPage();
     self.result_p = new ResultPage();
     change_page(PAGE::IMPORT);
+    self.curr_req_id = -1;
 
     backend_ip = QHostAddress::LocalHost;
     backend_port = 42069;
     net_man = new QNetworkAccessManager(this);
     proto = JsonProtocol("1.0.0");
 
-    self.curr_req_id = -1;
     connect(&timer_status, &QTimer::timeout, [this]() { ui->lbl_status->clear(); });
 }
 
@@ -252,8 +252,8 @@ QString MainWindow::get_type_by_index(QString index) {
     QString indx = index.toLower();
     if (indx == "test" || indx == "wi2015") {
         return "water";
-    } else if (indx == "") {
-        return "";
+    } else if (indx == "nsmi") {
+        return "tss";
     } else {
         return "";
     }
@@ -269,13 +269,12 @@ QString MainWindow::get_index_by_type(QString type) {
             }
         }
         return "";
-    } else if (type == "") {
-        // for (auto it = self.files.cbegin(), end = self.files.cend(); it != end;
-        //      ++it) {
-        //   if (it.key() == "test" || it.key() == "" || 0) {
-        //     return it.key();
-        //   }
-        // }
+    } else if (type == "tss") {
+        for (auto it = self.files.cbegin(), end = self.files.cend(); it != end; ++it) {
+            if (it.key() == "nsmi") {
+                return it.key();
+            }
+        }
         return "";
     } else {
         return "";
@@ -288,6 +287,8 @@ QList<int> MainWindow::select_bands_for_index(QString index) {
         return QList<int>{self.files["L1"].id, self.files["L2"].id};
     } else if (indx == "wi2015") {
         return QList<int>{self.files["L3"].id, self.files["L4"].id, self.files["L5"].id, self.files["L6"].id, self.files["L7"].id};
+    } else if (indx == "nsmi") {
+        return QList<int>{self.files["L4"].id, self.files["L3"].id, self.files["L2"].id};
     } else {
         return QList<int>{-1};
     }
