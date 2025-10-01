@@ -34,6 +34,7 @@ struct STATE {
     ResultPage            *result_p;
     PAGE                   page;
     QDir                   dir;
+    uint                   curr_req_id;
     QMap<QString, DATASET> files; // band/index: DATASET
 };
 
@@ -64,8 +65,8 @@ private:
 
     void       send_request(QString type, QJsonObject data, QMap<QString, QString> options = {});
     void       handle_error(QNetworkReply *response);
-    void       process_get(QUrl endpoint, QByteArray body, QMap<QString, QString> options = {});
-    void       process_post(QUrl endpoint, QByteArray body, QMap<QString, QString> options = {});
+    void       process_get(QUrl endpoint, QHttpHeaders headers, QByteArray body, QMap<QString, QString> options = {});
+    void       process_post(QUrl endpoint, QHttpHeaders headers, QByteArray body, QMap<QString, QString> options = {});
     QList<int> select_bands_for_index(QString index);
     QString    get_type_by_index(QString index);
     QString    get_index_by_type(QString type);

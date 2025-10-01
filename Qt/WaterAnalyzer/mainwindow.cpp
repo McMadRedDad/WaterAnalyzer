@@ -15,6 +15,7 @@ MainWindow::MainWindow(QWidget *parent)
     net_man = new QNetworkAccessManager(this);
     proto = JsonProtocol("1.0.0");
 
+    self.curr_req_id = -1;
     connect(&timer_status, &QTimer::timeout, [this]() { ui->lbl_status->clear(); });
 }
 
@@ -38,6 +39,7 @@ void MainWindow::send_request(QString type, QJsonObject data, QMap<QString, QStr
         req.setRawHeader("Accept", "application/json; charset=utf-8");
         req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
         req.setRawHeader("Request-ID", QString::number(data["id"].toInt()).toUtf8());
+        self.curr_req_id = data["id"].toInt();
         lock_interface(true);
         QNetworkReply *response = net_man->post(req, QJsonDocument(data).toJson());
         connect(response, &QNetworkReply::errorOccurred, this, [this, response] {
@@ -46,7 +48,7 @@ void MainWindow::send_request(QString type, QJsonObject data, QMap<QString, QStr
         });
         connect(response, &QNetworkReply::finished, [this, response, options] {
             if (response->error() == QNetworkReply::NoError) {
-                process_post(response->request().url(), response->readAll(), options);
+                process_post(response->request().url(), response->headers(), response->readAll(), options);
             }
             response->deleteLater();
         });
@@ -55,6 +57,7 @@ void MainWindow::send_request(QString type, QJsonObject data, QMap<QString, QStr
         QNetworkRequest req("http://" + backend_ip.toString() + ":" + QString::number(backend_port) + result["url"].toString());
         req.setRawHeader("Protocol-Version", proto.get_proto_version().toUtf8());
         req.setRawHeader("Request-ID", QString::number(proto.get_counter()).toUtf8());
+        self.curr_req_id = proto.get_counter();
 
         QString type = result["url"].toString();
         type = type.split('?').first().split('/').last();
@@ -82,7 +85,7 @@ void MainWindow::send_request(QString type, QJsonObject data, QMap<QString, QStr
         });
         connect(response, &QNetworkReply::finished, [this, response, options]() {
             if (response->error() == QNetworkReply::NoError) {
-                process_get(response->request().url(), response->readAll(), options);
+                process_get(response->request().url(), response->headers(), response->readAll(), options);
             }
             response->deleteLater();
         });
@@ -90,15 +93,23 @@ void MainWindow::send_request(QString type, QJsonObject data, QMap<QString, QStr
 }
 
 void MainWindow::handle_error(QNetworkReply *response) {
-    lock_interface(false);
     if (!response->attribute(QNetworkRequest::HttpStatusCodeAttribute).isValid()) {
         append_log("bad", "Ошибка соединения с сервером: " + response->errorString() + ".");
         set_status_message(false, "Ошибка соединения с сервером");
         change_page(PAGE::IMPORT);
+        lock_interface(false);
         return;
     }
 
     auto raw_header_pairs = response->rawHeaderPairs();
+    for (const auto &header : raw_header_pairs) {
+        if (QString::fromUtf8(header.first).toLower() == "request-id") {
+            if (header.second.toUInt() == self.curr_req_id) {
+                lock_interface(false);
+                break;
+            }
+        }
+    }
     for (const auto &header : raw_header_pairs) {
         if (QString::fromUtf8(header.first).toLower() == "reason") {
             append_log("bad",
@@ -128,8 +139,11 @@ void MainWindow::handle_error(QNetworkReply *response) {
     set_status_message(false, "Некорректный JSON-запрос");
 }
 
-void MainWindow::process_get(QUrl endpoint, QByteArray body, QMap<QString, QString> options) {
-    lock_interface(false);
+void MainWindow::process_get(QUrl endpoint, QHttpHeaders headers, QByteArray body, QMap<QString, QString> options) {
+    if (self.curr_req_id == headers.value("Request-ID").toUInt()) {
+        lock_interface(false);
+    }
+
     QString type = endpoint.toString();
     type = type.split('?').first().split('/').last();
     if (type == "preview") {
@@ -173,11 +187,13 @@ void MainWindow::process_get(QUrl endpoint, QByteArray body, QMap<QString, QStri
     }
 }
 
-void MainWindow::process_post(QUrl endpoint, QByteArray body, QMap<QString, QString> options) {
-    lock_interface(false);
+void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray body, QMap<QString, QString> options) {
+    if (self.curr_req_id == headers.value("Request-ID").toUInt()) {
+        lock_interface(false);
+    }
+
     QString     command = endpoint.toString().split("/").last();
     QJsonObject result = QJsonDocument::fromJson(body).object()["result"].toObject();
-
     if (command == "PING") {
         append_log("good", "Связь с сервером установлена.");
         set_status_message(true, "Связь с сервером установлена");

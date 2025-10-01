@@ -390,7 +390,6 @@ class GdalExecutor:
                 swir1 = self.ds_man.read_band(ids[3], 1)
                 swir2 = self.ds_man.read_band(ids[4], 1)
                 result = indcal.wi2015(green, red, nir, swir1, swir2, nodata)
-                print(green.dtype, result.dtype)
 
             res_ds = gdal.GetDriverByName('MEM').Create('', ds[0].RasterXSize, ds[0].RasterYSize, 1, data_type)
             res_ds.SetGeoTransform(ds[0].GetGeoTransform())
