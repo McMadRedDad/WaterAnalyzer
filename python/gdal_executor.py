@@ -135,8 +135,9 @@ class DatasetManager:
         with self._lock:
             return self._datasets.values()
 
-    def read_band(self, dataset_id: int, band_id: int, step_size_percent: float | int=100, resolution_percent: float | int=100) -> np.ndarray:
-        """Reads a band from the dataset and returns it as a numpy array.
+    def read_band(self, dataset_id: int, band_id: int, nodata: float | int=None, step_size_percent: float | int=100, resolution_percent: float | int=100) -> np.ma.MaskedArray:
+        """Reads a band from the dataset and returns it as a numpy masked array, where mask corresponds to NoData values.
+        'nodata' sets the pixel value that will be treated as the NoData value and will be used to define the resulting array's mask. If the parameter is left to None, all pixels are treated as valid data.
         'step_size_percent' is the percent of the raster's rows or columns that will be read during one iteration. For example, if the raster is 100x100 pixels and 'step_size'=20, the band will be read entirely within 5 iterations with five 20x100 windows.
         'step_size_percent' <=0 means the band will be read line by line. 'step_size' >=100 means the band will be read at once.
         The less 'step_size' is, the less memory is used and the slower the function is.
@@ -179,36 +180,38 @@ class DatasetManager:
         # e.g. raster size 100x50 -> read along y=50
         if x_size >= y_size:
             buf_x = int(x_size * res) if int(x_size * res) > 0 else 1
-            buf_y=int(1 * res) if int(1 * res) > 0 else 1
+            buf_y = int(1 * res) if int(1 * res) > 0 else 1
             with self._lock:
-                data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=x_size, win_ysize=1, buf_xsize=buf_x, buf_ysize=buf_y)
+                data = band.ReadAsMaskedArray(xoff=0, yoff=0, win_xsize=x_size, win_ysize=1, buf_xsize=buf_x, buf_ysize=buf_y)
             buf_y = int(step * res) if int(step * res) > 0 else 1
             for i in range(1, y_size, step):
                 if y_size >= i + step:
                     with self._lock:
-                        win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=step, buf_xsize=buf_x, buf_ysize=buf_y)
+                        win = band.ReadAsMaskedArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=step, buf_xsize=buf_x, buf_ysize=buf_y)
                 else:
                     buf_y = int((y_size - i) * res) if int((y_size - i) * res) > 0 else 1
                     with self._lock:
-                        win = band.ReadAsArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=y_size - i, buf_xsize=buf_x, buf_ysize=buf_y)
-                data = np.vstack((data, win))
+                        win = band.ReadAsMaskedArray(xoff=0, yoff=i, win_xsize=x_size, win_ysize=y_size - i, buf_xsize=buf_x, buf_ysize=buf_y)
+                data = np.ma.vstack((data, win))
         else:
             buf_x = int(1 * res) if int(1 * res) > 0 else 1
             buf_y = int(y_size * res) if int(y_size * res) > 0 else 1
             with self._lock:
-                data = band.ReadAsArray(xoff=0, yoff=0, win_xsize=1, win_ysize=y_size, buf_xsize=buf_x, buf_ysize=buf_y)
+                data = band.ReadAsMaskedArray(xoff=0, yoff=0, win_xsize=1, win_ysize=y_size, buf_xsize=buf_x, buf_ysize=buf_y)
             buf_x = int(step * res) if int(step * res) > 0 else 1
             for i in range(1, x_size, step):
                 if x_size >= i + step:
                     with self._lock:
-                        win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=step, win_ysize=y_size, buf_xsize=buf_x, buf_ysize=buf_y)
+                        win = band.ReadAsMaskedArray(xoff=i, yoff=0, win_xsize=step, win_ysize=y_size, buf_xsize=buf_x, buf_ysize=buf_y)
                 else:
                     buf_x = int((x_size - i) * res) if int((x_size - i) * res) > 0 else 1
                     with self._lock:
-                        win = band.ReadAsArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size, buf_xsize=buf_x, buf_ysize=buf_y)
-                data = np.hstack((data, win))
+                        win = band.ReadAsMaskedArray(xoff=i, yoff=0, win_xsize=x_size - i, win_ysize=y_size, buf_xsize=buf_x, buf_ysize=buf_y)
+                data = np.ma.hstack((data, win))
                 
-        return np.array(data, dtype=np.float32)
+        if nodata is not None:
+            data = np.ma.masked_values(data, nodata, rtol=indcal.FLOAT_PRECISION)
+        return np.ma.array(data, dtype=np.float32)
 
 class GdalExecutor:
     VERSION = '1.0.0'
@@ -382,24 +385,24 @@ class GdalExecutor:
             result, data_type, nodata = 0, 0, -99999
             if index == 'test':
                 data_type = gdal.GDT_Float32
-                nodata = 0.0
-                array1, array2 = self.ds_man.read_band(ids[0], 1), self.ds_man.read_band(ids[1], 1)
+                nodata = -99999.0
+                array1, array2 = self.ds_man.read_band(ids[0], 1, nodata=0), self.ds_man.read_band(ids[1], 1, nodata=0)
                 result = indcal._test(array1, array2, nodata)
             if index == 'wi2015':
                 data_type = gdal.GDT_Float32
-                nodata = 0.0
-                green = self.ds_man.read_band(ids[0], 1)
-                red = self.ds_man.read_band(ids[1], 1)
-                nir = self.ds_man.read_band(ids[2], 1)
-                swir1 = self.ds_man.read_band(ids[3], 1)
-                swir2 = self.ds_man.read_band(ids[4], 1)
+                nodata = float('nan')
+                green = self.ds_man.read_band(ids[0], 1, nodata=0)
+                red = self.ds_man.read_band(ids[1], 1, nodata=0)
+                nir = self.ds_man.read_band(ids[2], 1, nodata=0)
+                swir1 = self.ds_man.read_band(ids[3], 1, nodata=0)
+                swir2 = self.ds_man.read_band(ids[4], 1, nodata=0)
                 result = indcal.wi2015(green, red, nir, swir1, swir2, nodata)
             if index == 'nsmi':
                 data_type = gdal.GDT_Float32
-                nodata = 0.0
-                red = self.ds_man.read_band(ids[0], 1)
-                green = self.ds_man.read_band(ids[1], 1)
-                blue = self.ds_man.read_band(ids[2], 1)
+                nodata = float('nan')
+                red = self.ds_man.read_band(ids[0], 1, nodata=0)
+                green = self.ds_man.read_band(ids[1], 1, nodata=0)
+                blue = self.ds_man.read_band(ids[2], 1, nodata=0)
                 result = indcal.nsmi(red, green, blue, nodata)
 
             res_ds = gdal.GetDriverByName('MEM').Create('', ds[0].RasterXSize, ds[0].RasterYSize, 1, data_type)
