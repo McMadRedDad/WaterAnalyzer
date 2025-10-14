@@ -8,7 +8,7 @@ def map_to_8bit(array: np.ma.MaskedArray) -> np.ma.MaskedArray:
     If 'array's range is 0, i.e. array.min() == array.max(), all values are set to 0."""
 
     min_, max_ = array.min(), array.max()
-    if isclose(min_, max_, rel_tol=FLOAT_PRECISION):
+    if isclose(min_, max_, abs_tol=FLOAT_PRECISION):
         return np.ma.zeros(array.shape, dtype=np.uint8)
     else:
         return np.ma.array((array - min_) / (max_ - min_) * 255, dtype=np.uint8)
@@ -17,7 +17,7 @@ def _test(array1: np.ma.MaskedArray, array2: np.ma.MaskedArray, nodata: int | fl
     """array1 / array2"""
     
     test = np.ma.empty(array1.shape, dtype=np.float32)
-    zeros = np.isclose(array2, 0, rtol=FLOAT_PRECISION)
+    zeros = np.isclose(array2, 0, atol=FLOAT_PRECISION)
     test[~zeros] = array1[~zeros] / array2[~zeros]
     test[zeros] = nodata
     test[array1.mask] = nodata
@@ -37,7 +37,7 @@ def nsmi(red: np.ma.MaskedArray, green: np.ma.MaskedArray, blue: np.ma.MaskedArr
     nsmi = np.ma.empty(red.shape, dtype=np.float32)
     numerator = red + green - blue
     denominator = red + green + blue
-    zeros = np.isclose(denominator, 0, rtol=FLOAT_PRECISION)
+    zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
     nsmi[~zeros] = numerator[~zeros] / denominator[~zeros]
     nsmi[zeros] = nodata
     nsmi[red.mask] = nodata
