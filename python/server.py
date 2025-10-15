@@ -252,24 +252,24 @@ def handle_resource(res_type):
 
     if res_type == 'preview':
         try:
-            rgb = executor.pv_man.get(id_)
+            rgba = executor.pv_man.get(id_)
         except KeyError:
             return _http_response(request, '', 404, Reason=f'Requested preview "{id_}" does not exist.')
         
-        if int(request.headers['Width']) != rgb.width:
-            return _http_response(request, '', 400, Reason=f'Invalid width {request.headers['Width']} in the "Width" header: actual width of the requested preview is {rgb.width}.')
-        if int(request.headers['Height']) != rgb.height:
-            return _http_response(request, '', 400, Reason=f'Invalid height {request.headers['Height']} in the "Height" header: actual height of the requested preview is {rgb.height}.')
+        if int(request.headers['Width']) != rgba.width:
+            return _http_response(request, '', 400, Reason=f'Invalid width {request.headers['Width']} in the "Width" header: actual width of the requested preview is {rgba.width}.')
+        if int(request.headers['Height']) != rgba.height:
+            return _http_response(request, '', 400, Reason=f'Invalid height {request.headers['Height']} in the "Height" header: actual height of the requested preview is {rgba.height}.')
         
         if scalebar == '1':
-            for i in range(1, len(rgb.ids)):
-                if rgb.ids[0] != rgb.ids[i]:
+            for i in range(1, len(rgba.ids)):
+                if rgba.ids[0] != rgba.ids[i]:
                     return _http_response(request, '', 400, Reason='Unable to generate a scalebar for non-grayscale preview.')
 
         buf = BytesIO()
-        img = Image.fromarray(rgb.array)
+        img = Image.fromarray(rgba.array)
         if scalebar == '1':
-            img = image_with_scalebar(img, 10, executor.ds_man.get_as_array(rgb.ids[0]))
+            img = image_with_scalebar(img, 10, executor.ds_man.get_as_array(rgba.ids[0]))
         img.save(buf, format='PNG')
         buf.seek(0)
         

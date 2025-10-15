@@ -65,6 +65,7 @@ class Dataset:
     def __init__(self, dataset: gdal.Dataset, index: str=None, ids: tuple[int] | list[int]=None):
         self.dataset = dataset
         self.index = index
+        self.no_data = None
         self._ids = tuple(ids) if ids else None
 
 class DatasetManager:
@@ -137,7 +138,7 @@ class DatasetManager:
 
     def read_band(self, dataset_id: int, band_id: int, nodata: float | int=None, step_size_percent: float | int=100, resolution_percent: float | int=100) -> np.ma.MaskedArray:
         """Reads a band from the dataset and returns it as a numpy masked array, where mask corresponds to NoData values.
-        'nodata' sets the pixel value that will be treated as the NoData value and will be used to define the resulting array's mask. If the parameter is left to None, all pixels are treated as valid data.
+        'nodata' sets the pixel value that will be treated as the NoData value and will be used to define the resulting array's mask. If the parameter is left to None, the dataset's own nodata value will be used, if it was set prevously (if it was not set, all pixels will be treated as valid).
         'step_size_percent' is the percent of the raster's rows or columns that will be read during one iteration. For example, if the raster is 100x100 pixels and 'step_size'=20, the band will be read entirely within 5 iterations with five 20x100 windows.
         'step_size_percent' <=0 means the band will be read line by line. 'step_size' >=100 means the band will be read at once.
         The less 'step_size' is, the less memory is used and the slower the function is.
@@ -152,9 +153,10 @@ class DatasetManager:
                 return value
 
         try:
-            ds = self.get(dataset_id).dataset
+            dataset = self.get(dataset_id)
         except KeyError:
             raise KeyError(f'Dataset {dataset_id} is not opened but "read_band" method called')
+        ds = dataset.dataset
         try:
             band = ds.GetRasterBand(band_id)
         except RuntimeError:
@@ -210,7 +212,12 @@ class DatasetManager:
                 data = np.ma.hstack((data, win))
                 
         if nodata is not None:
-            data = np.ma.masked_values(data, nodata, rtol=indcal.FLOAT_PRECISION)
+            dataset.no_data = nodata
+        if dataset.no_data is None:
+            data = np.ma.array(data, mask=False)
+        else:
+            data = np.ma.masked_values(data, dataset.no_data, rtol=indcal.FLOAT_PRECISION)
+            
         return np.ma.array(data, dtype=np.float32)
 
 class GdalExecutor:
@@ -300,12 +307,13 @@ class GdalExecutor:
         if operation == 'calc_preview':
             id_r, id_g, id_b = parameters['ids'][0], parameters['ids'][1], parameters['ids'][2]
             width, height = parameters['width'], parameters['height']
-            ds = []
+            dataset, ds = None, []
             for i in (id_r, id_g, id_b):
                 try:
-                    ds.append(self.ds_man.get(i).dataset)
+                    dataset = self.ds_man.get(i)
                 except KeyError:
                     return _response(20400, {"error": f"id {i} provided in 'ids' key does not exist"})
+                ds.append(dataset.dataset)
             for i in ds[1:]:
                 if not (i.RasterXSize == ds[0].RasterXSize and i.RasterYSize == ds[0].RasterYSize):
                     return _response(20401, {"error": "unable to create preview from requested ids: rasters do not match in dimensions"})
@@ -323,24 +331,27 @@ class GdalExecutor:
             if height <= width:
                 res = height / ds[0].RasterYSize * 100
             else:
-                res = width / ds[0].RasterXSize * 100            
-            r, g, b = 0, 0, 0
-            r = self.ds_man.read_band(id_r, 1, resolution_percent=res)
+                res = width / ds[0].RasterXSize * 100
+            no_data = dataset.no_data if dataset.no_data else 0
+            r, g, b, a = 0, 0, 0, 0
+            r = self.ds_man.read_band(id_r, 1, nodata=no_data, resolution_percent=res)
             r = indcal.map_to_8bit(r)
             if id_g == id_r:
                 g = r
             else:
-                g = self.ds_man.read_band(id_g, 1, resolution_percent=res)
+                g = self.ds_man.read_band(id_g, 1, nodata=no_data, resolution_percent=res)
                 g = indcal.map_to_8bit(g)
             if id_b == id_r:
                 b = r
             elif id_b == id_g:
                 b = g
             else:
-                b = self.ds_man.read_band(id_b, 1, resolution_percent=res)
+                b = self.ds_man.read_band(id_b, 1, nodata=no_data, resolution_percent=res)
                 b = indcal.map_to_8bit(b)
-                
-            pv_id = self.pv_man.add(np.transpose(np.stack((r, g, b)), (1, 2, 0)), id_r, id_g, id_b)
+            a = np.array(~r.mask).astype(int)
+            a = indcal.map_to_8bit(a)
+
+            pv_id = self.pv_man.add(np.transpose(np.stack((r, g, b, a)), (1, 2, 0)), id_r, id_g, id_b)
             return _response(0, {
                 "url": pv_id,
                 "width": self.pv_man.get(pv_id).width,
