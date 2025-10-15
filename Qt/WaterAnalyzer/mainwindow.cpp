@@ -129,6 +129,7 @@ void MainWindow::handle_error(QNetworkReply *response) {
                        .arg(response->attribute(QNetworkRequest::HttpStatusCodeAttribute).toString(),
                             response->attribute(QNetworkRequest::HttpReasonPhraseAttribute).toString()));
         set_status_message(false, "Неизвестная ошибка на сервере");
+        lock_interface(false);
         return;
     }
 
@@ -137,6 +138,7 @@ void MainWindow::handle_error(QNetworkReply *response) {
                "Некорректный JSON-запрос к серверу: " + QString::number(json["status"].toInt()) + " "
                    + json["result"].toObject()["error"].toString() + ".");
     set_status_message(false, "Некорректный JSON-запрос");
+    lock_interface(false);
 }
 
 void MainWindow::process_get(QUrl endpoint, QHttpHeaders headers, QByteArray body, QMap<QString, QString> options) {
