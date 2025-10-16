@@ -216,7 +216,7 @@ class DatasetManager:
         if dataset.no_data is None:
             data = np.ma.array(data, mask=False)
         else:
-            data = np.ma.masked_values(data, dataset.no_data, rtol=indcal.FLOAT_PRECISION)
+            data = np.ma.masked_values(data, dataset.no_data, atol=indcal.FLOAT_PRECISION)
             
         return np.ma.array(data, dtype=np.float32)
 
