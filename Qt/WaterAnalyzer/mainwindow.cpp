@@ -359,6 +359,7 @@ void MainWindow::change_page(PAGE to) {
                 return;
             }
             self.dir = dir;
+            ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
         };
         auto files = [this](QStringList filenames) {
@@ -384,6 +385,7 @@ void MainWindow::change_page(PAGE to) {
                 return;
             }
             self.dir = filenames[0].section('/', 0, -2);
+            ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
         };
         auto custom_files = [this](QList<QPair<QString, QString>> bands_files) {
@@ -399,6 +401,7 @@ void MainWindow::change_page(PAGE to) {
                 send_request("command", proto.import_gtiff(ds.filename));
             }
             self.dir = bands_files[0].second.section('/', 0, -2);
+            ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
         };
 
@@ -424,6 +427,7 @@ void MainWindow::change_page(PAGE to) {
 
         self.page = PAGE::IMPORT;
         self.dir = QDir();
+        ui->lbl_dir->setText("");
         self.files.clear();
 
         self.process_p->clear_preview();
