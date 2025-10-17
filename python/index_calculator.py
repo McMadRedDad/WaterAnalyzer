@@ -14,7 +14,7 @@ def map_to_8bit(array: np.ma.MaskedArray) -> np.ma.MaskedArray:
         return np.ma.array((array - min_) / (max_ - min_) * 255, dtype=np.uint8)
 
 def _full_mask(array: np.ma.MaskedArray, *arrays: np.ma.MaskedArray) -> np.typing.NDArray[bool]:
-    """Combine masks from every array into one preserving invalid bits from each mask."""
+    """Combines masks from every array into one preserving invalid bits from each mask and returns it."""
 
     mask = array.mask
     for a in arrays:

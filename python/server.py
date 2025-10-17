@@ -3,7 +3,7 @@ import os, time, threading
 from flask import Flask, request, make_response
 import tempfile
 from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 import numpy as np
 import json
 from json_proto import Protocol
@@ -182,6 +182,19 @@ def shutdown():
     time.sleep(3)
     os._exit(0)
 
+def normalize_brightness(img: Image) -> Image:
+    """Tweaks 'img's brightness based on its mean brightness and returns a new Image. Assumes 'img' is 8 bit and of 'RGB' or 'RGBA' format."""
+
+    rgb = np.asarray(img)[..., :3].astype(np.float32)
+    mean = rgb.mean(axis=(0, 1)).mean()
+
+    if mean < 80:
+        return ImageEnhance.Brightness(img).enhance(128 / mean * 0.4)
+    elif mean > 170:
+        return ImageEnhance.Brightness(img).enhance(mean / 128 * 0.6)
+    else:
+        return img
+
 def image_with_scalebar(src_image: Image, gap: int, values: np.ndarray) -> Image:
     """Generates a scalebar (bar diagram flled with gradient) with min and max values from 'values' array and returns a new PIL.Image with 'src_image', the scalebar and a 'gap' in between."""
 
@@ -270,6 +283,8 @@ def handle_resource(res_type):
         img = Image.fromarray(rgba.array)
         if scalebar == '1':
             img = image_with_scalebar(img, 10, executor.ds_man.get_as_array(rgba.ids[0]))
+        else:
+            img = normalize_brightness(img)
         img.save(buf, format='PNG')
         buf.seek(0)
         
