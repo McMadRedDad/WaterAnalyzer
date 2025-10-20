@@ -53,3 +53,14 @@ def nsmi(red: np.ma.MaskedArray, green: np.ma.MaskedArray, blue: np.ma.MaskedArr
     nsmi[zeros] = nodata
     nsmi[mask] = nodata
     return nsmi
+
+def oc3(aerosol: np.ma.MaskedArray, blue: np.ma.MaskedArray, green: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
+    """max(aerosol, blue) / green"""
+
+    oc3 = np.ma.empty(aerosol.shape, dtype=np.float32)
+    mask = _full_mask(aerosol, blue, green)
+    zeros = np.isclose(green, 0, atol=FLOAT_PRECISION)
+    oc3[~zeros] = np.maximum(aerosol, blue)[~zeros] / green[~zeros]
+    oc3[zeros] = nodata
+    oc3[mask] = nodata
+    return oc3

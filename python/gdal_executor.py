@@ -226,7 +226,8 @@ class GdalExecutor:
     SUPPORTED_INDICES = {   # { 'name': number_of_datasets_to_calc_from }
         'test': 2,
         'wi2015': 5,
-        'nsmi': 3
+        'nsmi': 3,
+        'oc3': 3
     }
     
     def __new__(cls, protocol):
@@ -415,6 +416,13 @@ class GdalExecutor:
                 green = self.ds_man.read_band(ids[1], 1, nodata=0)
                 blue = self.ds_man.read_band(ids[2], 1, nodata=0)
                 result = indcal.nsmi(red, green, blue, nodata)
+            if index == 'oc3':
+                data_type = gdal.GDT_Float32
+                nodata = float('nan')
+                aerosol = self.ds_man.read_band(ids[0], 1, nodata=0)
+                blue = self.ds_man.read_band(ids[1], 1, nodata=0)
+                green = self.ds_man.read_band(ids[2], 1, nodata=0)
+                result = indcal.oc3(aerosol, blue, green, nodata)
 
             res_ds = gdal.GetDriverByName('MEM').Create('', ds[0].RasterXSize, ds[0].RasterYSize, 1, data_type)
             res_ds.SetGeoTransform(ds[0].GetGeoTransform())

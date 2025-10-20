@@ -256,6 +256,8 @@ QString MainWindow::get_type_by_index(QString index) {
         return "water";
     } else if (indx == "nsmi") {
         return "tss";
+    } else if (indx == "oc3") {
+        return "chloro";
     } else {
         return "";
     }
@@ -278,6 +280,13 @@ QString MainWindow::get_index_by_type(QString type) {
             }
         }
         return "";
+    } else if (type == "chloro") {
+        for (auto it = self.files.cbegin(), end = self.files.cend(); it != end; ++it) {
+            if (it.key() == "oc3") {
+                return it.key();
+            }
+        }
+        return "";
     } else {
         return "";
     }
@@ -291,6 +300,8 @@ QList<int> MainWindow::select_bands_for_index(QString index) {
         return QList<int>{self.files["L3"].id, self.files["L4"].id, self.files["L5"].id, self.files["L6"].id, self.files["L7"].id};
     } else if (indx == "nsmi") {
         return QList<int>{self.files["L4"].id, self.files["L3"].id, self.files["L2"].id};
+    } else if (indx == "oc3") {
+        return QList<int>{self.files["L1"].id, self.files["L2"].id, self.files["L3"].id};
     } else {
         return QList<int>{-1};
     }

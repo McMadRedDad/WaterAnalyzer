@@ -62,6 +62,7 @@ void ProcessPage::on_pb_go_clicked() {
     QStringList indices;
     indices.append(ui->combo_water->currentText());
     indices.append(ui->combo_tss->currentText());
+    indices.append(ui->combo_chloro->currentText());
     //
     emit this->indices(indices);
 }

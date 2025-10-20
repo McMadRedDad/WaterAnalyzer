@@ -183,6 +183,11 @@
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <item>
+        <property name="text">
+         <string>OC3</string>
+        </property>
+       </item>
       </widget>
      </item>
      <item row="6" column="0" colspan="3">
