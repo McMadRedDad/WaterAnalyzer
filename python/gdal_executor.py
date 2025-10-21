@@ -243,6 +243,39 @@ class GdalExecutor:
         self.geotiff = gdal.GetDriverByName('GTiff')
         print(f'Server running version {self.VERSION}')
 
+    def _index(self, index: str, ids: list[int]) -> (np.ma.MaskedArray, gdal.GDT_Float32, float | int):
+        result, data_type, nodata = 0, gdal.GDT_Float32, -99999
+        if index == 'test':
+            nodata = -99999.0
+            array1, array2 = self.ds_man.read_band(ids[0], 1, nodata=0), self.ds_man.read_band(ids[1], 1, nodata=0)
+            result = indcal._test(array1, array2, nodata)
+        if index == 'wi2015':
+            nodata = float('nan')
+            green = self.ds_man.read_band(ids[0], 1, nodata=0)
+            red = self.ds_man.read_band(ids[1], 1, nodata=0)
+            nir = self.ds_man.read_band(ids[2], 1, nodata=0)
+            swir1 = self.ds_man.read_band(ids[3], 1, nodata=0)
+            swir2 = self.ds_man.read_band(ids[4], 1, nodata=0)
+            result = indcal.wi2015(green, red, nir, swir1, swir2, nodata)
+        if index == 'nsmi':
+            nodata = float('nan')
+            red = self.ds_man.read_band(ids[0], 1, nodata=0)
+            green = self.ds_man.read_band(ids[1], 1, nodata=0)
+            blue = self.ds_man.read_band(ids[2], 1, nodata=0)
+            result = indcal.nsmi(red, green, blue, nodata)
+        if index == 'oc3':
+            nodata = float('nan')
+            aerosol = self.ds_man.read_band(ids[0], 1, nodata=0)
+            blue = self.ds_man.read_band(ids[1], 1, nodata=0)
+            green = self.ds_man.read_band(ids[2], 1, nodata=0)
+            result = indcal.oc3(aerosol, blue, green, nodata)
+        if index == 'cdom_ndwi':
+            nodata = float('nan')
+            green = self.ds_man.read_band(ids[0], 1, nodata=0)
+            nir = self.ds_man.read_band(ids[1], 1, nodata=0)
+            result = indcal.cdom_ndwi(green, nir, nodata)
+        return result, data_type, nodata
+
     def execute(self, request: dict) -> dict:
         """Processes the request and returns a dictionary to be used by Protocol.send method.
         Must be called after 'Protocol.validate'."""
@@ -395,42 +428,7 @@ class GdalExecutor:
                     }
                 })
 
-            result, data_type, nodata = 0, 0, -99999
-            if index == 'test':
-                data_type = gdal.GDT_Float32
-                nodata = -99999.0
-                array1, array2 = self.ds_man.read_band(ids[0], 1, nodata=0), self.ds_man.read_band(ids[1], 1, nodata=0)
-                result = indcal._test(array1, array2, nodata)
-            if index == 'wi2015':
-                data_type = gdal.GDT_Float32
-                nodata = float('nan')
-                green = self.ds_man.read_band(ids[0], 1, nodata=0)
-                red = self.ds_man.read_band(ids[1], 1, nodata=0)
-                nir = self.ds_man.read_band(ids[2], 1, nodata=0)
-                swir1 = self.ds_man.read_band(ids[3], 1, nodata=0)
-                swir2 = self.ds_man.read_band(ids[4], 1, nodata=0)
-                result = indcal.wi2015(green, red, nir, swir1, swir2, nodata)
-            if index == 'nsmi':
-                data_type = gdal.GDT_Float32
-                nodata = float('nan')
-                red = self.ds_man.read_band(ids[0], 1, nodata=0)
-                green = self.ds_man.read_band(ids[1], 1, nodata=0)
-                blue = self.ds_man.read_band(ids[2], 1, nodata=0)
-                result = indcal.nsmi(red, green, blue, nodata)
-            if index == 'oc3':
-                data_type = gdal.GDT_Float32
-                nodata = float('nan')
-                aerosol = self.ds_man.read_band(ids[0], 1, nodata=0)
-                blue = self.ds_man.read_band(ids[1], 1, nodata=0)
-                green = self.ds_man.read_band(ids[2], 1, nodata=0)
-                result = indcal.oc3(aerosol, blue, green, nodata)
-            if index == 'cdom_ndwi':
-                data_type = gdal.GDT_Float32
-                nodata = float('nan')
-                green = self.ds_man.read_band(ids[0], 1, nodata=0)
-                nir = self.ds_man.read_band(ids[1], 1, nodata=0)
-                result = indcal.cdom_ndwi(green, nir, nodata)
-
+            result, data_type, nodata = self._index(index, ids)
             res_ds = gdal.GetDriverByName('MEM').Create('', ds[0].RasterXSize, ds[0].RasterYSize, 1, data_type)
             res_ds.SetGeoTransform(ds[0].GetGeoTransform())
             res_ds.SetProjection(ds[0].GetProjection())
