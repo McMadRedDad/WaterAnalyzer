@@ -227,7 +227,8 @@ class GdalExecutor:
         'test': 2,
         'wi2015': 5,
         'nsmi': 3,
-        'oc3': 3
+        'oc3': 3,
+        'cdom_ndwi': 2
     }
     
     def __new__(cls, protocol):
@@ -423,6 +424,12 @@ class GdalExecutor:
                 blue = self.ds_man.read_band(ids[1], 1, nodata=0)
                 green = self.ds_man.read_band(ids[2], 1, nodata=0)
                 result = indcal.oc3(aerosol, blue, green, nodata)
+            if index == 'cdom_ndwi':
+                data_type = gdal.GDT_Float32
+                nodata = float('nan')
+                green = self.ds_man.read_band(ids[0], 1, nodata=0)
+                nir = self.ds_man.read_band(ids[1], 1, nodata=0)
+                result = indcal.cdom_ndwi(green, nir, nodata)
 
             res_ds = gdal.GetDriverByName('MEM').Create('', ds[0].RasterXSize, ds[0].RasterYSize, 1, data_type)
             res_ds.SetGeoTransform(ds[0].GetGeoTransform())

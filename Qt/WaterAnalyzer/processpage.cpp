@@ -63,6 +63,7 @@ void ProcessPage::on_pb_go_clicked() {
     indices.append(ui->combo_water->currentText());
     indices.append(ui->combo_tss->currentText());
     indices.append(ui->combo_chloro->currentText());
+    indices.append(ui->combo_cdom->currentText());
     //
     emit this->indices(indices);
 }

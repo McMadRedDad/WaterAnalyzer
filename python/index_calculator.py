@@ -64,3 +64,20 @@ def oc3(aerosol: np.ma.MaskedArray, blue: np.ma.MaskedArray, green: np.ma.Masked
     oc3[zeros] = nodata
     oc3[mask] = nodata
     return oc3
+
+def cdom_ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
+    """2119.5*ndwi^3 + 4559.1*ndwi^2 - 2760.4*ndwi + 603.6
+    ndwi = (green - nir) / (green + nir)"""
+
+    cdom_ndwi = np.ma.empty(green.shape, dtype=np.float32)
+    ndwi = np.ma.empty(green.shape, dtype=np.float32)
+    mask = _full_mask(green, nir)
+    numerator = green - nir
+    denominator = green + nir
+    zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
+    ndwi[~zeros] = numerator[~zeros] / denominator[~zeros]
+    ndwi[zeros] = nodata
+    cdom_ndwi[~zeros] = 2119.5*ndwi[~zeros]**3 + 4559.1*ndwi[~zeros]**2 - 2760.4*ndwi[~zeros] + 603.6
+    cdom_ndwi[zeros] = nodata
+    cdom_ndwi[mask] = nodata
+    return cdom_ndwi

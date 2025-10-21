@@ -147,6 +147,11 @@
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <item>
+        <property name="text">
+         <string>CDOM_ndwi</string>
+        </property>
+       </item>
       </widget>
      </item>
      <item row="5" column="0" colspan="2">
