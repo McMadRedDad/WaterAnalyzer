@@ -19,9 +19,7 @@ ProcessPage::ProcessPage(QWidget *parent)
                          "Размер пикселя"};
     for (int i = 0; i < names.length(); i++) {
         QTableWidgetItem *it = new QTableWidgetItem(names[i]);
-        // QTableWidgetItem *it2 = new QTableWidgetItem();
         tb->setItem(i, 0, it);
-        // tb->setItem(i, 1, it2);
     }
 }
 

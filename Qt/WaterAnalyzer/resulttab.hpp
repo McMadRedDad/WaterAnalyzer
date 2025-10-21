@@ -18,7 +18,9 @@ public:
     uint get_preview_width();
     uint get_preview_height();
     void set_caption(QString caption);
+    void set_statistics(double min, double max, double mean, double stdev, QString ph_unit);
     void hide_export_button(QString type);
+    void hide_stats();
 
 private slots:
     void on_pb_refresh_clicked();

@@ -51,7 +51,7 @@
      </widget>
      <widget class="QWidget" name="tab_temp">
       <attribute name="title">
-       <string>Темепратура</string>
+       <string>Температура</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_6"/>
      </widget>

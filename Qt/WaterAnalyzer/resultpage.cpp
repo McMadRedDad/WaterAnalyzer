@@ -40,6 +40,7 @@ ResultPage::ResultPage(QWidget *parent)
     ui->tab_temp->layout()->addWidget(temp);
     summary->set_caption("Итог");
     summary->hide_export_button("index");
+    summary->hide_stats();
 }
 
 ResultPage::~ResultPage() {
@@ -89,5 +90,21 @@ void ResultPage::set_caption(QString page, QString caption) {
         cdom->set_caption(caption);
     } else if (page == "temp") {
         temp->set_caption(caption);
+    }
+}
+
+void ResultPage::set_statistics(QString page, double min, double max, double mean, double stdev, QString ph_unit) {
+    if (page == "summary") {
+        summary->set_statistics(min, max, mean, stdev, ph_unit);
+    } else if (page == "water") {
+        water->set_statistics(min, max, mean, stdev, ph_unit);
+    } else if (page == "chloro") {
+        chloro->set_statistics(min, max, mean, stdev, ph_unit);
+    } else if (page == "tss") {
+        tss->set_statistics(min, max, mean, stdev, ph_unit);
+    } else if (page == "cdom") {
+        cdom->set_statistics(min, max, mean, stdev, ph_unit);
+    } else if (page == "temp") {
+        temp->set_statistics(min, max, mean, stdev, ph_unit);
     }
 }

@@ -235,12 +235,18 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         ds.origin[1] = info["origin"].toArray()[1].toDouble();
         ds.pixel_size[0] = info["pixel_size"].toArray()[0].toDouble();
         ds.pixel_size[1] = info["pixel_size"].toArray()[1].toDouble();
+        ds.min = info["min"].toDouble();
+        ds.max = info["max"].toDouble();
+        ds.mean = info["mean"].toDouble();
+        ds.stdev = info["stdev"].toDouble();
+        ds.ph_unit = info["ph_unit"].toString();
         self.files[result["index"].toString()] = ds;
 
         uint width = self.result_p->get_preview_width();
         uint height = self.result_p->get_preview_height();
         send_request("command", proto.calc_preview(ds.id, ds.id, ds.id, width, height), options);
         self.result_p->set_caption(get_type_by_index(result["index"].toString()), result["index"].toString().toUpper());
+        self.result_p->set_statistics(get_type_by_index(result["index"].toString()), ds.min, ds.max, ds.mean, ds.stdev, ds.ph_unit);
 
         append_log("info", "Индекс " + result["index"].toString() + " успешно рассчитан.");
         set_status_message(true, "Индекс успешно рассчитан");

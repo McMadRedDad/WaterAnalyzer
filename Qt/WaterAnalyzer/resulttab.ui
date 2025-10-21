@@ -29,7 +29,83 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
-       <widget class="QTableWidget" name="tb_stats"/>
+       <widget class="QTableWidget" name="tb_stats">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="sortingEnabled">
+         <bool>false</bool>
+        </property>
+        <attribute name="horizontalHeaderVisible">
+         <bool>false</bool>
+        </attribute>
+        <attribute name="verticalHeaderVisible">
+         <bool>false</bool>
+        </attribute>
+        <row>
+         <property name="text">
+          <string/>
+         </property>
+        </row>
+        <row>
+         <property name="text">
+          <string/>
+         </property>
+        </row>
+        <row>
+         <property name="text">
+          <string/>
+         </property>
+        </row>
+        <row>
+         <property name="text">
+          <string/>
+         </property>
+        </row>
+        <row>
+         <property name="text">
+          <string/>
+         </property>
+        </row>
+        <column>
+         <property name="text">
+          <string/>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string/>
+         </property>
+        </column>
+        <item row="0" column="0">
+         <property name="text">
+          <string>Минимум</string>
+         </property>
+        </item>
+        <item row="1" column="0">
+         <property name="text">
+          <string>Максимум</string>
+         </property>
+        </item>
+        <item row="2" column="0">
+         <property name="text">
+          <string>Среднее</string>
+         </property>
+        </item>
+        <item row="3" column="0">
+         <property name="text">
+          <string>Стандартное отклонение</string>
+         </property>
+        </item>
+        <item row="4" column="0">
+         <property name="text">
+          <string>Единицы измерения</string>
+         </property>
+        </item>
+       </widget>
       </item>
       <item>
        <widget class="QLabel" name="lbl_description">

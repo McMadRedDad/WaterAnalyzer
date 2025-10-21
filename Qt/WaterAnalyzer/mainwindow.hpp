@@ -26,6 +26,8 @@ struct DATASET {
     QString projection = "", unit = "";
     double  origin[2] = {0.0, 0.0};
     double  pixel_size[2] = {0.0, 0.0};
+    double  min = 0.0, max = 0.0, mean = 0.0, stdev = 0.0;
+    QString ph_unit = "";
 };
 
 struct STATE {

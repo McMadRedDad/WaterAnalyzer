@@ -62,10 +62,11 @@ class PreviewManager:
             return list(self._previews.values())
 
 class Dataset:
-    def __init__(self, dataset: gdal.Dataset, index: str=None, ids: tuple[int] | list[int]=None):
+    def __init__(self, dataset: gdal.Dataset, index: str=None, stats: dict=None, ids: tuple[int] | list[int]=None):
         self.dataset = dataset
         self.index = index
         self.no_data = None
+        self.stats = stats
         self._ids = tuple(ids) if ids else None
 
 class DatasetManager:
@@ -74,11 +75,11 @@ class DatasetManager:
         self._counter = 0
         self._lock = threading.Lock()
 
-    def add_index(self, dataset: gdal.Dataset, index: str, ids: tuple[int] | list[int]) -> int:
+    def add_index(self, dataset: gdal.Dataset, index: str, stats: dict, ids: tuple[int] | list[int]) -> int:
         """Stores 'dataset' with its associated 'index' name and 'ids' and returns its own generated id."""
 
         with self._lock:
-            self._datasets[self._counter] = Dataset(dataset, index, ids)
+            self._datasets[self._counter] = Dataset(dataset, index, stats, ids)
             self._counter += 1
             return self._counter - 1
 
@@ -222,7 +223,7 @@ class DatasetManager:
 
 class GdalExecutor:
     VERSION = '1.0.0'
-    SUPPORTED_PROTOCOL_VERSIONS = ('2.1.4')
+    SUPPORTED_PROTOCOL_VERSIONS = ('2.1.5')
     SUPPORTED_INDICES = {   # { 'name': number_of_datasets_to_calc_from }
         'test': 2,
         'wi2015': 5,
@@ -243,8 +244,8 @@ class GdalExecutor:
         self.geotiff = gdal.GetDriverByName('GTiff')
         print(f'Server running version {self.VERSION}')
 
-    def _index(self, index: str, ids: list[int]) -> (np.ma.MaskedArray, gdal.GDT_Float32, float | int):
-        result, data_type, nodata = 0, gdal.GDT_Float32, -99999
+    def _index(self, index: str, ids: list[int]) -> (np.ma.MaskedArray, gdal.GDT_Float32, float | int, str):
+        result, data_type, nodata, ph_unit = 0, gdal.GDT_Float32, -99999, '--'
         if index == 'test':
             nodata = -99999.0
             array1, array2 = self.ds_man.read_band(ids[0], 1, nodata=0), self.ds_man.read_band(ids[1], 1, nodata=0)
@@ -271,10 +272,11 @@ class GdalExecutor:
             result = indcal.oc3(aerosol, blue, green, nodata)
         if index == 'cdom_ndwi':
             nodata = float('nan')
+            ph_unit = 'mg/L'
             green = self.ds_man.read_band(ids[0], 1, nodata=0)
             nir = self.ds_man.read_band(ids[1], 1, nodata=0)
             result = indcal.cdom_ndwi(green, nir, nodata)
-        return result, data_type, nodata
+        return result, data_type, nodata, ph_unit
 
     def execute(self, request: dict) -> dict:
         """Processes the request and returns a dictionary to be used by Protocol.send method.
@@ -413,7 +415,8 @@ class GdalExecutor:
 
             existing = self.ds_man.find(index, ids)
             if existing is not None:
-                ind = self.ds_man.get(existing).dataset
+                dataset = self.ds_man.get(existing)
+                ind = dataset.dataset
                 geotransform = ind.GetGeoTransform()
                 return _response(0, {
                     'url': existing,
@@ -424,17 +427,29 @@ class GdalExecutor:
                         'projection': '{}:{}'.format(ind.GetSpatialRef().GetAuthorityName(None), ind.GetSpatialRef().GetAuthorityCode(None)),
                         'unit': ind.GetSpatialRef().GetAttrValue('UNIT', 0),
                         'origin': [geotransform[0], geotransform[3]],
-                        'pixel_size': [geotransform[1], geotransform[5]]
+                        'pixel_size': [geotransform[1], geotransform[5]],
+                        'min': dataset.stats['min'],
+                        'max': dataset.stats['max'],
+                        'mean': dataset.stats['mean'],
+                        'stdev': dataset.stats['stdev'],
+                        'ph_unit': dataset.stats['ph_unit']
                     }
                 })
 
-            result, data_type, nodata = self._index(index, ids)
+            result, data_type, nodata, ph_unit = self._index(index, ids)
             res_ds = gdal.GetDriverByName('MEM').Create('', ds[0].RasterXSize, ds[0].RasterYSize, 1, data_type)
             res_ds.SetGeoTransform(ds[0].GetGeoTransform())
             res_ds.SetProjection(ds[0].GetProjection())
             res_ds.GetRasterBand(1).SetNoDataValue(nodata)            
             res_ds.GetRasterBand(1).WriteArray(result)
-            dataset_id = self.ds_man.add_index(res_ds, index, ids)
+            stats = {
+                'min': np.nanmin(result).item(),
+                'max': np.nanmax(result).item(),
+                'mean': np.nanmean(result).item(),
+                'stdev': np.nanstd(result).item(),
+                'ph_unit': ph_unit
+            }
+            dataset_id = self.ds_man.add_index(res_ds, index, stats, ids)
 
             geotransform = res_ds.GetGeoTransform()
             result = {
@@ -446,7 +461,12 @@ class GdalExecutor:
                     'projection': '{}:{}'.format(res_ds.GetSpatialRef().GetAuthorityName(None), res_ds.GetSpatialRef().GetAuthorityCode(None)),
                     'unit': res_ds.GetSpatialRef().GetAttrValue('UNIT', 0),
                     'origin': [geotransform[0], geotransform[3]],
-                    'pixel_size': [geotransform[1], geotransform[5]]
+                    'pixel_size': [geotransform[1], geotransform[5]],
+                    'min': stats['min'],
+                    'max': stats['max'],
+                    'mean': stats['mean'],
+                    'stdev': stats['stdev'],
+                    'ph_unit': stats['ph_unit']
                 }
             }
             return _response(0, result)
