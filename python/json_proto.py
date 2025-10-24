@@ -107,11 +107,13 @@ class Protocol:
                 return _response(0, {})
 
         if operation == 'import_gtiff':
-            params_check = _check_param_keys('import_gtiff', ['file'], list(parameters.keys()))
+            params_check = _check_param_keys('import_gtiff', ['file', 'band'], list(parameters.keys()))
             if len(params_check) != 0: 
                 return params_check
-            else:
-                return _response(0, {})
+            band = parameters['band']
+            if type(band) is not int:
+                return _response(10300, {"error": "invalid 'band' key: must be of integer type"})
+            return _response(0, {})
             
         if operation == 'calc_preview':
             params_check = _check_param_keys('calc_preview', ['ids', 'width', 'height'], list(parameters.keys()))

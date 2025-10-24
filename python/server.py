@@ -151,6 +151,7 @@ def generate_http_response(request: request, response_json: dict) -> 'Response':
         code in range(10000, 10010+1) or
         code == 10100 or
         code == 10200 or
+        code == 10300 or
         code in range(10400, 10404+1) or code == 20401 or
         code in range(10500, 10502+1) or code in range(20500, 20501+1) or code == 20503 or
         code == 10600
@@ -175,7 +176,7 @@ def generate_http_response(request: request, response_json: dict) -> 'Response':
     elif code == 20200:
         http_status = 503
     else:
-        raise ValueError(f'Incorrect status code in JSON response: {code}')
+        raise ValueError(f'Unknown status code in JSON response: {code}')
 
     return _http_response(request, response_json, http_status, Content_Type='application/json; charset=utf-8')
 

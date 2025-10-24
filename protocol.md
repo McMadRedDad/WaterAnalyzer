@@ -277,7 +277,10 @@ Below are specifics for requests and responses for each supported command.
 *REQUEST*
 
 - `operation`  - "import_gtiff"
-- `parameters` - { "file": "`/path/to/file.tif`" }  **!!!no local paths for remote servers; fine for now!!!**
+- `parameters` - {
+    "file": "`/path/to/file.tif`",  **!!!no local paths for remote servers; fine for now!!!**
+    "band": `band number`   - [INT] what spectral band the file represents
+}
 
 *RESPONSE*
 
@@ -296,16 +299,22 @@ Below are specifics for requests and responses for each supported command.
         }
     }
     -  HTTP 200 OK
-2. Not a GeoTiff:
+2. Invalid band type:
+    - `status` - 10300
+    - `result` - { "error": "invalid '`band`' key: must be of integer type" }
+    -  HTTP 400 Bad Request
+3. Not a GeoTiff:
     - `status` - 20300
     - `result` - { "error": "provided file '`file`' is not a GeoTiff image" }
     -  HTTP 500 Internal Server Error
-3. Unknown error:
+4. Unknown error:
     - `status` - 20301
     - `result` - { "error": "failed to open file '`filename`'" }
     -  HTTP 500 Internal Server Error
 
 ## calculate preview
+
+**Must** be sent only after 'set_satellite' request.
 
 *REQUEST*
 
@@ -314,7 +323,7 @@ Below are specifics for requests and responses for each supported command.
     "ids": [`id_r`, `id_g`, `id_b`],    - [ARRAY of INTs] ids of the files (from the server's cache) to use to generate the preview, for red, green and blue channels respectively. Exactly 3 values must be specified
     "width": `needed width`,            - [INT] width of the preview that the client preffers, > 0
     "height": `needed height`           - [INT] height of the preview that the client preffers, > 0
-    }
+}
 
 *RESPONSE*
 
@@ -361,13 +370,15 @@ Below are specifics for requests and responses for each supported command.
 
 ## calculate index
 
+**Must** be sent only after 'set_satellite' request.
+
 *REQUEST*
 
 - `operation`  - "calc_index"
 - `parameters` - {
     "index": "`name of the index`"   - [STRING] name of the index/algorithm to calculate
     "ids": [`id_1`, `id_2`, ...],    - [ARRAY of INTs] ids of the files (from cache) to use to generate the index. Provided ids are used in the same order as in the index's formula, e.g. for NDVI = (NIR - RED) / (NIR + RED) id_1 is used for NIR and id_2 is used for RED, because in the index's formula NIR appears first.
-    }
+}
 
 *RESPONSE*
 
