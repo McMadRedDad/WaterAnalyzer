@@ -370,6 +370,22 @@ void MainWindow::change_page(PAGE to) {
             for (const QString &f : dir.entryList()) {
                 QString entry = f.toUpper();
                 if (entry.endsWith(".TIF") && f.right(7).toUpper().contains('B')) {
+                    if (self.satellite.isEmpty()) {
+                        if (entry.contains("L1TP")) {
+                            self.satellite = "L1TP";
+                        } else if (entry.contains("L2SP")) {
+                            self.satellite = "L2SP";
+                        } else {
+                            append_log(
+                                "bad",
+                                QString(
+                                    "Уровень обработки снимка %1 не поддерживается. Для спутника Landsat доступны только уровень 1 и 2.")
+                                    .arg(f));
+                            set_status_message(false, "Неподдерживаемый уровень обработки снимка");
+                            return;
+                        }
+                    }
+
                     DATASET ds;
                     ds.filename = dir.absolutePath() + "/" + f;
                     QString band = f.right(8);
@@ -381,18 +397,6 @@ void MainWindow::change_page(PAGE to) {
                     self.files[band] = ds;
                     send_request("command", proto.import_gtiff(ds.filename));
                     counter++;
-
-                    if (self.satellite.isEmpty()) {
-                        if (entry.contains("L1TP")) {
-                            self.satellite = "L1TP";
-                        } else if (entry.contains("L2SP")) {
-                            self.satellite = "L2SP";
-                        } else {
-                            append_log("bad", QString("Уровень обработки снимка %1 не поддерживается. Для спутника Landsat доступны только уровень 1 и 2.").arg(f));
-                            set_status_message(false, "Неподдерживаемый уровень обработки снимка");
-                            return;
-                        }
-                    }
                 }
             }
             if (counter == 0) {
@@ -409,6 +413,22 @@ void MainWindow::change_page(PAGE to) {
             for (const QString &f : filenames) {
                 QString entry = f.toUpper();
                 if (entry.endsWith(".TIF") && f.right(7).toUpper().contains("B")) {
+                    if (self.satellite.isEmpty()) {
+                        if (entry.contains("L1TP")) {
+                            self.satellite = "L1TP";
+                        } else if (entry.contains("L2SP")) {
+                            self.satellite = "L2SP";
+                        } else {
+                            append_log(
+                                "bad",
+                                QString(
+                                    "Уровень обработки снимка %1 не поддерживается. Для спутника Landsat доступны только уровень 1 и 2.")
+                                    .arg(f));
+                            set_status_message(false, "Неподдерживаемый уровень обработки снимка");
+                            return;
+                        }
+                    }
+
                     DATASET ds;
                     ds.filename = f;
                     QString band = f.right(8);
@@ -420,18 +440,6 @@ void MainWindow::change_page(PAGE to) {
                     self.files[band] = ds;
                     send_request("command", proto.import_gtiff(ds.filename));
                     counter++;
-
-                    if (self.satellite.isEmpty()) {
-                        if (entry.contains("L1TP")) {
-                            self.satellite = "L1TP";
-                        } else if (entry.contains("L2SP")) {
-                            self.satellite = "L2SP";
-                        } else {
-                            append_log("bad", QString("Уровень обработки снимка %1 не поддерживается. Для спутника Landsat доступны только уровень 1 и 2.").arg(f));
-                            set_status_message(false, "Неподдерживаемый уровень обработки снимка");
-                            return;
-                        }
-                    }
                 }
             }
             if (counter == 0) {
@@ -483,6 +491,7 @@ void MainWindow::change_page(PAGE to) {
 
         self.page = PAGE::IMPORT;
         self.dir = QDir();
+        self.satellite = "";
         ui->lbl_dir->setText("");
         self.files.clear();
 
@@ -497,6 +506,8 @@ void MainWindow::change_page(PAGE to) {
         break;
     }
     case PAGE::SELECTION: {
+        qDebug() << self.satellite;
+
         auto preview = [this](uint width, uint height) {
             auto                   it_r = self.files.find("L4");
             auto                   it_g = self.files.find("L3");
