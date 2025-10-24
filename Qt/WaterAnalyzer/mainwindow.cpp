@@ -506,8 +506,6 @@ void MainWindow::change_page(PAGE to) {
         break;
     }
     case PAGE::SELECTION: {
-        qDebug() << self.satellite;
-
         auto preview = [this](uint width, uint height) {
             auto                   it_r = self.files.find("L4");
             auto                   it_g = self.files.find("L3");
@@ -559,6 +557,11 @@ void MainWindow::change_page(PAGE to) {
 
         self.page = PAGE::SELECTION;
 
+        if (self.satellite == "L1TP") {
+            self.process_p->set_temperature_type("toa");
+        } else if (self.satellite == "L2SP") {
+            self.process_p->set_temperature_type("surface");
+        }
         ui->pb_back->show();
         ui->widget_main->layout()->addWidget(self.process_p);
         self.process_p->show();

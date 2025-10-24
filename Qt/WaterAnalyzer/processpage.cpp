@@ -47,6 +47,10 @@ void ProcessPage::fill_metadata(QStringList metadata) {
     tb->show();
 }
 
+void ProcessPage::set_temperature_type(QString type) {
+    temperature_type = type;
+}
+
 void ProcessPage::on_pb_refresh_clicked() {
     clear_preview();
     emit preview(ui->lbl_preview->width() - 2, ui->lbl_preview->height() - 2);
@@ -62,6 +66,12 @@ void ProcessPage::on_pb_go_clicked() {
     indices.append(ui->combo_tss->currentText());
     indices.append(ui->combo_chloro->currentText());
     indices.append(ui->combo_cdom->currentText());
-    //
+    if (ui->chbx_temp->isChecked()) {
+        if (temperature_type == "toa") {
+            indices.append("temperature_landsat_toa");
+        } else if (temperature_type == "surface") {
+            indices.append("temperature_landsat_surface");
+        }
+    }
     emit this->indices(indices);
 }
