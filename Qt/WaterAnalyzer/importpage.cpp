@@ -20,13 +20,18 @@ void ImportPage::Landsat() {
     ui->check_filenames_changed->hide();
     ui->verticalLayout->takeAt(2)->widget()->deleteLater();
 
-    QWidget     *container = new QWidget(this);
-    QGridLayout *lyt = new QGridLayout();
-    QPushButton *ok = new QPushButton("Ok");
+    QWidget      *container = new QWidget(this);
+    QGridLayout  *lyt = new QGridLayout();
+    QHBoxLayout  *level_lyt = new QHBoxLayout();
+    QLabel       *lb_level = new QLabel("Уровень обработки");
+    QRadioButton *rb_l1 = new QRadioButton("Level 1");
+    QRadioButton *rb_l2 = new QRadioButton("Level 2");
+    rb_l1->toggle();
+    QPushButton  *ok = new QPushButton("Ok");
     ok->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    connect(ok, &QPushButton::clicked, [this, lyt]() {
+    connect(ok, &QPushButton::clicked, [this, lyt, rb_l1]() {
         QList<QPair<QString, QString>> bands_files;
-        for (int i = 0; i < lyt->rowCount() - 2; i++) {
+        for (int i = 1; i < lyt->rowCount() - 2; i++) {
             QLabel    *lbl = qobject_cast<QLabel *>(lyt->itemAtPosition(i, 0)->widget());
             QLineEdit *le = qobject_cast<QLineEdit *>(lyt->itemAtPosition(i, 1)->widget());
             QString    band = lbl->text().split(' ').last();
@@ -35,11 +40,20 @@ void ImportPage::Landsat() {
                 bands_files.append(QPair<QString, QString>{band, file});
             }
         }
-        emit custom_files(bands_files);
+        if (rb_l1->isChecked()) {
+            emit custom_files("L1TP", bands_files);
+        } else {
+            emit custom_files("L2SP", bands_files);
+        }
     });
 
+    level_lyt->addWidget(lb_level);
+    level_lyt->addWidget(rb_l1);
+    level_lyt->addWidget(rb_l2);
+    lyt->addLayout(level_lyt, 0, 0, 1, 3);
+
     int bands = 11;
-    for (int i = 0; i < bands; i++) {
+    for (int i = 1; i < bands + 1; i++) {
         QLabel      *lbl = new QLabel("Канал " + QString::number(i + 1));
         QLineEdit   *le = new QLineEdit();
         QPushButton *pb = new QPushButton("Обзор");
@@ -56,8 +70,8 @@ void ImportPage::Landsat() {
         lyt->addWidget(pb, i, 2);
     }
 
-    lyt->addWidget(ok, bands, 1);
-    lyt->itemAtPosition(bands, 1)->setAlignment(Qt::AlignHCenter);
+    lyt->addWidget(ok, bands + 1, 1);
+    lyt->itemAtPosition(bands + 1, 1)->setAlignment(Qt::AlignHCenter);
     container->setLayout(lyt);
     ui->verticalLayout->insertWidget(2, container);
     emit custom_bands_page();

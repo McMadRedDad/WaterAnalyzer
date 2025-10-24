@@ -5,6 +5,7 @@
 #include <QFileDialog>
 #include <QLabel>
 #include <QLineEdit>
+#include <QRadioButton>
 #include <QWidget>
 
 namespace Ui {
@@ -35,7 +36,7 @@ signals:
     void custom_bands_page();
     void satellite_select_page();
     void bad_band(QString);
-    void custom_files(QList<QPair<QString, QString>>);
+    void custom_files(QString satellite, QList<QPair<QString, QString>>);
     void directory(QDir);
     void files(QStringList);
 

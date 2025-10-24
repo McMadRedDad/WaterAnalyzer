@@ -9,6 +9,7 @@ MainWindow::MainWindow(QWidget *parent)
     self.process_p = new ProcessPage();
     self.result_p = new ResultPage();
     change_page(PAGE::IMPORT);
+    self.satellite = "";
     self.curr_req_id = -1;
 
     backend_ip = QHostAddress::LocalHost;
@@ -367,7 +368,8 @@ void MainWindow::change_page(PAGE to) {
         auto directory = [this](QDir dir) {
             int counter = 0;
             for (const QString &f : dir.entryList()) {
-                if (f.toUpper().endsWith(".TIF") && f.right(7).toUpper().contains('B')) {
+                QString entry = f.toUpper();
+                if (entry.endsWith(".TIF") && f.right(7).toUpper().contains('B')) {
                     DATASET ds;
                     ds.filename = dir.absolutePath() + "/" + f;
                     QString band = f.right(8);
@@ -379,6 +381,18 @@ void MainWindow::change_page(PAGE to) {
                     self.files[band] = ds;
                     send_request("command", proto.import_gtiff(ds.filename));
                     counter++;
+
+                    if (self.satellite.isEmpty()) {
+                        if (entry.contains("L1TP")) {
+                            self.satellite = "L1TP";
+                        } else if (entry.contains("L2SP")) {
+                            self.satellite = "L2SP";
+                        } else {
+                            append_log("bad", QString("Уровень обработки снимка %1 не поддерживается. Для спутника Landsat доступны только уровень 1 и 2.").arg(f));
+                            set_status_message(false, "Неподдерживаемый уровень обработки снимка");
+                            return;
+                        }
+                    }
                 }
             }
             if (counter == 0) {
@@ -393,7 +407,8 @@ void MainWindow::change_page(PAGE to) {
         auto files = [this](QStringList filenames) {
             int counter = 0;
             for (const QString &f : filenames) {
-                if (f.toUpper().endsWith(".TIF") && f.right(7).toUpper().contains("B")) {
+                QString entry = f.toUpper();
+                if (entry.endsWith(".TIF") && f.right(7).toUpper().contains("B")) {
                     DATASET ds;
                     ds.filename = f;
                     QString band = f.right(8);
@@ -405,6 +420,18 @@ void MainWindow::change_page(PAGE to) {
                     self.files[band] = ds;
                     send_request("command", proto.import_gtiff(ds.filename));
                     counter++;
+
+                    if (self.satellite.isEmpty()) {
+                        if (entry.contains("L1TP")) {
+                            self.satellite = "L1TP";
+                        } else if (entry.contains("L2SP")) {
+                            self.satellite = "L2SP";
+                        } else {
+                            append_log("bad", QString("Уровень обработки снимка %1 не поддерживается. Для спутника Landsat доступны только уровень 1 и 2.").arg(f));
+                            set_status_message(false, "Неподдерживаемый уровень обработки снимка");
+                            return;
+                        }
+                    }
                 }
             }
             if (counter == 0) {
@@ -416,7 +443,7 @@ void MainWindow::change_page(PAGE to) {
             ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
         };
-        auto custom_files = [this](QList<QPair<QString, QString>> bands_files) {
+        auto custom_files = [this](QString satellite, QList<QPair<QString, QString>> bands_files) {
             if (bands_files.isEmpty()) {
                 append_log("bad", "Не выбрано ни одного файла Tiff.");
                 set_status_message(false, "Файлы Tiff не выбраны");
@@ -429,6 +456,7 @@ void MainWindow::change_page(PAGE to) {
                 send_request("command", proto.import_gtiff(ds.filename));
             }
             self.dir = bands_files[0].second.section('/', 0, -2);
+            self.satellite = satellite;
             ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
         };

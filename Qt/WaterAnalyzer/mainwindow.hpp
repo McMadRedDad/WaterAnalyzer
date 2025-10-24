@@ -36,6 +36,7 @@ struct STATE {
     ResultPage            *result_p;
     PAGE                   page;
     QDir                   dir;
+    QString                satellite;   // L1TP for Landsat level 1, L2SP for Landsat level 2
     uint                   curr_req_id;
     QMap<QString, DATASET> files; // band/index: DATASET
 };
