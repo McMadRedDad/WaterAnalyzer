@@ -1,6 +1,6 @@
 class Protocol:
-    VERSION = '2.1.5'
-    SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index')
+    VERSION = '3.0.0'
+    SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index', 'set_satellite')
 
     def __init__(self):
         print(f'Using protocol version {self.VERSION}')
@@ -147,6 +147,15 @@ class Protocol:
             for i in ids:
                 if type(i) is not int:
                     return _response(10502, {"error": f"invalid id '{i}' in 'ids' key"})
+            return _response(0, {})
+
+        if operation == 'set_satellite':
+            params_check = _check_param_keys('set_satellite', ['satellite'], list(parameters.keys()))
+            if len(params_check) != 0:
+                return params_check
+            satellite = parameters['satellite']
+            if type(satellite) is not str:
+                return _response(10600, {"error": "invalid 'satellite' key: must be of string type"})
             return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})

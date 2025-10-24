@@ -223,7 +223,7 @@ class DatasetManager:
 
 class GdalExecutor:
     VERSION = '1.0.0'
-    SUPPORTED_PROTOCOL_VERSIONS = ('2.1.5')
+    SUPPORTED_PROTOCOL_VERSIONS = ('3.0.0')
     SUPPORTED_INDICES = {   # { 'name': number_of_datasets_to_calc_from }
         'test': 2,
         'wi2015': 5,
@@ -231,6 +231,7 @@ class GdalExecutor:
         'oc3': 3,
         'cdom_ndwi': 2
     }
+    SUPPORTED_SATELLITES = ('Landsat 8/9')
     
     def __new__(cls, protocol):
         if protocol.get_version() not in GdalExecutor.SUPPORTED_PROTOCOL_VERSIONS:
@@ -242,6 +243,7 @@ class GdalExecutor:
         self.ds_man = DatasetManager()
         self.pv_man = PreviewManager()
         self.geotiff = gdal.GetDriverByName('GTiff')
+        self.satellite = None
         print(f'Server running version {self.VERSION}')
 
     def _index(self, index: str, ids: list[int]) -> (np.ma.MaskedArray, gdal.GDT_Float32, float | int, str):
@@ -470,6 +472,14 @@ class GdalExecutor:
                 }
             }
             return _response(0, result)
+
+        if operation == 'set_satellite':
+            satellite = parameters['satellite']
+            if satellite not in self.SUPPORTED_SATELLITES:
+                return _response(20600, {"error": f"unsupported satellite model: '{satellite}'"})
+
+            self.satellite = satellite
+            return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})
 

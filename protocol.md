@@ -1,4 +1,4 @@
-**VERSION 2.2**
+**VERSION 3.0.0**
 
 Communication via HTTP messages. The payload is sent as a JSON document in message bodies.
 
@@ -126,6 +126,7 @@ If the request passed body validation, it proceeds to the second layer of error 
 3. import_gtiff     - load a GeoTiff file to the server and cache it
 4. calc_preview     - request the server to calculate an image preview from cached GeoTiffs
 5. calc_index       - create a spectral index and cache it
+6. set_satellite    - save what satellite is used in the client's session
 
 ## Message structure
 
@@ -213,11 +214,15 @@ Below are specifics for requests and responses for each supported command.
 14. Unsupported operation:
     - `status` - 20002
     - `result` - { "error": "unsupported operation '`unsupported operation`' requested. Supported operations are `supported operations`" }
-    -  HTTP 500 Internal Server Error **or** HTTP 400 Bad Request
+    -  HTTP 500 Internal Server Error
 15. Too many requests:
     - `status` - 20003
     - `result` - { "error": "too many requests" }
     -  HTTP 429 Too Many Requests
+16. No satellite set:
+    - `status` - 20004
+    - result - { "error": "request `received request` was received before 'set_satellite' request }
+    - HTTP 500 Internal Server Error
 
 ## ping
 
@@ -266,6 +271,8 @@ Below are specifics for requests and responses for each supported command.
     -  HTTP 500 Internal Server Error
 
 ## import gtiff
+
+**Must** be sent only after 'set_satellite' request.
 
 *REQUEST*
 
@@ -380,7 +387,7 @@ Below are specifics for requests and responses for each supported command.
             "max": `max pixel value`,                   - [FLOAT] maximum pixel value
             "mean": `mean pixel value`,                 - [FLOAT] mean pixel value
             "stdev": `standard deviation`,              - [FLOAT] standard deviation of pixel values
-            "ph_unit": `physycal unit`                  - [STRING] physycal unit that pixel values represent, if any
+            "ph_unit": `physical unit`                  - [STRING] physycal unit that pixel values represent, if any
         }
     }
     -  HTTP 200 OK
@@ -415,6 +422,28 @@ Below are specifics for requests and responses for each supported command.
 9. Unknown error:
     - `status` - 20504
     - `result` - { "error": "unknown error" }
+    -  HTTP 500 Internal Server Error
+
+## set satellite
+
+*REQUEST*
+
+- `operation`  - "set_satellite"
+- `parameters` - { "satellite": "`satellite model`" }   - [STRING] what satellite is used in the client's session
+
+*RESPONSE*
+
+1. Success:
+    - `status` - 0
+    - `result` - {}
+    -  HTTP 200 OK
+2. Invalid satellite type:
+    - `status` - 10600
+    - `result` - { "error": "invalid '`satellite`' key: must be of string type" }
+    -  HTTP 400 Bad Request
+3. Unsupported satellite:
+    - `status` - 20600
+    - `result` - { "error": "unsupported satellite model: '`satellite`'" }
     -  HTTP 500 Internal Server Error
 
 ## HTTP and JSON cross-validation

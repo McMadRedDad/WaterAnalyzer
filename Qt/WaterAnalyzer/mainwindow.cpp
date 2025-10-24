@@ -408,7 +408,7 @@ void MainWindow::change_page(PAGE to) {
                         band = band.mid(3, 1).prepend('L');
                     }
                     self.files[band] = ds;
-                    send_request("command", proto.import_gtiff(ds.filename));
+                    // send_request("command", proto.import_gtiff(ds.filename));
                     counter++;
                 }
             }
@@ -417,6 +417,7 @@ void MainWindow::change_page(PAGE to) {
                 set_status_message(false, "В выбранной директории нет снимков");
                 return;
             }
+            send_request("command", proto.set_satellite("Landsat 8/9"));
             self.dir = dir;
             ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
@@ -451,7 +452,7 @@ void MainWindow::change_page(PAGE to) {
                         band = band.mid(3, 1).prepend('L');
                     }
                     self.files[band] = ds;
-                    send_request("command", proto.import_gtiff(ds.filename));
+                    // send_request("command", proto.import_gtiff(ds.filename));
                     counter++;
                 }
             }
@@ -460,6 +461,7 @@ void MainWindow::change_page(PAGE to) {
                 set_status_message(false, "Не выбрано ни одного снимка");
                 return;
             }
+            send_request("command", proto.set_satellite("Landsat 8/9"));
             self.dir = filenames[0].section('/', 0, -2);
             ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
@@ -474,8 +476,9 @@ void MainWindow::change_page(PAGE to) {
                 DATASET ds;
                 ds.filename = f.second;
                 self.files[f.first.prepend('L')] = ds;
-                send_request("command", proto.import_gtiff(ds.filename));
+                // send_request("command", proto.import_gtiff(ds.filename));
             }
+            send_request("command", proto.set_satellite("Landsat 8/9"));
             self.dir = bands_files[0].second.section('/', 0, -2);
             if (satellite == "L1TP") {
                 self.proc_level = PROC_LEVEL::L1TP;

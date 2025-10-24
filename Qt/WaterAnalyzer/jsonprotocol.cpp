@@ -1,6 +1,6 @@
 #include "jsonprotocol.hpp"
 
-const QString JsonProtocol::proto_version = "2.1.5";
+const QString JsonProtocol::proto_version = "3.0.0";
 
 JsonProtocol::JsonProtocol(QString server_version) {
     this->server_version = server_version;
@@ -30,6 +30,10 @@ QJsonObject JsonProtocol::calc_index(QString index, QList<int> ids) {
         ids_arr.append((int) id);
     }
     return construct_json("calc_index", QJsonObject{{"index", index}, {"ids", ids_arr}});
+}
+
+QJsonObject JsonProtocol::set_satellite(QString satellite) {
+    return construct_json("set_satellite", QJsonObject{{"satellite", satellite}});
 }
 
 void JsonProtocol::inc_counter() {
