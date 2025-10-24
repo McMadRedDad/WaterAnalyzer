@@ -267,6 +267,8 @@ QString MainWindow::get_type_by_index(QString index) {
         return "chloro";
     } else if (indx == "cdom_ndwi") {
         return "cdom";
+    } else if (indx == "temperature_landsat_toa" || indx == "temperature_landsat_ls") {
+        return "temp";
     } else {
         return "";
     }
@@ -303,6 +305,13 @@ QString MainWindow::get_index_by_type(QString type) {
             }
         }
         return "";
+    } else if (type == "temp") {
+        for (auto it = self.files.cbegin(), end = self.files.cend(); it != end; ++it) {
+            if (it.key() == "temperature_landsat_toa" || it.key() == "temperature_landsat_ls") {
+                return it.key();
+            }
+        }
+        return "";
     } else {
         return "";
     }
@@ -319,6 +328,10 @@ QList<int> MainWindow::select_bands_for_index(QString index) {
     } else if (indx == "oc3") {
         return QList<int>{self.files["L1"].id, self.files["L2"].id, self.files["L3"].id};
     } else if (indx == "cdom_ndwi") {
+        return QList<int>{self.files["L3"].id, self.files["L5"].id};
+    } else if (indx == "temperature_landsat_toa") {
+        return QList<int>{self.files["L3"].id, self.files["L5"].id};
+    } else if (indx == "temperature_landsat_ls") {
         return QList<int>{self.files["L3"].id, self.files["L5"].id};
     } else {
         return QList<int>{-1};

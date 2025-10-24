@@ -69,8 +69,8 @@ void ProcessPage::on_pb_go_clicked() {
     if (ui->chbx_temp->isChecked()) {
         if (temperature_type == "toa") {
             indices.append("temperature_landsat_toa");
-        } else if (temperature_type == "surface") {
-            indices.append("temperature_landsat_surface");
+        } else if (temperature_type == "ls") {
+            indices.append("temperature_landsat_ls");
         }
     }
     emit this->indices(indices);
