@@ -391,8 +391,12 @@ class GdalExecutor:
             else:
                 b = self.ds_man.read_band(id_b, 1, nodata=no_data, resolution_percent=res)
                 b = indcal.map_to_8bit(b)
-            a = np.array(~r.mask).astype(int)
-            a = indcal.map_to_8bit(a)
+            a = np.empty(r.shape, dtype=np.uint8)
+            if np.ma.is_masked(r):
+                a = np.array(~r.mask).astype(int)
+                a = indcal.map_to_8bit(a)
+            else:
+                a.fill(255)
 
             pv_id = self.pv_man.add(np.transpose(np.stack((r, g, b, a)), (1, 2, 0)), id_r, id_g, id_b)
             return _response(0, {
