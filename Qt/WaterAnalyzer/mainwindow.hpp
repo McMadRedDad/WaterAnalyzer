@@ -16,7 +16,9 @@ class MainWindow;
 }
 QT_END_NAMESPACE
 
-enum PAGE { BAD = -1, IMPORT, IMPORT_CUSTOM_BANDS, SELECTION, RESULT };
+enum PAGE { PAGE_BAD = -1, IMPORT, IMPORT_CUSTOM_BANDS, SELECTION, RESULT };
+
+enum PROC_LEVEL { PROC_LEVEL_BAD = -1, L1TP, L2SP };
 
 struct DATASET {
     QString filename = "";
@@ -36,7 +38,7 @@ struct STATE {
     ResultPage            *result_p;
     PAGE                   page;
     QDir                   dir;
-    QString                satellite;   // L1TP for Landsat level 1, L2SP for Landsat level 2
+    PROC_LEVEL             proc_level;
     uint                   curr_req_id;
     QMap<QString, DATASET> files; // band/index: DATASET
 };

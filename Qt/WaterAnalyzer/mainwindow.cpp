@@ -9,7 +9,7 @@ MainWindow::MainWindow(QWidget *parent)
     self.process_p = new ProcessPage();
     self.result_p = new ResultPage();
     change_page(PAGE::IMPORT);
-    self.satellite = "";
+    self.proc_level = PROC_LEVEL::PROC_LEVEL_BAD;
     self.curr_req_id = -1;
 
     backend_ip = QHostAddress::LocalHost;
@@ -370,11 +370,11 @@ void MainWindow::change_page(PAGE to) {
             for (const QString &f : dir.entryList()) {
                 QString entry = f.toUpper();
                 if (entry.endsWith(".TIF") && f.right(7).toUpper().contains('B')) {
-                    if (self.satellite.isEmpty()) {
+                    if (self.proc_level == PROC_LEVEL::PROC_LEVEL_BAD) {
                         if (entry.contains("L1TP")) {
-                            self.satellite = "L1TP";
+                            self.proc_level = PROC_LEVEL::L1TP;
                         } else if (entry.contains("L2SP")) {
-                            self.satellite = "L2SP";
+                            self.proc_level = PROC_LEVEL::L2SP;
                         } else {
                             append_log(
                                 "bad",
@@ -413,11 +413,11 @@ void MainWindow::change_page(PAGE to) {
             for (const QString &f : filenames) {
                 QString entry = f.toUpper();
                 if (entry.endsWith(".TIF") && f.right(7).toUpper().contains("B")) {
-                    if (self.satellite.isEmpty()) {
+                    if (self.proc_level == PROC_LEVEL::PROC_LEVEL_BAD) {
                         if (entry.contains("L1TP")) {
-                            self.satellite = "L1TP";
+                            self.proc_level = PROC_LEVEL::L1TP;
                         } else if (entry.contains("L2SP")) {
-                            self.satellite = "L2SP";
+                            self.proc_level = PROC_LEVEL::L2SP;
                         } else {
                             append_log(
                                 "bad",
@@ -464,7 +464,11 @@ void MainWindow::change_page(PAGE to) {
                 send_request("command", proto.import_gtiff(ds.filename));
             }
             self.dir = bands_files[0].second.section('/', 0, -2);
-            self.satellite = satellite;
+            if (satellite == "L1TP") {
+                self.proc_level = PROC_LEVEL::L1TP;
+            } else if (satellite == "L2SP") {
+                self.proc_level = PROC_LEVEL::L2SP;
+            }
             ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
         };
@@ -491,7 +495,7 @@ void MainWindow::change_page(PAGE to) {
 
         self.page = PAGE::IMPORT;
         self.dir = QDir();
-        self.satellite = "";
+        self.proc_level = PROC_LEVEL::PROC_LEVEL_BAD;
         ui->lbl_dir->setText("");
         self.files.clear();
 
@@ -557,9 +561,9 @@ void MainWindow::change_page(PAGE to) {
 
         self.page = PAGE::SELECTION;
 
-        if (self.satellite == "L1TP") {
+        if (self.proc_level == PROC_LEVEL::L1TP) {
             self.process_p->set_temperature_type("toa");
-        } else if (self.satellite == "L2SP") {
+        } else if (self.proc_level == PROC_LEVEL::L2SP) {
             self.process_p->set_temperature_type("surface");
         }
         ui->pb_back->show();
