@@ -334,6 +334,7 @@ class GdalExecutor:
             result = {
                 'id': dataset_id,
                 'file': parameters['file'],
+                'band': parameters['band'],
                 'info': {
                     'width': dataset.RasterXSize,
                     'height': dataset.RasterYSize,
