@@ -422,7 +422,8 @@ requests_json = {
         "id": 0,
         "operation": "import_gtiff",
         "parameters": {
-            "file": test_files['gtiff_ok1']
+            "file": test_files['gtiff_ok1'],
+            "band": 1
         }
     },
     'import_gtiff_ok_mid': {
@@ -431,7 +432,8 @@ requests_json = {
         "id": 0,
         "operation": "import_gtiff",
         "parameters": {
-            "file": test_files['gtiff_ok2']
+            "file": test_files['gtiff_ok2'],
+            "band": 1
         }
     },
     'import_gtiff_ok_smol': {
@@ -440,7 +442,8 @@ requests_json = {
         "id": 0,
         "operation": "import_gtiff",
         "parameters": {
-            "file": test_files['gtiff_ok3']
+            "file": test_files['gtiff_ok3'],
+            "band": 1
         }
     },
     'import_gtiff_ok_mid2': {
@@ -449,7 +452,8 @@ requests_json = {
         "id": 0,
         "operation": "import_gtiff",
         "parameters": {
-            "file": test_files['gtiff_ok4']
+            "file": test_files['gtiff_ok4'],
+            "band": 1
         }
     },
     'import_gtiff_ok_smol2': {
@@ -458,7 +462,8 @@ requests_json = {
         "id": 0,
         "operation": "import_gtiff",
         "parameters": {
-            "file": test_files['gtiff_ok5']
+            "file": test_files['gtiff_ok5'],
+            "band": 1
         }
     },
     'import_gtiff_ok_nodata': {
@@ -467,7 +472,8 @@ requests_json = {
         "id": 0,
         "operation": "import_gtiff",
         "parameters": {
-            "file": test_files['only_nodata']
+            "file": test_files['only_nodata'],
+            "band": 1
         }
     },
     'import_gtiff_no_file': {
@@ -475,7 +481,18 @@ requests_json = {
         "server_version": server_version,
         "id": 0,
         "operation": "import_gtiff",
-        "parameters": {}
+        "parameters": {
+            "band": 1
+        }
+    },
+    'import_gtiff_no_band': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_gtiff",
+        "parameters": {
+            "file": test_files['gtiff_ok1']
+        }
     },
     'import_gtiff_non_existent': {
         "proto_version": proto_version,
@@ -483,7 +500,8 @@ requests_json = {
         "id": 0,
         "operation": "import_gtiff",
         "parameters": {
-            "file": test_files['non_existent']
+            "file": test_files['non_existent'],
+            "band": 1
         }
     },
     'import_gtiff_not_geotiff1': {
@@ -492,7 +510,8 @@ requests_json = {
         "id": 0,
         "operation": "import_gtiff",
         "parameters": {
-            "file": test_files['saga_grid']
+            "file": test_files['saga_grid'],
+            "band": 1
         }
     },
     'import_gtiff_not_geotiff2': {
@@ -501,7 +520,8 @@ requests_json = {
         "id": 0,
         "operation": "import_gtiff",
         "parameters": {
-            "file": test_files['shape']
+            "file": test_files['shape'],
+            "band": 1
         }
     },
     'import_gtiff_not_geotiff3': {
@@ -510,7 +530,18 @@ requests_json = {
         "id": 0,
         "operation": "import_gtiff",
         "parameters": {
-            "file": test_files['regular_tif']
+            "file": test_files['regular_tif'],
+            "band": 1
+        }
+    },
+    'import_gtiff_inv_band_type': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_gtiff",
+        "parameters": {
+            "file": test_files['gtiff_ok1'],
+            "band": "rule34"
         }
     },
     'calc_preview_ok': {
@@ -795,6 +826,33 @@ requests_json = {
         }
     },
     # calc_index 20504
+    'set_satellite_ok': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "set_satellite",
+        "parameters": {
+            "satellite": "Landsat 8/9"
+        }
+    },
+    'set_satellite_inv_satellite_type': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "set_satellite",
+        "parameters": {
+            "satellite": 69
+        }
+    },
+    'set_satellite_unsupported_satellite': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "set_satellite",
+        "parameters": {
+            "satellite": "NEW sAtEllItE 6/9"
+        }
+    },
 }
 
 # Able to override the Content-Type and Content-Length headers.
@@ -843,7 +901,22 @@ def check_all(endpoint, headers, body):
 class Test(unittest.TestCase):
     gtiffbig, gtiffmid, gtiffsmol, gtiffmid2, gtiffsmol2, gtiffempty = 0, 0, 0, 0, 0, 0
     url_pr, width, height, url_ind = '', 0, 0, ''
+
     def test_000(self):
+        def _codes(response: 'Response'):
+            return response.status_code, \
+                   response.get_json().get('status') if response.get_json() else None
+
+        print('RUNNING INITIAL TEST "test_000" that acts as a setup. If this test fails, others will too. Check this test first.')
+
+        print('Checking error 20004 ...')
+        self.assertEqual((500, 20004) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid'])))
+        self.assertEqual((500, 20004) , _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])))
+        self.assertEqual((500, 20004) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])))
+        print('Done!')
+
+        POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok'])
+
         self.gtiffbig = executor.execute(requests_json['import_gtiff_ok_big'])['result']['id']
         self.gtiffmid = executor.execute(requests_json['import_gtiff_ok_mid'])['result']['id']
         self.gtiffsmol = executor.execute(requests_json['import_gtiff_ok_smol'])['result']['id']
@@ -883,6 +956,7 @@ class Test(unittest.TestCase):
         url_ind = index.get_json()['result']['url']
         self.assertEqual(200, GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).status_code)
         self.assertEqual(200, GET(url_ind, http_headers['get_index_ok'], '').status_code)
+        self.assertEqual(200, POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok']).status_code)
         
         self.assertIsNone(POST('/api/PING', http_headers['ok'], requests_json['ping_ok']).headers.get('Reason'))
         # self.assertIsNone(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok']).headers.get('Reason'))
@@ -896,6 +970,7 @@ class Test(unittest.TestCase):
         self.assertIsNone(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1']).headers.get('Reason'))
         self.assertIsNone(GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).headers.get('Reason'))
         self.assertIsNone(GET(url_ind, http_headers['get_index_ok'], '').headers.get('Reason'))
+        self.assertIsNone(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok']).headers.get('Reason'))
    
     def test_http_endpoint(self):
         self.assertEqual(400, POST('/api/unsupported', http_headers['ok'], '').status_code)
@@ -1056,6 +1131,7 @@ class Test(unittest.TestCase):
         self.assertEqual(0, check_json(requests_json['import_gtiff_ok_nodata']))
         self.assertEqual(0, check_json(requests_json['calc_preview_ok']))
         self.assertEqual(0, check_json(requests_json['calc_index_ok1']))
+        self.assertEqual(0, check_json(requests_json['set_satellite_ok']))
    
     def test_json_unknown_key(self):
         self.assertEqual(10000, check_json(requests_json['unknown_key1']))
@@ -1129,6 +1205,8 @@ class Test(unittest.TestCase):
    
     def test_json_import_gtiff(self):
         self.assertEqual(10007, check_json(requests_json['import_gtiff_no_file']))
+        self.assertEqual(10007, check_json(requests_json['import_gtiff_no_band']))
+        self.assertEqual(10300, check_json(requests_json['import_gtiff_inv_band_type']))
         self.assertEqual(20300, check_json(requests_json['import_gtiff_not_geotiff1']))
         self.assertEqual(20300, check_json(requests_json['import_gtiff_not_geotiff2']))
         self.assertEqual(20300, check_json(requests_json['import_gtiff_not_geotiff3']))
@@ -1165,6 +1243,10 @@ class Test(unittest.TestCase):
         self.assertEqual(20503, check_json(requests_json['calc_index_dim_mismatch']))
         # 20504
 
+    def test_json_set_satellite(self):
+        self.assertEqual(10600, check_json(requests_json['set_satellite_inv_satellite_type']))
+        self.assertEqual(20600, check_json(requests_json['set_satellite_unsupported_satellite']))
+
     ### BOTH ###
    
     def test_cross(self):
@@ -1199,6 +1281,7 @@ class Test(unittest.TestCase):
         self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_nodata'])))
         self.assertEqual((200, 0) , _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])))
         self.assertEqual((200, 0) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])))
+        self.assertEqual((200, 0) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok'])))
 
         self.assertEqual((400, 10000) , _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key1'])))
         self.assertEqual((400, 10000) , _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key2'])))
@@ -1253,12 +1336,16 @@ class Test(unittest.TestCase):
         
         #  20003
 
+        # 20004 is checked in test_000
+
         self.assertEqual((400, 10100) , _codes(POST('/api/PING', http_headers['ok'], requests_json['ping_non_empty_params'])))
 
         self.assertEqual((400, 10200) , _codes(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_non_empty_params'])))
         # 20200, 20201
 
         self.assertEqual((400, 10007) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_no_file'])))
+        self.assertEqual((400, 10007) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_no_band'])))
+        self.assertEqual((400, 10300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_inv_band_type'])))
         self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff1'])))
         self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff2'])))
         self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff3'])))
@@ -1292,6 +1379,9 @@ class Test(unittest.TestCase):
         self.assertEqual((404, 20502) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_non_existent_id'])))
         self.assertEqual((400, 20503) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_dim_mismatch'])))
         # 20504
+
+        self.assertEqual((400, 10600) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_inv_satellite_type'])))
+        self.assertEqual((500, 20600) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_unsupported_satellite'])))
 
     ### DIFFERENT FILES ###
 
