@@ -318,6 +318,8 @@ class GdalExecutor:
             return _response(0, {})
 
         if operation == 'import_gtiff':
+            if self.satellite is None:
+                return _response(20004, {"error": "request 'import_gtiff' was received before 'set_satellite' request"})
             try:
                 dataset_id = self.ds_man.open(parameters['file'])
             except RuntimeError:
@@ -344,6 +346,8 @@ class GdalExecutor:
             return _response(0, result)
 
         if operation == 'calc_preview':
+            if self.satellite is None:
+                return _response(20004, {"error": "request 'calc_preview' was received before 'set_satellite' request"})
             id_r, id_g, id_b = parameters['ids'][0], parameters['ids'][1], parameters['ids'][2]
             width, height = parameters['width'], parameters['height']
             dataset, ds = None, []
@@ -398,6 +402,8 @@ class GdalExecutor:
             })
 
         if operation == 'calc_index':
+            if self.satellite is None:
+                return _response(20004, {"error": "request 'calc_index' was received before 'set_satellite' request"})
             ids = parameters['ids']
             index = parameters['index']
             if index not in self.SUPPORTED_INDICES:
