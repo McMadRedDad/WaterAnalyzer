@@ -1,3 +1,5 @@
+**VERSION 2.2**
+
 Communication via HTTP messages. The payload is sent as a JSON document in message bodies.
 
 Requests for command execution are sent as POST HTTP/1.1 to /api/`command` endpoint.
@@ -373,7 +375,12 @@ Below are specifics for requests and responses for each supported command.
             "projection": `projection`,                 - [STRING] in format "`authority`:`code`" identifying projection used
             "unit": `measure unit`,                     - [STRING] the unit used in the image
             "origin": [`x`, `y`],                       - [ARRAY of DOUBLEs] coordinates of the origin of the image
-            "pixel_size": [`size on x`, `size on y`]    - [ARRAY of DOUBLEs] size of the image pixel in measurement units
+            "pixel_size": [`size on x`, `size on y`],   - [ARRAY of DOUBLEs] size of the image pixel in measurement units
+            "min": `min pixel value`,                   - [FLOAT] minimum pixel value
+            "max": `max pixel value`,                   - [FLOAT] maximum pixel value
+            "mean": `mean pixel value`,                 - [FLOAT] mean pixel value
+            "stdev": `standard deviation`,              - [FLOAT] standard deviation of pixel values
+            "ph_unit": `physycal unit`                  - [STRING] physycal unit that pixel values represent, if any
         }
     }
     -  HTTP 200 OK
