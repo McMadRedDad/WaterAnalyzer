@@ -6,9 +6,9 @@ import index_calculator as indcal
 gdal.UseExceptions()
 
 class Preview:
-    def __init__(self, array: np.ndarray, r: int, g: int, b: int):
+    def __init__(self, array: np.ndarray, index: str):
         self.array = array
-        self.ids = (r, g, b)
+        self.index = index
         self.width = array.shape[1]
         self.height = array.shape[0]
 
@@ -18,23 +18,21 @@ class PreviewManager:
         self._counter = 0
         self._lock = threading.Lock()
 
-    def add(self, array: np.ndarray, red: int, green: int, blue: int) -> int:
+    def add(self, array: np.ndarray, index: str) -> int:
         """Stores 'array' referring to a preview image and returns its id. The array must be suitable for PIL.Image.fromarray() function, i.e. of shape (height, width, channels).
-        'red', 'green' and 'blue' refer to the datasets' ids from which the preview was created."""
+        'index' refers to the index for which the preview was created. index=nat_col is for natural color."""
 
         with self._lock:
-            self._previews[self._counter] = Preview(array, red, green, blue)
+            self._previews[self._counter] = Preview(array, index)
             self._counter += 1
             return self._counter - 1
 
-    def find(self, red: int, green: int, blue: int, width: int, height: int) -> int | None:
-        """Tries to find a preview of 'width' x 'height' dimensions created from 'red', 'green' and 'blue' dataset ids.
-        If the preview is found, returns its id, otherwise returns None."""
+    def find(self, index: str, width: int, height: int) -> int | None:
+        """Tries to find a preview of 'width' x 'height' referring to 'index'. If the preview is found, returns its id, otherwise returns None."""
 
-        ids = (red, green, blue)
         with self._lock:
             for id_, pr in self._previews.items():
-                if pr.ids == ids:
+                if pr.index == index:
                     if pr.width == width or pr.height == height:
                         return id_
             return None
@@ -62,12 +60,11 @@ class PreviewManager:
             return list(self._previews.values())
 
 class Dataset:
-    def __init__(self, dataset: gdal.Dataset, band: int | str=None, stats: dict=None, ids: tuple[int] | list[int]=None):
+    def __init__(self, dataset: gdal.Dataset, band: int | str=None, stats: dict=None):
         self.dataset = dataset
         self.band = band
         self.no_data = None
         self.stats = stats
-        self._ids = tuple(ids) if ids else None
 
 class DatasetManager:
     def __init__(self):
@@ -107,7 +104,7 @@ class DatasetManager:
             for id_, ds in self._datasets.items():
                 if ds.dataset.GetDescription() == dataset.GetDescription():
                     return id_
-            self._datasets[self._counter] = Dataset(dataset, band=band)
+            self._datasets[self._counter] = Dataset(dataset, band)
             self._counter += 1
             return self._counter - 1
 
@@ -129,7 +126,7 @@ class DatasetManager:
             except KeyError:
                 raise KeyError(f'Dataset {id_} is not opened but "get" method called')
 
-    def get_as_array(self, id_: int) -> np.array:
+    def get_as_array(self, id_: int) -> np.ma.MaskedArray:
         return self.read_band(id_, 1)
 
     def get_all(self) -> list[Dataset]:
@@ -262,6 +259,7 @@ class GdalExecutor:
             if self.satellite == 'Landsat 8/9':
                 id1, id2 = self.ds_man.find(2), self.ds_man.find(4)
                 if id1 is None or id2 is None:
+                    print([x.band for x in self.ds_man._datasets.values()])
                     return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 2 and 4 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
@@ -398,21 +396,25 @@ class GdalExecutor:
         if operation == 'calc_preview':
             if self.satellite is None:
                 return _response(20004, {"error": "request 'calc_preview' was received before 'set_satellite' request"})
-            id_r, id_g, id_b = parameters['ids'][0], parameters['ids'][1], parameters['ids'][2]
-            width, height = parameters['width'], parameters['height']
-            dataset, ds = None, []
-            for i in (id_r, id_g, id_b):
-                try:
-                    dataset = self.ds_man.get(i)
-                except KeyError:
-                    return _response(20400, {"error": f"id {i} provided in 'ids' key does not exist"})
-                ds.append(dataset.dataset)
-            for i in ds[1:]:
-                if not (i.RasterXSize == ds[0].RasterXSize and i.RasterYSize == ds[0].RasterYSize):
-                    return _response(20401, {"error": "unable to create preview from requested ids: rasters do not match in dimensions"})
+            index, width, height = parameters['index'], parameters['width'], parameters['height']
+            if index not in self.SUPPORTED_INDICES and index != 'nat_col':
+                return _response(20400, {"error": f"index '{index}' is not supported or unknown"})
+            ids = []
+            if index == 'nat_col':
+                if self.satellite == 'Landsat 8/9':
+                    ids.append(self.ds_man.find(4))
+                    ids.append(self.ds_man.find(3))
+                    ids.append(self.ds_man.find(2))
+                    for num, id__ in zip((4, 3, 2), ids):
+                        if id__ is None:
+                            return _response(20401, {"error": f"{self.satellite} band number '{num}' is not loaded"})
+            else:
+                ids.append(self.ds_man.find(index))
+                if ids[0] is None:
+                    return _response(20401, {"error": f"index '{index}' is not calculated"})
             # error 20402
 
-            existing = self.pv_man.find(id_r, id_g, id_b, width, height)
+            existing = self.pv_man.find(index, width, height)
             if existing is not None:
                 return _response(0, {
                     "url": existing,
@@ -420,27 +422,24 @@ class GdalExecutor:
                     "height": self.pv_man.get(existing).height
                 })
 
+            ds = self.ds_man.get(ids[0])
             res = 0
             if height <= width:
-                res = height / ds[0].RasterYSize * 100
+                res = height / ds.dataset.RasterYSize * 100
             else:
-                res = width / ds[0].RasterXSize * 100
-            no_data = dataset.no_data if dataset.no_data else 0
+                res = width / ds.dataset.RasterXSize * 100
+            no_data = ds.no_data if ds.no_data else 0
             r, g, b, a = 0, 0, 0, 0
-            r = self.ds_man.read_band(id_r, 1, nodata=no_data, resolution_percent=res)
+            r = self.ds_man.read_band(ids[0], 1, nodata=no_data, resolution_percent=res)
             r = indcal.map_to_8bit(r)
-            if id_g == id_r:
-                g = r
-            else:
-                g = self.ds_man.read_band(id_g, 1, nodata=no_data, resolution_percent=res)
+            if index == 'nat_col':
+                g = self.ds_man.read_band(ids[1], 1, nodata=no_data, resolution_percent=res)
+                b = self.ds_man.read_band(ids[2], 1, nodata=no_data, resolution_percent=res)
                 g = indcal.map_to_8bit(g)
-            if id_b == id_r:
-                b = r
-            elif id_b == id_g:
-                b = g
-            else:
-                b = self.ds_man.read_band(id_b, 1, nodata=no_data, resolution_percent=res)
                 b = indcal.map_to_8bit(b)
+            else:
+                g = r
+                b = r
             a = np.empty(r.shape, dtype=np.uint8)
             if np.ma.is_masked(r):
                 a = np.array(~r.mask).astype(int)
@@ -448,7 +447,7 @@ class GdalExecutor:
             else:
                 a.fill(255)
 
-            pv_id = self.pv_man.add(np.transpose(np.stack((r, g, b, a)), (1, 2, 0)), id_r, id_g, id_b)
+            pv_id = self.pv_man.add(np.transpose(np.stack((r, g, b, a)), (1, 2, 0)), index)
             return _response(0, {
                 "url": pv_id,
                 "width": self.pv_man.get(pv_id).width,

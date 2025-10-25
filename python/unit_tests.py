@@ -178,6 +178,7 @@ test_files = {
     'gtiff_ok3': '/home/tim/Учёба/Test data/dacha_10px.tif',
     'gtiff_ok4': '/home/tim/Учёба/Test data/dacha_dist.tif',
     'gtiff_ok5': '/home/tim/Учёба/Test data/dacha_dist_10px.tif',
+    'gtiff_ok6': '/home/tim/Учёба/Test data/dacha_dist_copy.tif',
     'only_nodata': '/home/tim/Учёба/Test data/empty.tif',
     'regular_tif': '/home/tim/Учёба/Test data/japanese-stone-lantern.tif',
     'saga_grid': '/home/tim/Учёба/Test data/dacha.sg-grd-z',
@@ -444,7 +445,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['gtiff_ok3'],
-            "band": 3
+            "band": 11
         }
     },
     'import_gtiff_ok_mid2': {
@@ -454,6 +455,16 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['gtiff_ok4'],
+            "band": 3
+        }
+    },
+    'import_gtiff_ok_mid3': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_gtiff",
+        "parameters": {
+            "file": test_files['gtiff_ok6'],
             "band": 4
         }
     },
@@ -551,12 +562,12 @@ requests_json = {
         "id": 0,
         "operation": "calc_preview",
         "parameters": {
-            "ids": [0, 0, 0],
+            "index": "test",
             "width": 100,
             "height": 100
         }
     },
-    'calc_preview_no_ids': {
+    'calc_preview_no_index': {
         "proto_version": proto_version,
         "server_version": server_version,
         "id": 0,
@@ -572,7 +583,7 @@ requests_json = {
         "id": 0,
         "operation": "calc_preview",
         "parameters": {
-            "ids": [0, 0, 0],
+            "index": "test",
             "height": 100
         }
     },
@@ -582,61 +593,17 @@ requests_json = {
         "id": 0,
         "operation": "calc_preview",
         "parameters": {
-            "ids": [0, 0, 0],
+            "index": "test",
             "width": 100
         }
     },
-    'calc_preview_inv_ids': {
+    'calc_preview_inv_index_type': {
         "proto_version": proto_version,
         "server_version": server_version,
         "id": 0,
         "operation": "calc_preview",
         "parameters": {
-            "ids": "abc",
-            "width": 100,
-            "height": 100
-        }
-    },
-    'calc_preview_4_ids': {
-        "proto_version": proto_version,
-        "server_version": server_version,
-        "id": 0,
-        "operation": "calc_preview",
-        "parameters": {
-            "ids": [0, 0, 0, 0],
-            "width": 100,
-            "height": 100
-        }
-    },
-    'calc_preview_inv_id1': {
-        "proto_version": proto_version,
-        "server_version": server_version,
-        "id": 0,
-        "operation": "calc_preview",
-        "parameters": {
-            "ids": ["abc", 0, 0],
-            "width": 100,
-            "height": 100
-        }
-    },
-    'calc_preview_inv_id2': {
-        "proto_version": proto_version,
-        "server_version": server_version,
-        "id": 0,
-        "operation": "calc_preview",
-        "parameters": {
-            "ids": [0, {}, 0],
-            "width": 100,
-            "height": 100
-        }
-    },
-    'calc_preview_inv_id3': {
-        "proto_version": proto_version,
-        "server_version": server_version,
-        "id": 0,
-        "operation": "calc_preview",
-        "parameters": {
-            "ids": [0, 0, 42069.34],
+            "index": 69,
             "width": 100,
             "height": 100
         }
@@ -647,19 +614,8 @@ requests_json = {
         "id": 0,
         "operation": "calc_preview",
         "parameters": {
-            "ids": [0, 0, 0],
+            "index": "test",
             "width": 'abc',
-            "height": 100
-        }
-    },
-    'calc_preview_inv_width': {
-        "proto_version": proto_version,
-        "server_version": server_version,
-        "id": 0,
-        "operation": "calc_preview",
-        "parameters": {
-            "ids": [0, 0, 0],
-            "width": -10,
             "height": 100
         }
     },
@@ -669,9 +625,42 @@ requests_json = {
         "id": 0,
         "operation": "calc_preview",
         "parameters": {
-            "ids": [0, 0, 0],
+            "index": "test",
             "width": 100,
             "height": 'abc'
+        }
+    },
+    'calc_preview_unsupported_index': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_preview",
+        "parameters": {
+            "index": "rule34",
+            "width": 100,
+            "height": 100
+        }
+    },
+    'calc_preview_index_not_created': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_preview",
+        "parameters": {
+            "index": "oc3",
+            "width": 100,
+            "height": 100
+        }
+    },
+    'calc_preview_inv_width': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_preview",
+        "parameters": {
+            "index": "test",
+            "width": -10,
+            "height": 100
         }
     },
     'calc_preview_inv_height': {
@@ -680,31 +669,9 @@ requests_json = {
         "id": 0,
         "operation": "calc_preview",
         "parameters": {
-            "ids": [0, 0, 0],
+            "index": "test",
             "width": 100,
             "height": -10
-        }
-    },
-    'calc_preview_non_existent_id': {
-        "proto_version": proto_version,
-        "server_version": server_version,
-        "id": 0,
-        "operation": "calc_preview",
-        "parameters": {
-            "ids": [0, 0, 4206934],
-            "width": 100,
-            "height": 100
-        }
-    },
-    'calc_preview_dim_mismatch': {
-        "proto_version": proto_version,
-        "server_version": server_version,
-        "id": 0,
-        "operation": "calc_preview",
-        "parameters": {
-            "ids": [0, 1, 5],
-            "width": 100,
-            "height": 100
         }
     },
     # calc_preview 20402
@@ -742,7 +709,7 @@ requests_json = {
             "index": "unsupported"
         }
     },
-    'calc_index_not_enough_bands': {    # depends on 6 valid test_files as wi2015 uses up to band 7
+    'calc_index_not_enough_bands': {    # depends on import_gtiff's band nums as wi2015 uses band 7
         "proto_version": proto_version,
         "server_version": server_version,
         "id": 0,
@@ -843,12 +810,13 @@ class Test(unittest.TestCase):
 
         POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok'])
 
-        self.gtiffbig = executor.execute(requests_json['import_gtiff_ok_big'])['result']['id']
-        self.gtiffmid = executor.execute(requests_json['import_gtiff_ok_mid'])['result']['id']
-        self.gtiffsmol = executor.execute(requests_json['import_gtiff_ok_smol'])['result']['id']
-        self.gtiffmid2 = executor.execute(requests_json['import_gtiff_ok_mid2'])['result']['id']
-        self.gtiffsmol2 = executor.execute(requests_json['import_gtiff_ok_smol2'])['result']['id']
-        self.gtiffempty = executor.execute(requests_json['import_gtiff_ok_nodata'])['result']['id']
+        executor.execute(requests_json['import_gtiff_ok_big'])
+        executor.execute(requests_json['import_gtiff_ok_mid'])
+        executor.execute(requests_json['import_gtiff_ok_smol'])
+        executor.execute(requests_json['import_gtiff_ok_mid2'])
+        executor.execute(requests_json['import_gtiff_ok_mid3'])
+        executor.execute(requests_json['import_gtiff_ok_smol2'])
+        executor.execute(requests_json['import_gtiff_ok_nodata'])
         
         # requests_json['calc_preview_ok']['parameters']['ids'][0] = self.gtiffmid2
         # requests_json['calc_preview_ok']['parameters']['ids'][1] = self.gtiffmid2
@@ -858,7 +826,7 @@ class Test(unittest.TestCase):
         # requests_json['calc_index_ok1']['parameters']['ids'][0] = self.gtiffmid2
         # requests_json['calc_index_ok1']['parameters']['ids'][1] = self.gtiffmid2
 
-        # executor.execute(requests_json['calc_preview_ok'])
+        executor.execute(requests_json['calc_preview_ok'])
         executor.execute(requests_json['calc_index_ok1'])
 
         print('Imported GTiffs and saved their ids to use in following tests')
@@ -872,17 +840,18 @@ class Test(unittest.TestCase):
         self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid']).status_code)
         self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol']).status_code)
         self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid2']).status_code)
+        self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid3']).status_code)
         self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol2']).status_code)
         self.assertEqual(200, POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_nodata']).status_code)
-        # prev = POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])
-        # self.assertEqual(200, prev.status_code)
-        # url_pr = prev.get_json()['result']['url'] + '&sb=0'
-        # width = prev.get_json()['result']['width']
-        # height = prev.get_json()['result']['height']
+        prev = POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])
+        self.assertEqual(200, prev.status_code)
+        url_pr = prev.get_json()['result']['url'] + '&sb=0'
+        width = prev.get_json()['result']['width']
+        height = prev.get_json()['result']['height']
         index = POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])
         self.assertEqual(200, index.status_code)
         url_ind = index.get_json()['result']['url']
-        # self.assertEqual(200, GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).status_code)
+        self.assertEqual(200, GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).status_code)
         self.assertEqual(200, GET(url_ind, http_headers['get_index_ok'], '').status_code)
         self.assertEqual(200, POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok']).status_code)
         
@@ -892,11 +861,12 @@ class Test(unittest.TestCase):
         self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid']).headers.get('Reason'))
         self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol']).headers.get('Reason'))
         self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid2']).headers.get('Reason'))
+        self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid3']).headers.get('Reason'))
         self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol2']).headers.get('Reason'))
         self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_nodata']).headers.get('Reason'))
-        # self.assertIsNone(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok']).headers.get('Reason'))
+        self.assertIsNone(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok']).headers.get('Reason'))
         self.assertIsNone(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1']).headers.get('Reason'))
-        # self.assertIsNone(GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).headers.get('Reason'))
+        self.assertIsNone(GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).headers.get('Reason'))
         self.assertIsNone(GET(url_ind, http_headers['get_index_ok'], '').headers.get('Reason'))
         self.assertIsNone(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok']).headers.get('Reason'))
    
@@ -920,15 +890,13 @@ class Test(unittest.TestCase):
         self.assertEqual(400, GET('/resource/preview?id=0', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/preview?id=0&sb=0&b=1', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/preview?id=0&sb=abc', http_headers['ok'], '').status_code)
-        # req = requests_json['calc_preview_ok'].copy()
-        # req['parameters']['ids'][0] = 1
-        # req['parameters']['ids'][1] = 1
-        # req['parameters']['ids'][2] = 3
-        # prev = POST('/api/calc_preview', http_headers['ok'], req)
-        # url_pr = prev.get_json()['result']['url'] + '&sb=1'
-        # width = prev.get_json()['result']['width']
-        # height = prev.get_json()['result']['height']
-        # self.assertEqual(400, GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).status_code)
+        req = deepcopy(requests_json['calc_preview_ok'])
+        req['parameters']['index'] = 'nat_col'
+        prev = POST('/api/calc_preview', http_headers['ok'], req)
+        url_pr = prev.get_json()['result']['url'] + '&sb=1'
+        width = prev.get_json()['result']['width']
+        height = prev.get_json()['result']['height']
+        self.assertEqual(400, GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).status_code)
         self.assertEqual(400, GET('/resource/index', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/index?a=1', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/index?id=abc', http_headers['ok'], '').status_code)
@@ -940,10 +908,10 @@ class Test(unittest.TestCase):
         self.assertTrue(http_reason['query_string_id'] in GET('/resource/preview?a=1', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['inv_id_type_in_query_string'] in GET('/resource/preview?id=abc', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['inv_id_in_query_string'] in GET('/resource/preview?id=-1', http_headers['ok'], '').headers.get('Reason'))
-        # self.assertTrue(http_reason['get_preview_no_sb'] in GET('/resource/preview?id=0', http_headers['ok'], '').headers.get('Reason'))
-        # self.assertTrue(http_reason['get_preview_odd_params'] in GET('/resource/preview?id=0&sb=0&b=1', http_headers['ok'], '').headers.get('Reason'))
-        # self.assertTrue(http_reason['get_preview_inv_sb'] in GET('/resource/preview?id=0&sb=abc', http_headers['ok'], '').headers.get('Reason'))
-        # self.assertTrue(http_reason['get_preview_not_grayscale'] in GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_no_sb'] in GET('/resource/preview?id=0', http_headers['ok'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_odd_params'] in GET('/resource/preview?id=0&sb=0&b=1', http_headers['ok'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_inv_sb'] in GET('/resource/preview?id=0&sb=abc', http_headers['ok'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_not_grayscale'] in GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).headers.get('Reason'))
         self.assertTrue(http_reason['query_string_necessary'] in GET('/resource/index', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['query_string_id'] in GET('/resource/index?a=1', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['inv_id_type_in_query_string'] in GET('/resource/index?id=abc', http_headers['ok'], '').headers.get('Reason'))
@@ -965,10 +933,10 @@ class Test(unittest.TestCase):
         self.assertEqual(400, POST('/api/PING', http_headers['inv_proto_v'], '').status_code)
         self.assertEqual(400, POST('/api/PING', http_headers['inv_request_id_type'], '').status_code)
         self.assertEqual(400, POST('/api/PING', http_headers['inv_request_id'], '').status_code)
-        # prev = POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])
-        # url_pr = prev.get_json()['result']['url'] + '&sb=0'
-        # width = prev.get_json()['result']['width']
-        # height = prev.get_json()['result']['height']
+        prev = POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])
+        url_pr = prev.get_json()['result']['url'] + '&sb=0'
+        width = prev.get_json()['result']['width']
+        height = prev.get_json()['result']['height']
         self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['missing_accept'], '', Width=123, Height=123).status_code)
         self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['missing_proto_v'], '', Width=123, Height=123).status_code)
         self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['missing_request_id'], '', Width=123, Height=123).status_code)
@@ -976,13 +944,13 @@ class Test(unittest.TestCase):
         self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['inv_proto_v'], '', Width=123, Height=123).status_code)
         self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['inv_request_id_type'], '', Width=123, Height=123).status_code)
         self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['inv_request_id'], '', Width=123, Height=123).status_code)
-        # self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '').status_code)
-        # self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width=width).status_code)
-        # self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Height=height).status_code)
-        # self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width='abc', Height=height).status_code)
-        # self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width=width, Height='abc').status_code)
-        # self.assertEqual(400, GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=4206934).status_code)
-        # self.assertEqual(400, GET(url_pr, http_headers['get_preview_ok'], '', Width=4206934, Height=height).status_code)
+        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '').status_code)
+        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width=width).status_code)
+        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Height=height).status_code)
+        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width='abc', Height=height).status_code)
+        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width=width, Height='abc').status_code)
+        self.assertEqual(400, GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=4206934).status_code)
+        self.assertEqual(400, GET(url_pr, http_headers['get_preview_ok'], '', Width=4206934, Height=height).status_code)
         self.assertEqual(400, GET('/resource/index?id=0', http_headers['missing_accept'], '').status_code)
         self.assertEqual(400, GET('/resource/index?id=0', http_headers['missing_proto_v'], '').status_code)
         self.assertEqual(400, GET('/resource/index?id=0', http_headers['missing_request_id'], '').status_code)
@@ -1015,16 +983,16 @@ class Test(unittest.TestCase):
         self.assertTrue(http_reason['inv_proto_v'] in GET('/resource/preview?id=0&sb=0', http_headers['inv_proto_v'], '', Width=123, Height=123).headers.get('Reason'))
         self.assertTrue(http_reason['inv_request_id_type'] in GET('/resource/preview?id=0&sb=0', http_headers['inv_request_id_type'], '', Width=123, Height=123).headers.get('Reason'))
         self.assertTrue(http_reason['inv_request_id'] in GET('/resource/preview?id=0&sb=0', http_headers['inv_request_id'], '', Width=123, Height=123).headers.get('Reason'))
-        # self.assertTrue(
-        #     http_reason['get_preview_missing_width_height1'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '').headers.get('Reason') or
-        #     http_reason['get_preview_missing_width_height2'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '').headers.get('Reason')
-        # )
-        # self.assertTrue(http_reason['get_preview_missing_height'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width=width).headers.get('Reason'))
-        # self.assertTrue(http_reason['get_preview_missing_width'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Height=height).headers.get('Reason'))
-        # self.assertTrue(http_reason['get_preview_inv_width_type'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width='abc', Height=height).headers.get('Reason'))
-        # self.assertTrue(http_reason['get_preview_inv_height_type'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width=width, Height='abc').headers.get('Reason'))
-        # self.assertTrue(http_reason['get_preview_width_mismatch'] in GET(url_pr, http_headers['get_preview_ok'], '', Width=4206934, Height=height).headers.get('Reason'))
-        # self.assertTrue(http_reason['get_preview_height_mismatch'] in GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=4206934).headers.get('Reason'))
+        self.assertTrue(
+            http_reason['get_preview_missing_width_height1'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '').headers.get('Reason') or
+            http_reason['get_preview_missing_width_height2'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '').headers.get('Reason')
+        )
+        self.assertTrue(http_reason['get_preview_missing_height'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width=width).headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_missing_width'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Height=height).headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_inv_width_type'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width='abc', Height=height).headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_inv_height_type'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width=width, Height='abc').headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_width_mismatch'] in GET(url_pr, http_headers['get_preview_ok'], '', Width=4206934, Height=height).headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_height_mismatch'] in GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=4206934).headers.get('Reason'))
         self.assertTrue(http_reason['missing_accept'] in GET('/resource/index?id=0', http_headers['missing_accept'], '').headers.get('Reason'))
         self.assertTrue(http_reason['missing_proto_v'] in GET('/resource/index?id=0', http_headers['missing_proto_v'], '').headers.get('Reason'))
         self.assertTrue(http_reason['missing_request_id'] in GET('/resource/index?id=0', http_headers['missing_request_id'], '').headers.get('Reason'))
@@ -1055,9 +1023,10 @@ class Test(unittest.TestCase):
         self.assertEqual(0, check_json(requests_json['import_gtiff_ok_mid']))
         self.assertEqual(0, check_json(requests_json['import_gtiff_ok_smol']))
         self.assertEqual(0, check_json(requests_json['import_gtiff_ok_mid2']))
+        self.assertEqual(0, check_json(requests_json['import_gtiff_ok_mid3']))
         self.assertEqual(0, check_json(requests_json['import_gtiff_ok_smol2']))
         self.assertEqual(0, check_json(requests_json['import_gtiff_ok_nodata']))
-        # self.assertEqual(0, check_json(requests_json['calc_preview_ok']))
+        self.assertEqual(0, check_json(requests_json['calc_preview_ok']))
         self.assertEqual(0, check_json(requests_json['calc_index_ok1']))
         self.assertEqual(0, check_json(requests_json['set_satellite_ok']))
    
@@ -1140,22 +1109,18 @@ class Test(unittest.TestCase):
         self.assertEqual(20300, check_json(requests_json['import_gtiff_not_geotiff3']))
         self.assertEqual(20301, check_json(requests_json['import_gtiff_non_existent']))
    
-    # def test_json_calc_preview(self):
-    #     self.assertEqual(10007, check_json(requests_json['calc_preview_no_ids']))
-    #     self.assertEqual(10007, check_json(requests_json['calc_preview_no_width']))
-    #     self.assertEqual(10007, check_json(requests_json['calc_preview_no_height']))
-    #     self.assertEqual(10400, check_json(requests_json['calc_preview_inv_ids']))
-    #     self.assertEqual(10401, check_json(requests_json['calc_preview_4_ids']))
-    #     self.assertEqual(10402, check_json(requests_json['calc_preview_inv_id1']))
-    #     self.assertEqual(10402, check_json(requests_json['calc_preview_inv_id2']))
-    #     self.assertEqual(10402, check_json(requests_json['calc_preview_inv_id3']))
-    #     self.assertEqual(10403, check_json(requests_json['calc_preview_inv_width_type']))
-    #     self.assertEqual(10403, check_json(requests_json['calc_preview_inv_height_type']))
-    #     self.assertEqual(10404, check_json(requests_json['calc_preview_inv_width']))
-    #     self.assertEqual(10404, check_json(requests_json['calc_preview_inv_height']))
-    #     self.assertEqual(20400, check_json(requests_json['calc_preview_non_existent_id']))
-    #     self.assertEqual(20401, check_json(requests_json['calc_preview_dim_mismatch']))
-    #     # 20402
+    def test_json_calc_preview(self):
+        self.assertEqual(10007, check_json(requests_json['calc_preview_no_index']))
+        self.assertEqual(10007, check_json(requests_json['calc_preview_no_width']))
+        self.assertEqual(10007, check_json(requests_json['calc_preview_no_height']))
+        self.assertEqual(10400, check_json(requests_json['calc_preview_inv_index_type']))
+        self.assertEqual(10401, check_json(requests_json['calc_preview_inv_width_type']))
+        self.assertEqual(10401, check_json(requests_json['calc_preview_inv_height_type']))
+        self.assertEqual(10402, check_json(requests_json['calc_preview_inv_width']))
+        self.assertEqual(10402, check_json(requests_json['calc_preview_inv_height']))
+        self.assertEqual(20400, check_json(requests_json['calc_preview_unsupported_index']))
+        self.assertEqual(20401, check_json(requests_json['calc_preview_index_not_created']))
+        # 20402
    
     def test_json_calc_index(self):
         self.assertEqual(10007, check_json(requests_json['calc_index_no_index']))
@@ -1198,9 +1163,10 @@ class Test(unittest.TestCase):
         self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid'])))
         self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol'])))
         self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid2'])))
+        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid3'])))
         self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol2'])))
         self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_nodata'])))
-        # self.assertEqual((200, 0) , _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])))
+        self.assertEqual((200, 0) , _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])))
         self.assertEqual((200, 0) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])))
         self.assertEqual((200, 0) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok'])))
 
@@ -1272,20 +1238,16 @@ class Test(unittest.TestCase):
         self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff3'])))
         self.assertEqual((500, 20301) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_non_existent'])))
 
-        # self.assertEqual((400, 10007), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_no_ids'])))
-        # self.assertEqual((400, 10007), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_no_width'])))
-        # self.assertEqual((400, 10007), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_no_height'])))
-        # self.assertEqual((400, 10400), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_ids'])))
-        # self.assertEqual((400, 10401), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_4_ids'])))
-        # self.assertEqual((400, 10402), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_id1'])))
-        # self.assertEqual((400, 10402), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_id2'])))
-        # self.assertEqual((400, 10402), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_id3'])))
-        # self.assertEqual((400, 10403), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_width_type'])))
-        # self.assertEqual((400, 10403), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_height_type'])))
-        # self.assertEqual((400, 10404), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_width'])))
-        # self.assertEqual((400, 10404), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_height'])))
-        # self.assertEqual((404, 20400), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_non_existent_id'])))
-        # self.assertEqual((400, 20401), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_dim_mismatch'])))
+        self.assertEqual((400, 10007), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_no_index'])))
+        self.assertEqual((400, 10007), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_no_width'])))
+        self.assertEqual((400, 10007), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_no_height'])))
+        self.assertEqual((400, 10400), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_index_type'])))
+        self.assertEqual((400, 10401), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_width_type'])))
+        self.assertEqual((400, 10401), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_height_type'])))
+        self.assertEqual((400, 10402), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_width'])))
+        self.assertEqual((400, 10402), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_inv_height'])))
+        self.assertEqual((400, 20400), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_unsupported_index'])))
+        self.assertEqual((500, 20401), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_index_not_created'])))
         # 20402
 
         self.assertEqual((400, 10007) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_no_index'])))

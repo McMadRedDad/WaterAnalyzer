@@ -152,7 +152,7 @@ def generate_http_response(request: request, response_json: dict) -> 'Response':
         code == 10100 or
         code == 10200 or
         code == 10300 or
-        code in range(10400, 10404+1) or code == 20401 or
+        code in range(10400, 10402+1) or code == 20400 or
         code == 10500 or code == 20500 or
         code == 10600
     ):
@@ -166,7 +166,7 @@ def generate_http_response(request: request, response_json: dict) -> 'Response':
         code in range(20000, 20002+1) or code == 20004 or
         code == 20201 or
         code in range(20300, 20301+1) or
-        code == 20402 or
+        code in range(20401, 20402+1) or
         code in range (20501, 20502+1) or
         code == 20600
     ):
@@ -278,8 +278,9 @@ def handle_resource(res_type):
             return _http_response(request, '', 400, Reason=f'Invalid height {request.headers['Height']} in the "Height" header: actual height of the requested preview is {rgba.height}.')
         
         if scalebar == '1':
-            for i in range(1, len(rgba.ids)):
-                if rgba.ids[0] != rgba.ids[i]:
+            # for i in range(1, len(rgba.ids)):
+            #     if rgba.ids[0] != rgba.ids[i]:
+            if rgba.index == 'nat_col':
                     return _http_response(request, '', 400, Reason='Unable to generate a scalebar for non-grayscale preview.')
 
         buf = BytesIO()
@@ -338,7 +339,7 @@ def handle_command(command):
     response_json = executor.execute(request_json)
     if response_json['status'] != 0:
         return generate_http_response(request, response_json)
-
+    
     response_json = proto.match(request_json, response_json)
     if response_json['status'] != 0:
         return generate_http_response(request, response_json)

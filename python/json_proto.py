@@ -116,25 +116,20 @@ class Protocol:
             return _response(0, {})
             
         if operation == 'calc_preview':
-            params_check = _check_param_keys('calc_preview', ['ids', 'width', 'height'], list(parameters.keys()))
+            params_check = _check_param_keys('calc_preview', ['index', 'width', 'height'], list(parameters.keys()))
             if len(params_check) != 0: 
                 return params_check
-            ids, width, height = parameters['ids'], parameters['width'], parameters['height']
-            if type(ids) is not list:
-                return _response(10400, {"error": "invalid 'ids' key: must be an array of 3 integer values"})
-            if len(ids) != 3:
-                return _response(10401, {"error": "exactly 3 values must be specified in 'ids' key"})
-            for i in ids:
-                if type(i) is not int:
-                    return _response(10402, {"error": f"invalid id '{i}' in 'ids' key"})
+            index, width, height = parameters['index'], parameters['width'], parameters['height']
+            if type(index) is not str:
+                return _response(10400, {"error": "invalid 'index' key: must be of string type"})
             if type(width) is not int:
-                return _response(10403, {"error": "invalid 'width' key: must be of integer type"})
+                return _response(10401, {"error": "invalid 'width' key: must be of integer type"})
             if type(height) is not int:
-                return _response(10403, {"error": "invalid 'height' key: must be of integer type"})
+                return _response(10401, {"error": "invalid 'height' key: must be of integer type"})
             if width <= 0:
-                return _response(10404, {"error": f"invalid width '{width}' in 'width' key: must be > 0"})
+                return _response(10402, {"error": f"invalid width '{width}' in 'width' key: must be > 0"})
             if height <= 0:
-                return _response(10404, {"error": f"invalid height '{height}' in 'height' key: must be > 0"})
+                return _response(10402, {"error": f"invalid height '{height}' in 'height' key: must be > 0"})
             return _response(0, {})
 
         if operation == 'calc_index':

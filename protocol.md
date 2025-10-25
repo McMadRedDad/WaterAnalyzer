@@ -321,9 +321,9 @@ Below are specifics for requests and responses for each supported command.
 
 - `operation`  - "calc_preview"
 - `parameters` - {
-    "ids": [`id_r`, `id_g`, `id_b`],    - [ARRAY of INTs] ids of the files (from the server's cache) to use to generate the preview, for red, green and blue channels respectively. Exactly 3 values must be specified
-    "width": `needed width`,            - [INT] width of the preview that the client preffers, > 0
-    "height": `needed height`           - [INT] height of the preview that the client preffers, > 0
+    "index": `index` or "nat_col"   - [STRING] what index to calculate preview for. "nat_col" refers to natural color visualization
+    "width": `needed width`,        - [INT] width of the preview that the client preffers, > 0
+    "height": `needed height`       - [INT] height of the preview that the client preffers, > 0
 }
 
 *RESPONSE*
@@ -336,35 +336,27 @@ Below are specifics for requests and responses for each supported command.
         "height": `height`                   - [INT] height of the created image. Must be included in "Height" header of the HTTP GET request
     }
     -  HTTP 200 OK
-2. Invalid ids type:
+2. Invalid index type:
     - `status` - 10400
-    - `result` - { "error": "invalid '`ids`' key: must be an array of 3 integer values" }
+    - `result` - { "error": "invalid '`index`' key: must be of string type" }
     -  HTTP 400 Bad Request
-3. Invalid array length:
+3. Invalid width or height type:
     - `status` - 10401
-    - `result` - { "error": "exactly 3 values must be specified in '`ids`' key" }
-    -  HTTP 400 Bad Request
-4. Invalid id:
-    - `status` - 10402
-    - `result` - { "error": "invalid id '`id`' in '`ids`' key" }
-    -  HTTP 400 Bad Request
-5. Invalid width or height type:
-    - `status` - 10403
     - `result` - { "error": "invalid '`width or height`' key: must be of integer type" }
     -  HTTP 400 Bad Request
-6. Invalid width or height:
-    - `status` - 10404
+4. Invalid width or height:
+    - `status` - 10402
     - `result` - { "error": "invalid `width or height` '`invalid value`' in '`width or height`' key: must be > 0" }
     -  HTTP 400 Bad Request
-7. Non-existent id:
+5. Unknown/unsupported index:
     - `status` - 20400
-    - `result` - { "error": "id '`provided id`' provided in '`ids`' key does not exist" }
-    -  HTTP 404 Not Found
-8. Raster dimensions do not match:
-    - `status` - 20401
-    - `result` - { "error": "unable to create preview from requested ids: rasters do not match in dimensions" }
+    - `result` - { "error": "index '`index`' is not supported or unknown" }
     -  HTTP 400 Bad Request
-9. Unknown error:
+6. Index not calculated:
+    - `status` - 20401
+    - `result` - { "error": "`index or satellite model band` '`index name or band number`' is not `calculated or loaded`" }
+    -  HTTP 500 Internal Server Error
+7. Unknown error:
     - `status` - 20402
     - `result` - { "error": "unknown error" }
     -  HTTP 500 Internal Server Error
