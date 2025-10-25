@@ -138,17 +138,12 @@ class Protocol:
             return _response(0, {})
 
         if operation == 'calc_index':
-            params_check = _check_param_keys('calc_index', ['index', 'ids'], list(parameters.keys()))
+            params_check = _check_param_keys('calc_index', ['index'], list(parameters.keys()))
             if len(params_check) != 0:
                 return params_check
-            index, ids = parameters['index'], parameters['ids']
+            index = parameters['index']
             if type(index) is not str:
                 return _response(10500, {"error": "invalid 'index' key: must be of string type"})
-            if type(ids) is not list:
-                return _response(10501, {"error": "invalid 'ids' key: must be an array of integer values"})
-            for i in ids:
-                if type(i) is not int:
-                    return _response(10502, {"error": f"invalid id '{i}' in 'ids' key"})
             return _response(0, {})
 
         if operation == 'set_satellite':

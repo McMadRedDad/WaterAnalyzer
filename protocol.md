@@ -288,7 +288,8 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 0
     - `result` - {
         "id": `id`,                                     - [INT] id of loaded and cached GeoTiff image
-        "file": "`/path/to/loaded/file.tif`"            - [STRING] path of the file from the request  **!!!no local paths for remote servers; fine for now!!!**
+        "file": "`/path/to/loaded/file.tif`",           - [STRING] path of the file from the request  **!!!no local paths for remote servers; fine for now!!!**
+        "band": `band`,                                 - [INT] band of loaded GeoTiff image
         "info": {                                       - [OBJECT] description of the GeoTiff image
             "width": `width`,                           - [INT] width of the image in pixels
             "height": `height`,                         - [INT] height of the image in pixels
@@ -376,8 +377,7 @@ Below are specifics for requests and responses for each supported command.
 
 - `operation`  - "calc_index"
 - `parameters` - {
-    "index": "`name of the index`"   - [STRING] name of the index/algorithm to calculate
-    "ids": [`id_1`, `id_2`, ...],    - [ARRAY of INTs] ids of the files (from cache) to use to generate the index. Provided ids are used in the same order as in the index's formula, e.g. for NDVI = (NIR - RED) / (NIR + RED) id_1 is used for NIR and id_2 is used for RED, because in the index's formula NIR appears first.
+    "index": "`name of the index`"  - [STRING] name of the index/algorithm to calculate
 }
 
 *RESPONSE*
@@ -406,32 +406,16 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 10500
     - `result` - { "error": "invalid '`index`' key: must be of string type" }
     -  HTTP 400 Bad Request
-3. Invalid ids type:
-    - `status` - 10501
-    - `result` - { "error": "invalid '`ids`' key: must be an array of integer values" }
-    -  HTTP 400 Bad Request
-4. Invalid id:
-    - `status` - 10502
-    - `result` - { "error": "invalid id '`id`' in '`ids`' key" }
-    -  HTTP 400 Bad Request
-5. Unknown/unsupported index:
+3. Unknown/unsupported index:
     - `status` - 20500
     - `result` - { "error": "index '`index`' is not supported or unknown" }
     -  HTTP 400 Bad Request
-6. Invalid array length:
+4. Not enough bands:
     - `status` - 20501
-    - `result` - { "error": "exactly `n` values must be specified in '`ids`' key for calculating '`index`' index, but `k` values given" }
-    -  HTTP 400 Bad Request
-7. Non-existent id:
+    - `result` - { "error": "unable to calculate index '`index`': `satellite model` bands number `needed bands` are needed, but only `loaded bands` are loaded" }
+    -  HTTP 500 Internal Server Error
+5. Unknown error:
     - `status` - 20502
-    - `result` - { "error": "id '`provided id`' in '`ids`' does not exist" }
-    -  HTTP 404 Not Found
-8. Raster dimensions do not match:
-    - `status` - 20503
-    - `result` - { "error": "unable to create index from requested ids: rasters do not match in dimensions" }
-    -  HTTP 400 Bad Request
-9. Unknown error:
-    - `status` - 20504
     - `result` - { "error": "unknown error" }
     -  HTTP 500 Internal Server Error
 

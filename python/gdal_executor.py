@@ -62,9 +62,9 @@ class PreviewManager:
             return list(self._previews.values())
 
 class Dataset:
-    def __init__(self, dataset: gdal.Dataset, index: str=None, stats: dict=None, ids: tuple[int] | list[int]=None):
+    def __init__(self, dataset: gdal.Dataset, band: int | str=None, stats: dict=None, ids: tuple[int] | list[int]=None):
         self.dataset = dataset
-        self.index = index
+        self.band = band
         self.no_data = None
         self.stats = stats
         self._ids = tuple(ids) if ids else None
@@ -75,27 +75,26 @@ class DatasetManager:
         self._counter = 0
         self._lock = threading.Lock()
 
-    def add_index(self, dataset: gdal.Dataset, index: str, stats: dict, ids: tuple[int] | list[int]) -> int:
-        """Stores 'dataset' with its associated 'index' name and 'ids' and returns its own generated id."""
+    def add_index(self, dataset: gdal.Dataset, index: str, stats: dict) -> int:
+        """Stores 'dataset' with its associated 'index' name and returns its own generated id."""
 
         with self._lock:
-            self._datasets[self._counter] = Dataset(dataset, index, stats, ids)
+            self._datasets[self._counter] = Dataset(dataset, index, stats)
             self._counter += 1
             return self._counter - 1
 
-    def find(self, index: str, ids: tuple[int] | list[int]) -> int | None:
-        """Tries to find a spectral index associated with 'index' created from 'ids' dataset ids.
-        If the index is found, returns its id, otherwise returns None."""
+    def find(self, band_index: int | str) -> int | None:
+        """Tries to find a band by its number or spectral index by its name.
+        If the band or the index is found, returns its id, otherwise returns None."""
 
-        ids_ = tuple(ids)
         with self._lock:
-            for id_, ind in self._datasets.items():
-                if ind._ids == ids_ and ind.index == index:
+            for id_, ds in self._datasets.items():
+                if ds.band == band_index:
                     return id_
             return None
 
-    def open(self, filename: str) -> int:
-        """Tries to open 'file' as a GDAL dataset and returns its generated id."""
+    def open(self, filename: str, band: int) -> int:
+        """Tries to open 'file' as a GDAL dataset, saves 'band' and returns dataset's generated id."""
 
         try:
             dataset = gdal.Open(filename, gdal.GA_ReadOnly)
@@ -108,7 +107,7 @@ class DatasetManager:
             for id_, ds in self._datasets.items():
                 if ds.dataset.GetDescription() == dataset.GetDescription():
                     return id_
-            self._datasets[self._counter] = Dataset(dataset)
+            self._datasets[self._counter] = Dataset(dataset, band=band)
             self._counter += 1
             return self._counter - 1
 
@@ -246,11 +245,20 @@ class GdalExecutor:
         self.satellite = None
         print(f'Server running version {self.VERSION}')
 
-    def _index(self, index: str, ids: list[int]) -> (np.ma.MaskedArray, gdal.GDT_Float32, float | int, str):
-        result, data_type, nodata, ph_unit = 0, gdal.GDT_Float32, -99999, '--'
+    def _index(self, index: str) -> (tuple[float], str, np.ma.MaskedArray, gdal.GDT_Float32, float | int, str):
+        geotransform, projection = None, ''
+        data_type, nodata, ph_unit = gdal.GDT_Float32, -99999, '--'
+        result = None
         if index == 'test':
             nodata = -99999.0
-            array1, array2 = self.ds_man.read_band(ids[0], 1, nodata=0), self.ds_man.read_band(ids[1], 1, nodata=0)
+            if self.satellite == 'Landsat 8/9':
+                id_array1, id_array2 = self.ds_man.find(2), self.ds_man.find(4)
+                array1 = self.ds_man.get(id_array1).dataset
+                geotransform = array1.GetGeoTransform()
+                projection = array1.GetProjection()
+                array1 = self.ds_man.read_band(id_array1, 1, nodata=0)
+                array2 = self.ds_man.read_band(id_array2, 1, nodata=0)
+            # if self.satellite == 'Sentinel 2:'
             result = indcal._test(array1, array2, nodata)
         if index == 'wi2015':
             nodata = float('nan')
@@ -278,7 +286,7 @@ class GdalExecutor:
             green = self.ds_man.read_band(ids[0], 1, nodata=0)
             nir = self.ds_man.read_band(ids[1], 1, nodata=0)
             result = indcal.cdom_ndwi(green, nir, nodata)
-        return result, data_type, nodata, ph_unit
+        return geotransform, projection, result, data_type, nodata, ph_unit
 
     def execute(self, request: dict) -> dict:
         """Processes the request and returns a dictionary to be used by Protocol.send method.
@@ -321,7 +329,7 @@ class GdalExecutor:
             if self.satellite is None:
                 return _response(20004, {"error": "request 'import_gtiff' was received before 'set_satellite' request"})
             try:
-                dataset_id = self.ds_man.open(parameters['file'])
+                dataset_id = self.ds_man.open(parameters['file'], parameters['band'])
             except RuntimeError:
                 return _response(20301, {"error": f"failed to open file '{parameters['file']}'"})
             except ValueError:
@@ -409,24 +417,12 @@ class GdalExecutor:
         if operation == 'calc_index':
             if self.satellite is None:
                 return _response(20004, {"error": "request 'calc_index' was received before 'set_satellite' request"})
-            ids = parameters['ids']
             index = parameters['index']
             if index not in self.SUPPORTED_INDICES:
                 return _response(20500, {"error": f"index '{index}' is not supported or unknown"})
-            if len(ids) != self.SUPPORTED_INDICES[index]:
-                return _response(20501, {"error": "exactly {} values must be specified in 'ids' key for calculating '{}' index, but {} values given".format(self.SUPPORTED_INDICES[index], index, len(ids))})
-            ds = []
-            for i in ids:
-                try:
-                    ds.append(self.ds_man.get(i).dataset)
-                except KeyError:
-                    return _response(20502, {"error": f"id {i} provided in 'ids' key does not exist"})
-            for i in ds[1:]:
-                if not (i.RasterXSize == ds[0].RasterXSize and i.RasterYSize == ds[0].RasterYSize):
-                    return _response(20503, {"error": "unable to create index from requested ids: rasters do not match in dimensions"})
-            # error 20504
+            # error 20502
 
-            existing = self.ds_man.find(index, ids)
+            existing = self.ds_man.find(index)
             if existing is not None:
                 dataset = self.ds_man.get(existing)
                 ind = dataset.dataset
@@ -449,10 +445,10 @@ class GdalExecutor:
                     }
                 })
 
-            result, data_type, nodata, ph_unit = self._index(index, ids)
-            res_ds = gdal.GetDriverByName('MEM').Create('', ds[0].RasterXSize, ds[0].RasterYSize, 1, data_type)
-            res_ds.SetGeoTransform(ds[0].GetGeoTransform())
-            res_ds.SetProjection(ds[0].GetProjection())
+            geotransform, projection, result, data_type, nodata, ph_unit = self._index(index)
+            res_ds = gdal.GetDriverByName('MEM').Create('', result.shape[1], result.shape[0], 1, data_type)
+            res_ds.SetGeoTransform(geotransform)
+            res_ds.SetProjection(projection)
             res_ds.GetRasterBand(1).SetNoDataValue(nodata)            
             res_ds.GetRasterBand(1).WriteArray(result)
             stats = {
@@ -462,9 +458,8 @@ class GdalExecutor:
                 'stdev': np.nanstd(result).item(),
                 'ph_unit': ph_unit
             }
-            dataset_id = self.ds_man.add_index(res_ds, index, stats, ids)
+            dataset_id = self.ds_man.add_index(res_ds, index, stats)
 
-            geotransform = res_ds.GetGeoTransform()
             result = {
                 'url': dataset_id,
                 'index': index,
@@ -505,3 +500,6 @@ class GdalExecutor:
 
     def get_supported_operations(self) -> tuple[str]:
         return self.supported_operations
+
+    def get_supported_satellites(self) -> tuple[str]:
+        return self.SUPPORTED_SATELLITES
