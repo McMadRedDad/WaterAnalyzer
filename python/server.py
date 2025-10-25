@@ -144,11 +144,6 @@ def generate_http_response(request: request, response_json: dict) -> 'Response':
     ):
         http_status = 400
     elif (
-        code == 20400 or
-        code == 20502
-    ):
-        http_status = 404
-    elif (
         code in range(20000, 20002+1) or code == 20004 or
         code == 20201 or
         code in range(20300, 20301+1) or

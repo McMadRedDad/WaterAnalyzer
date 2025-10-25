@@ -20,7 +20,7 @@ class PreviewManager:
 
     def add(self, array: np.ndarray, index: str) -> int:
         """Stores 'array' referring to a preview image and returns its id. The array must be suitable for PIL.Image.fromarray() function, i.e. of shape (height, width, channels).
-        'index' refers to the index for which the preview was created. index=nat_col is for natural color."""
+        'index' refers to the index for which the preview was created. index='nat_col' is for natural color."""
 
         with self._lock:
             self._previews[self._counter] = Preview(array, index)
@@ -73,7 +73,7 @@ class DatasetManager:
         self._lock = threading.Lock()
 
     def add_index(self, dataset: gdal.Dataset, index: str, stats: dict) -> int:
-        """Stores 'dataset' with its associated 'index' name and returns its own generated id."""
+        """Stores 'dataset' with its associated 'index' name and 'stats' and returns its own generated id."""
 
         with self._lock:
             self._datasets[self._counter] = Dataset(dataset, index, stats)
@@ -91,7 +91,8 @@ class DatasetManager:
             return None
 
     def open(self, filename: str, band: int) -> int:
-        """Tries to open 'file' as a GDAL dataset, saves 'band' and returns dataset's generated id."""
+        """Tries to open 'file' as a GDAL dataset, saves 'band' and returns dataset's generated id.
+        If a dataset with 'band' is already open, overwrites it with a new dataset."""
 
         try:
             dataset = gdal.Open(filename, gdal.GA_ReadOnly)
@@ -228,13 +229,7 @@ class IndexErr:
 class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('3.0.0')
-    SUPPORTED_INDICES = {   # { 'name': number_of_datasets_to_calc_from }
-        'test': 2,
-        'wi2015': 5,
-        'nsmi': 3,
-        'oc3': 3,
-        'cdom_ndwi': 2
-    }
+    SUPPORTED_INDICES = ('test', 'wi2015', 'nsmi', 'oc3', 'cdom_ndwi')
     SUPPORTED_SATELLITES = ('Landsat 8/9')
     
     def __new__(cls, protocol):
@@ -262,7 +257,6 @@ class GdalExecutor:
             if self.satellite == 'Landsat 8/9':
                 id1, id2 = self.ds_man.find(2), self.ds_man.find(4)
                 if id1 is None or id2 is None:
-                    print([x.band for x in self.ds_man._datasets.values()])
                     return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 2 and 4 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
@@ -410,11 +404,11 @@ class GdalExecutor:
                     ids.append(self.ds_man.find(2))
                     for num, id__ in zip((4, 3, 2), ids):
                         if id__ is None:
-                            return _response(20401, {"error": f"{self.satellite} band number '{num}' is not loaded"})
+                            return _response(20401, {"error": f"{self.satellite} band number '{num}' is not loaded but needed for preview generation"})
             else:
                 ids.append(self.ds_man.find(index))
                 if ids[0] is None:
-                    return _response(20401, {"error": f"index '{index}' is not calculated"})
+                    return _response(20401, {"error": f"index '{index}' is not calculated but needed for preview generation"})
             # error 20402
 
             existing = self.pv_man.find(index, width, height)
@@ -443,8 +437,7 @@ class GdalExecutor:
                 b = r
             a = np.empty(r.shape, dtype=np.uint8)
             if np.ma.is_masked(r):
-                a = np.array(~r.mask).astype(int)
-                a = indcal.map_to_8bit(a)
+                a = np.array(np.where(r.mask, 0, 255), dtype=np.uint8)
             else:
                 a.fill(255)
 
@@ -540,7 +533,7 @@ class GdalExecutor:
         return self.SUPPORTED_PROTOCOL_VERSIONS
 
     def get_supported_indices(self) -> tuple[str]:
-        return tuple(self.SUPPORTED_INDICES.keys())
+        return self.SUPPORTED_INDICES
 
     def get_supported_operations(self) -> tuple[str]:
         return self.supported_operations

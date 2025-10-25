@@ -352,7 +352,7 @@ Below are specifics for requests and responses for each supported command.
     -  HTTP 400 Bad Request
 6. Index not calculated:
     - `status` - 20401
-    - `result` - { "error": "`index or satellite model band` '`index name or band number`' is not `calculated or loaded`" }
+    - `result` - { "error": "`index or satellite model band` '`index name or band number`' is not `calculated or loaded` but needed for preview generation" }
     -  HTTP 500 Internal Server Error
 7. Unknown error:
     - `status` - 20402
