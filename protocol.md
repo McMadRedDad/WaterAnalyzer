@@ -412,7 +412,7 @@ Below are specifics for requests and responses for each supported command.
     -  HTTP 400 Bad Request
 4. Not enough bands:
     - `status` - 20501
-    - `result` - { "error": "unable to calculate index '`index`': `satellite model` bands number `needed bands` are needed, but only `loaded bands` are loaded" }
+    - `result` - { "error": "unable to calculate index '`index`': `satellite model` bands number `needed bands` are needed" }
     -  HTTP 500 Internal Server Error
 5. Unknown error:
     - `status` - 20502

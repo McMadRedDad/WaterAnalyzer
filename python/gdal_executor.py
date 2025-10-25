@@ -220,6 +220,11 @@ class DatasetManager:
             
         return np.ma.array(data, dtype=np.float32)
 
+class IndexErr:
+    def __init__(self, code: int, msg: str):
+        self.code = code
+        self.msg = msg
+
 class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('3.0.0')
@@ -245,28 +250,39 @@ class GdalExecutor:
         self.satellite = None
         print(f'Server running version {self.VERSION}')
 
-    def _index(self, index: str) -> (tuple[float], str, np.ma.MaskedArray, gdal.GDT_Float32, float | int, str):
+    def _index(self, index: str) -> (IndexErr, (tuple[float], str, np.ma.MaskedArray, gdal.GDT_Float32, float | int, str)):
+        """Returns (None, (...)) on success and (err, ()) on failure."""
+
         geotransform, projection = None, ''
         data_type, nodata, ph_unit = gdal.GDT_Float32, -99999, '--'
         result = None
         if index == 'test':
             nodata = -99999.0
+            id1, id2 = -1, -1
             if self.satellite == 'Landsat 8/9':
-                id_array1, id_array2 = self.ds_man.find(2), self.ds_man.find(4)
-                array1 = self.ds_man.get(id_array1).dataset
-                geotransform = array1.GetGeoTransform()
-                projection = array1.GetProjection()
-                array1 = self.ds_man.read_band(id_array1, 1, nodata=0)
-                array2 = self.ds_man.read_band(id_array2, 1, nodata=0)
+                id1, id2 = self.ds_man.find(2), self.ds_man.find(4)
+                if id1 is None or id2 is None:
+                    return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 2 and 4 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
+            geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
+            projection = self.ds_man.get(id1).dataset.GetProjection()
+            array1 = self.ds_man.read_band(id1, 1, nodata=0)
+            array2 = self.ds_man.read_band(id2, 1, nodata=0)
             result = indcal._test(array1, array2, nodata)
         if index == 'wi2015':
             nodata = float('nan')
-            green = self.ds_man.read_band(ids[0], 1, nodata=0)
-            red = self.ds_man.read_band(ids[1], 1, nodata=0)
-            nir = self.ds_man.read_band(ids[2], 1, nodata=0)
-            swir1 = self.ds_man.read_band(ids[3], 1, nodata=0)
-            swir2 = self.ds_man.read_band(ids[4], 1, nodata=0)
+            if self.satellite == 'Landsat 8/9':
+                id1, id2, id3, id4, id5 = self.ds_man.find(3), self.ds_man.find(4), self.ds_man.find(5), self.ds_man.find(6), self.ds_man.find(7)
+                if id1 is None or id2 is None or id3 is None or id4 is None or id5 is None:
+                    return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 2 and 4 are needed"), ()
+            # if self.satellite == 'Sentinel 2:'
+            geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
+            projection = self.ds_man.get(id1).dataset.GetProjection()
+            green = self.ds_man.read_band(id1, 1, nodata=0)
+            red = self.ds_man.read_band(id2, 1, nodata=0)
+            nir = self.ds_man.read_band(id3, 1, nodata=0)
+            swir1 = self.ds_man.read_band(id4, 1, nodata=0)
+            swir2 = self.ds_man.read_band(id5, 1, nodata=0)
             result = indcal.wi2015(green, red, nir, swir1, swir2, nodata)
         if index == 'nsmi':
             nodata = float('nan')
@@ -286,7 +302,7 @@ class GdalExecutor:
             green = self.ds_man.read_band(ids[0], 1, nodata=0)
             nir = self.ds_man.read_band(ids[1], 1, nodata=0)
             result = indcal.cdom_ndwi(green, nir, nodata)
-        return geotransform, projection, result, data_type, nodata, ph_unit
+        return None, (geotransform, projection, result, data_type, nodata, ph_unit)
 
     def execute(self, request: dict) -> dict:
         """Processes the request and returns a dictionary to be used by Protocol.send method.
@@ -445,11 +461,16 @@ class GdalExecutor:
                     }
                 })
 
-            geotransform, projection, result, data_type, nodata, ph_unit = self._index(index)
+            err, res = self._index(index)
+            if err is not None:
+                return _response(err.code, {"error": err.msg})
+            else:
+                geotransform, projection, result, data_type, nodata, ph_unit = res
+
             res_ds = gdal.GetDriverByName('MEM').Create('', result.shape[1], result.shape[0], 1, data_type)
             res_ds.SetGeoTransform(geotransform)
             res_ds.SetProjection(projection)
-            res_ds.GetRasterBand(1).SetNoDataValue(nodata)            
+            res_ds.GetRasterBand(1).SetNoDataValue(nodata)
             res_ds.GetRasterBand(1).WriteArray(result)
             stats = {
                 'min': np.nanmin(result).item(),
