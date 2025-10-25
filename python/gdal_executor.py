@@ -376,7 +376,6 @@ class GdalExecutor:
             
             geotransform = dataset.GetGeoTransform()
             result = {
-                'id': dataset_id,
                 'file': parameters['file'],
                 'band': parameters['band'],
                 'info': {

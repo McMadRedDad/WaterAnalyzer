@@ -279,7 +279,7 @@ Below are specifics for requests and responses for each supported command.
 - `operation`  - "import_gtiff"
 - `parameters` - {
     "file": "`/path/to/file.tif`",  **!!!no local paths for remote servers; fine for now!!!**
-    "band": `band number`   - [INT] what spectral band the file represents
+    "band": `band number`           - [INT] what spectral band the file represents
 }
 
 *RESPONSE*
@@ -287,7 +287,6 @@ Below are specifics for requests and responses for each supported command.
 1. Success:
     - `status` - 0
     - `result` - {
-        "id": `id`,                                     - [INT] id of loaded and cached GeoTiff image
         "file": "`/path/to/loaded/file.tif`",           - [STRING] path of the file from the request  **!!!no local paths for remote servers; fine for now!!!**
         "band": `band`,                                 - [INT] band of loaded GeoTiff image
         "info": {                                       - [OBJECT] description of the GeoTiff image
