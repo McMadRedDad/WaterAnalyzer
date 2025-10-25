@@ -271,10 +271,11 @@ class GdalExecutor:
             result = indcal._test(array1, array2, nodata)
         if index == 'wi2015':
             nodata = float('nan')
+            id1, id2, id3, id4, id5 = -1, -1, -1, -1, -1
             if self.satellite == 'Landsat 8/9':
                 id1, id2, id3, id4, id5 = self.ds_man.find(3), self.ds_man.find(4), self.ds_man.find(5), self.ds_man.find(6), self.ds_man.find(7)
                 if id1 is None or id2 is None or id3 is None or id4 is None or id5 is None:
-                    return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 2 and 4 are needed"), ()
+                    return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 3, 4, 5, 6 and 7 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
             projection = self.ds_man.get(id1).dataset.GetProjection()
@@ -286,21 +287,45 @@ class GdalExecutor:
             result = indcal.wi2015(green, red, nir, swir1, swir2, nodata)
         if index == 'nsmi':
             nodata = float('nan')
-            red = self.ds_man.read_band(ids[0], 1, nodata=0)
-            green = self.ds_man.read_band(ids[1], 1, nodata=0)
-            blue = self.ds_man.read_band(ids[2], 1, nodata=0)
+            id1, id2, id3 = -1, -1, -1
+            if self.satellite == 'Landsat 8/9':
+                id1, id2, id3 = self.ds_man.find(4), self.ds_man.find(3), self.ds_man.find(2)
+                if id1 is None or id2 is None or id3 is None:
+                    return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 2, 3 and 4 are needed"), ()
+            # if self.satellite == 'Sentinel 2:'
+            geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
+            projection = self.ds_man.get(id1).dataset.GetProjection()
+            red = self.ds_man.read_band(id1, 1, nodata=0)
+            green = self.ds_man.read_band(id2, 1, nodata=0)
+            blue = self.ds_man.read_band(id3, 1, nodata=0)
             result = indcal.nsmi(red, green, blue, nodata)
         if index == 'oc3':
             nodata = float('nan')
-            aerosol = self.ds_man.read_band(ids[0], 1, nodata=0)
-            blue = self.ds_man.read_band(ids[1], 1, nodata=0)
-            green = self.ds_man.read_band(ids[2], 1, nodata=0)
+            id1, id2, id3 = -1, -1, -1
+            if self.satellite == 'Landsat 8/9':
+                id1, id2, id3 = self.ds_man.find(1), self.ds_man.find(2), self.ds_man.find(3)
+                if id1 is None or id2 is None or id3 is None:
+                    return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 1, 2 and 3 are needed"), ()
+            # if self.satellite == 'Sentinel 2:'
+            geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
+            projection = self.ds_man.get(id1).dataset.GetProjection()
+            aerosol = self.ds_man.read_band(id1, 1, nodata=0)
+            blue = self.ds_man.read_band(id2, 1, nodata=0)
+            green = self.ds_man.read_band(id3, 1, nodata=0)
             result = indcal.oc3(aerosol, blue, green, nodata)
         if index == 'cdom_ndwi':
             nodata = float('nan')
             ph_unit = 'mg/L'
-            green = self.ds_man.read_band(ids[0], 1, nodata=0)
-            nir = self.ds_man.read_band(ids[1], 1, nodata=0)
+            id1, id2 = -1, -1
+            if self.satellite == 'Landsat 8/9':
+                id1, id2 = self.ds_man.find(3), self.ds_man.find(5)
+                if id1 is None or id2 is None:
+                    return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 3 and 5 are needed"), ()
+            # if self.satellite == 'Sentinel 2:'
+            geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
+            projection = self.ds_man.get(id1).dataset.GetProjection()
+            green = self.ds_man.read_band(id1, 1, nodata=0)
+            nir = self.ds_man.read_band(id2, 1, nodata=0)
             result = indcal.cdom_ndwi(green, nir, nodata)
         return None, (geotransform, projection, result, data_type, nodata, ph_unit)
 
