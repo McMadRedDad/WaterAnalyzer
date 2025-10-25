@@ -104,6 +104,9 @@ class DatasetManager:
             for id_, ds in self._datasets.items():
                 if ds.dataset.GetDescription() == dataset.GetDescription():
                     return id_
+                if ds.band == band:
+                    self._datasets[id_] = Dataset(dataset, band)
+                    return id_
             self._datasets[self._counter] = Dataset(dataset, band)
             self._counter += 1
             return self._counter - 1
