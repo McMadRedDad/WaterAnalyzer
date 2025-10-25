@@ -420,9 +420,7 @@ class GdalExecutor:
             existing = self.pv_man.find(index, width, height)
             if existing is not None:
                 return _response(0, {
-                    "url": existing,
-                    "width": self.pv_man.get(existing).width,
-                    "height": self.pv_man.get(existing).height
+                    "url": existing
                 })
 
             ds = self.ds_man.get(ids[0])
@@ -452,9 +450,7 @@ class GdalExecutor:
 
             pv_id = self.pv_man.add(np.transpose(np.stack((r, g, b, a)), (1, 2, 0)), index)
             return _response(0, {
-                "url": pv_id,
-                "width": self.pv_man.get(pv_id).width,
-                "height": self.pv_man.get(pv_id).height
+                "url": pv_id
             })
 
         if operation == 'calc_index':

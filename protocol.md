@@ -330,10 +330,8 @@ Below are specifics for requests and responses for each supported command.
 
 1. Success:
     - `status` - 0
-    - `result` - {                           - [OBJECT] data to be included in the HTTP GET request 
-        "url": "/resource/preview?id=`id`,   - [STRING] url to be used for HTTP GET request
-        "width": `width`,                    - [INT] width of the created image. Must be included in "Width" header of the HTTP GET request
-        "height": `height`                   - [INT] height of the created image. Must be included in "Height" header of the HTTP GET request
+    - `result` - {                          - [OBJECT] data to be included in the HTTP GET request 
+        "url": "/resource/preview?id=`id`   - [STRING] url to be used for HTTP GET request
     }
     -  HTTP 200 OK
 2. Invalid index type:
@@ -463,11 +461,9 @@ GET /resource/preview?id=`id`&sb=`0 | 1` HTTP/2
 Accept: image/png
 Protocol-Version: `this protocol's version`
 Request-ID: `id`
-Width: `width`
-Height: `height`
 
 
-Values for "id" parameter and for "Width" and "Height" headers are taken from the server's response to the respective "calc_preview" request.
+Value for "id" parameter is taken from the server's response to the respective "calc_preview" request.
 The "sb" parameter stands for "scalebar" and defines whether a scalebar should be generated for the preview. It can be either '0' (no scalebar) or '1' (generate scalebar).
 
 The response follows:
@@ -489,21 +485,9 @@ Reason: Query string must include "sb" parameter for preview requests.
 Reason: Query string must only include "id" and "sb" parameters for preview requests.
 Reason: "sb" parameter of the query string must be either 0 or 1.
 
-If the preview with requested id is not grayscale, i.e. was generated from files with different ids, and "sb" parameter equals to '1', an HTTP 400 Bad Request with an empty body and a "Reason" header is sent:
+If the preview with requested id is not grayscale and "sb" parameter equals to '1', an HTTP 400 Bad Request with an empty body and a "Reason" header is sent:
 
 Reason: Unable to generate a scalebar for a non-grayscale preview.
-
-For this GET request, two more HTTP headers are mandatory: "Width" and "Height", so the server must account for them also.
-
-If the request's "Width" or "Height" values are not of integer type, an HTTP 400 Bad Request with an empty body and one of the following "Reason" headers is sent:
-
-Reason: Invalid type for "Width" header: must be of integer type.
-Reason: Invalid type for "Height" header: must be of integer type.
-
-If the width or height sent in the request do not equal to the actual width or height of the preview, an HTTP 400 Bad Request with an empty body and one of the following "Reason" headers is sent:
-
-Reason: Invalid width `width` in the "Width" header: actual width of the requested preview is `actual width`.
-Reason: Invalid height `height` in the "Height" header: actual height of the requested preview is `actual height`.
 
 If there is no preview with requested URL, an HTTP 404 Not Found with an empty body and a "Reason" header is sent:
 

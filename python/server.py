@@ -52,18 +52,12 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
         if hdr_list is not None:
             return hdr_list
     elif request_type == 'resource':
-        if request.base_url.rpartition('/')[2] == 'preview':
-            mandatory_headers = ['Accept', 'Protocol-Version', 'Request-ID', 'Width', 'Height']
-            hdr_list = _check_header_list(mandatory_headers, headers)
-            if hdr_list is not None:
-                return hdr_list
-        elif request.base_url.rpartition('/')[2] == 'index':
-            mandatory_headers = ['Accept', 'Protocol-Version', 'Request-ID']
-            hdr_list = _check_header_list(mandatory_headers, headers)
-            if hdr_list is not None:
-                return hdr_list
-        else:
+        if request.base_url.rpartition('/')[2] not in ('preview', 'index'):
             raise ValueError('Resource request with invalid resource type "{}" passed to "check_http_headers" function'.format(request.base_url.rpartition('/')[2]))
+        mandatory_headers = ['Accept', 'Protocol-Version', 'Request-ID']
+        hdr_list = _check_header_list(mandatory_headers, headers)
+        if hdr_list is not None:
+            return hdr_list
     else:
         raise ValueError(f'Invalid "request_type" argument passed to "check_http_headers" function: "{request_type}"')
 
@@ -105,14 +99,6 @@ def check_http_headers(request: request, request_type: str) -> Union['Response',
         if request.base_url.rpartition('/')[2] == 'preview':
             if accept != 'image/png':
                 return _http_response(request, '', 400, Reason=f'Invalid value "{accept}" of "Accept" header: must be "image/png" for /resource/preview request.')            
-            try:
-                int(headers['Width'])
-            except ValueError:
-                return _http_response(request, '', 400, Reason='Invalid type for "Width" header: must be of integer type.')
-            try:
-                int(headers['Height'])
-            except ValueError:
-                return _http_response(request, '', 400, Reason='Invalid type for "Height" header: must be of integer type.')
         elif request.base_url.rpartition('/')[2] == 'index':
             if accept != 'image/tiff':
                 return _http_response(request, '', 400, Reason=f'Invalid value "{accept}" of "Accept" header: must be "image/tiff" for /resource/index request.')
@@ -272,14 +258,7 @@ def handle_resource(res_type):
         except KeyError:
             return _http_response(request, '', 404, Reason=f'Requested preview "{id_}" does not exist.')
         
-        if int(request.headers['Width']) != rgba.width:
-            return _http_response(request, '', 400, Reason=f'Invalid width {request.headers['Width']} in the "Width" header: actual width of the requested preview is {rgba.width}.')
-        if int(request.headers['Height']) != rgba.height:
-            return _http_response(request, '', 400, Reason=f'Invalid height {request.headers['Height']} in the "Height" header: actual height of the requested preview is {rgba.height}.')
-        
         if scalebar == '1':
-            # for i in range(1, len(rgba.ids)):
-            #     if rgba.ids[0] != rgba.ids[i]:
             if rgba.index == 'nat_col':
                     return _http_response(request, '', 400, Reason='Unable to generate a scalebar for non-grayscale preview.')
 

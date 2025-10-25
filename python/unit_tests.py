@@ -45,14 +45,6 @@ http_reason = {
     'get_preview_odd_params': ' must only include "id" and "sb" parameters ',
     'get_preview_inv_sb': ' must be either 0 or 1.',
     'get_preview_not_grayscale': 'Unable to generate a scalebar ',
-    'get_preview_missing_width_height1': ' Headers "{\'Width\', \'Height\'}" are missing ',
-    'get_preview_missing_width_height2': ' Headers "{\'Height\', \'Width\'}" are missing ',
-    'get_preview_missing_width': ' Headers "{\'Width\'}" are missing ',
-    'get_preview_missing_height': ' Headers "{\'Height\'}" are missing ',
-    'get_preview_inv_width_type': 'Invalid type for "Width" header: ',
-    'get_preview_inv_height_type': 'Invalid type for "Height" header: ',
-    'get_preview_width_mismatch': ' actual width of the requested preview is ',
-    'get_preview_height_mismatch': ' actual height of the requested preview is ',
     'get_preview_404': 'Requested preview ',
     'get_index_odd_params': ' must only include "id" parameter ',
     'get_index_404': 'Requested index '
@@ -846,12 +838,10 @@ class Test(unittest.TestCase):
         prev = POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])
         self.assertEqual(200, prev.status_code)
         url_pr = prev.get_json()['result']['url'] + '&sb=0'
-        width = prev.get_json()['result']['width']
-        height = prev.get_json()['result']['height']
         index = POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])
         self.assertEqual(200, index.status_code)
         url_ind = index.get_json()['result']['url']
-        self.assertEqual(200, GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).status_code)
+        self.assertEqual(200, GET(url_pr, http_headers['get_preview_ok'], '').status_code)
         self.assertEqual(200, GET(url_ind, http_headers['get_index_ok'], '').status_code)
         self.assertEqual(200, POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok']).status_code)
         
@@ -866,19 +856,19 @@ class Test(unittest.TestCase):
         self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_nodata']).headers.get('Reason'))
         self.assertIsNone(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok']).headers.get('Reason'))
         self.assertIsNone(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1']).headers.get('Reason'))
-        self.assertIsNone(GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).headers.get('Reason'))
+        self.assertIsNone(GET(url_pr, http_headers['get_preview_ok'], '').headers.get('Reason'))
         self.assertIsNone(GET(url_ind, http_headers['get_index_ok'], '').headers.get('Reason'))
         self.assertIsNone(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok']).headers.get('Reason'))
    
     def test_http_endpoint(self):
         self.assertEqual(400, POST('/api/unsupported', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('resource/unsupported?id=0&sb=0', http_headers['ok'], '').status_code)
-        self.assertEqual(404, GET('/resource/preview?id=4206934&sb=0', http_headers['get_preview_ok'], '', Width=123, Height=123).status_code)
+        self.assertEqual(404, GET('/resource/preview?id=4206934&sb=0', http_headers['get_preview_ok'], '').status_code)
         self.assertEqual(404, GET('/resource/index?id=4206934', http_headers['get_index_ok'], '').status_code)
 
         self.assertTrue(http_reason['unknown_endpoint'] in POST('/api/unsupported', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['unsupported_resource_type'] in GET('/resource/unsupported?id=0&sb=0', http_headers['ok'], '').headers.get('Reason'))
-        self.assertTrue(http_reason['get_preview_404'] in GET('/resource/preview?id=4206934&sb=0', http_headers['get_preview_ok'], '', Width=123, Height=123).headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_404'] in GET('/resource/preview?id=4206934&sb=0', http_headers['get_preview_ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['get_index_404'] in GET('/resource/index?id=4206934', http_headers['get_index_ok'], '').headers.get('Reason'))
    
     def test_query_string(self):
@@ -894,9 +884,7 @@ class Test(unittest.TestCase):
         req['parameters']['index'] = 'nat_col'
         prev = POST('/api/calc_preview', http_headers['ok'], req)
         url_pr = prev.get_json()['result']['url'] + '&sb=1'
-        width = prev.get_json()['result']['width']
-        height = prev.get_json()['result']['height']
-        self.assertEqual(400, GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).status_code)
+        self.assertEqual(400, GET(url_pr, http_headers['get_preview_ok'], '').status_code)
         self.assertEqual(400, GET('/resource/index', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/index?a=1', http_headers['ok'], '').status_code)
         self.assertEqual(400, GET('/resource/index?id=abc', http_headers['ok'], '').status_code)
@@ -911,7 +899,7 @@ class Test(unittest.TestCase):
         self.assertTrue(http_reason['get_preview_no_sb'] in GET('/resource/preview?id=0', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['get_preview_odd_params'] in GET('/resource/preview?id=0&sb=0&b=1', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['get_preview_inv_sb'] in GET('/resource/preview?id=0&sb=abc', http_headers['ok'], '').headers.get('Reason'))
-        self.assertTrue(http_reason['get_preview_not_grayscale'] in GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=height).headers.get('Reason'))
+        self.assertTrue(http_reason['get_preview_not_grayscale'] in GET(url_pr, http_headers['get_preview_ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['query_string_necessary'] in GET('/resource/index', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['query_string_id'] in GET('/resource/index?a=1', http_headers['ok'], '').headers.get('Reason'))
         self.assertTrue(http_reason['inv_id_type_in_query_string'] in GET('/resource/index?id=abc', http_headers['ok'], '').headers.get('Reason'))
@@ -935,22 +923,13 @@ class Test(unittest.TestCase):
         self.assertEqual(400, POST('/api/PING', http_headers['inv_request_id'], '').status_code)
         prev = POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])
         url_pr = prev.get_json()['result']['url'] + '&sb=0'
-        width = prev.get_json()['result']['width']
-        height = prev.get_json()['result']['height']
-        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['missing_accept'], '', Width=123, Height=123).status_code)
-        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['missing_proto_v'], '', Width=123, Height=123).status_code)
-        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['missing_request_id'], '', Width=123, Height=123).status_code)
-        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['inv_accept'], '', Width=123, Height=123).status_code)
-        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['inv_proto_v'], '', Width=123, Height=123).status_code)
-        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['inv_request_id_type'], '', Width=123, Height=123).status_code)
-        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['inv_request_id'], '', Width=123, Height=123).status_code)
-        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '').status_code)
-        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width=width).status_code)
-        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Height=height).status_code)
-        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width='abc', Height=height).status_code)
-        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width=width, Height='abc').status_code)
-        self.assertEqual(400, GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=4206934).status_code)
-        self.assertEqual(400, GET(url_pr, http_headers['get_preview_ok'], '', Width=4206934, Height=height).status_code)
+        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['missing_accept'], '').status_code)
+        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['missing_proto_v'], '').status_code)
+        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['missing_request_id'], '').status_code)
+        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['inv_accept'], '').status_code)
+        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['inv_proto_v'], '').status_code)
+        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['inv_request_id_type'], '').status_code)
+        self.assertEqual(400, GET('/resource/preview?id=0&sb=0', http_headers['inv_request_id'], '').status_code)
         self.assertEqual(400, GET('/resource/index?id=0', http_headers['missing_accept'], '').status_code)
         self.assertEqual(400, GET('/resource/index?id=0', http_headers['missing_proto_v'], '').status_code)
         self.assertEqual(400, GET('/resource/index?id=0', http_headers['missing_request_id'], '').status_code)
@@ -976,23 +955,13 @@ class Test(unittest.TestCase):
         self.assertTrue(http_reason['inv_proto_v'] in POST('/api/PING', http_headers['inv_proto_v'], '').headers.get('Reason'))
         self.assertTrue(http_reason['inv_request_id_type'] in POST('/api/PING', http_headers['inv_request_id_type'], '').headers.get('Reason'))
         self.assertTrue(http_reason['inv_request_id'] in POST('/api/PING', http_headers['inv_request_id'], '').headers.get('Reason'))
-        self.assertTrue(http_reason['missing_accept'] in GET('/resource/preview?id=0&sb=0', http_headers['missing_accept'], '', Width=123, Height=123).headers.get('Reason'))
-        self.assertTrue(http_reason['missing_proto_v'] in GET('/resource/preview?id=0&sb=0', http_headers['missing_proto_v'], '', Width=123, Height=123).headers.get('Reason'))
-        self.assertTrue(http_reason['missing_request_id'] in GET('/resource/preview?id=0&sb=0', http_headers['missing_request_id'], '', Width=123, Height=123).headers.get('Reason'))
-        self.assertTrue(http_reason['inv_accept'] in GET('/resource/preview?id=0&sb=0', http_headers['inv_accept'], '', Width=123, Height=123).headers.get('Reason'))
-        self.assertTrue(http_reason['inv_proto_v'] in GET('/resource/preview?id=0&sb=0', http_headers['inv_proto_v'], '', Width=123, Height=123).headers.get('Reason'))
-        self.assertTrue(http_reason['inv_request_id_type'] in GET('/resource/preview?id=0&sb=0', http_headers['inv_request_id_type'], '', Width=123, Height=123).headers.get('Reason'))
-        self.assertTrue(http_reason['inv_request_id'] in GET('/resource/preview?id=0&sb=0', http_headers['inv_request_id'], '', Width=123, Height=123).headers.get('Reason'))
-        self.assertTrue(
-            http_reason['get_preview_missing_width_height1'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '').headers.get('Reason') or
-            http_reason['get_preview_missing_width_height2'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '').headers.get('Reason')
-        )
-        self.assertTrue(http_reason['get_preview_missing_height'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width=width).headers.get('Reason'))
-        self.assertTrue(http_reason['get_preview_missing_width'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Height=height).headers.get('Reason'))
-        self.assertTrue(http_reason['get_preview_inv_width_type'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width='abc', Height=height).headers.get('Reason'))
-        self.assertTrue(http_reason['get_preview_inv_height_type'] in GET('/resource/preview?id=0&sb=0', http_headers['get_preview_ok'], '', Width=width, Height='abc').headers.get('Reason'))
-        self.assertTrue(http_reason['get_preview_width_mismatch'] in GET(url_pr, http_headers['get_preview_ok'], '', Width=4206934, Height=height).headers.get('Reason'))
-        self.assertTrue(http_reason['get_preview_height_mismatch'] in GET(url_pr, http_headers['get_preview_ok'], '', Width=width, Height=4206934).headers.get('Reason'))
+        self.assertTrue(http_reason['missing_accept'] in GET('/resource/preview?id=0&sb=0', http_headers['missing_accept'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['missing_proto_v'] in GET('/resource/preview?id=0&sb=0', http_headers['missing_proto_v'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['missing_request_id'] in GET('/resource/preview?id=0&sb=0', http_headers['missing_request_id'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_accept'] in GET('/resource/preview?id=0&sb=0', http_headers['inv_accept'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_proto_v'] in GET('/resource/preview?id=0&sb=0', http_headers['inv_proto_v'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_request_id_type'] in GET('/resource/preview?id=0&sb=0', http_headers['inv_request_id_type'], '').headers.get('Reason'))
+        self.assertTrue(http_reason['inv_request_id'] in GET('/resource/preview?id=0&sb=0', http_headers['inv_request_id'], '').headers.get('Reason'))
         self.assertTrue(http_reason['missing_accept'] in GET('/resource/index?id=0', http_headers['missing_accept'], '').headers.get('Reason'))
         self.assertTrue(http_reason['missing_proto_v'] in GET('/resource/index?id=0', http_headers['missing_proto_v'], '').headers.get('Reason'))
         self.assertTrue(http_reason['missing_request_id'] in GET('/resource/index?id=0', http_headers['missing_request_id'], '').headers.get('Reason'))
