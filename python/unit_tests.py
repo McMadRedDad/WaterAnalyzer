@@ -784,9 +784,6 @@ def check_all(endpoint, headers, body):
            res.get_json().get('status') if res.get_json() else None
 
 class Test(unittest.TestCase):
-    # gtiffbig, gtiffmid, gtiffsmol, gtiffmid2, gtiffsmol2, gtiffempty = 0, 0, 0, 0, 0, 0
-    # url_pr, width, height, url_ind = '', 0, 0, ''
-
     def test_000(self):
         def _codes(response: 'Response'):
             return response.status_code, \
@@ -809,19 +806,11 @@ class Test(unittest.TestCase):
         executor.execute(requests_json['import_gtiff_ok_mid3'])
         executor.execute(requests_json['import_gtiff_ok_smol2'])
         executor.execute(requests_json['import_gtiff_ok_nodata'])
-        
-        # requests_json['calc_preview_ok']['parameters']['ids'][0] = self.gtiffmid2
-        # requests_json['calc_preview_ok']['parameters']['ids'][1] = self.gtiffmid2
-        # requests_json['calc_preview_ok']['parameters']['ids'][2] = self.gtiffmid2
-
-        # ?ne nado?
-        # requests_json['calc_index_ok1']['parameters']['ids'][0] = self.gtiffmid2
-        # requests_json['calc_index_ok1']['parameters']['ids'][1] = self.gtiffmid2
-
         executor.execute(requests_json['calc_preview_ok'])
         executor.execute(requests_json['calc_index_ok1'])
 
-        print('Imported GTiffs and saved their ids to use in following tests')
+        print('Imported GTiffs, created a preview, created an index.')
+        print('Initialization successful!')
 
     ### HTTP ONLY ###
 
@@ -1231,7 +1220,7 @@ class Test(unittest.TestCase):
     ### DIFFERENT FILES ###
 
     # def test_calc_preview_files(self):
-    #     f = requests_json['calc_preview_ok'].copy()
+    #     f = deepcopy(requests_json['calc_preview_ok'])
 
     #     f['parameters']['ids'][0] = self.gtiffbig
     #     f['parameters']['ids'][1] = self.gtiffbig
@@ -1259,7 +1248,7 @@ class Test(unittest.TestCase):
     #     self.assertEqual(0, executor.execute(f)['status'])
 
     # def test_calc_index_files(self):
-    #     f = requests_json['calc_index_ok1'].copy()
+    #     f = deepcopy(requests_json['calc_index_ok1'])
 
     #     f['parameters']['ids'][0] = self.gtiffbig
     #     f['parameters']['ids'][1] = self.gtiffbig
