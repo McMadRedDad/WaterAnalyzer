@@ -260,7 +260,8 @@ def handle_resource(res_type):
         buf = BytesIO()
         img = Image.fromarray(rgba.array)
         if scalebar == '1':
-            img = image_with_scalebar(img, 10, executor.ds_man.get_as_array(rgba.ids[0]))
+            id__ = executor.ds_man.find(rgba.index)
+            img = image_with_scalebar(img, 10, executor.ds_man.get_as_array(id__))
         else:
             img = normalize_brightness(img)
         img.save(buf, format='PNG')
