@@ -22,7 +22,8 @@ enum PROC_LEVEL { PROC_LEVEL_BAD = -1, L1TP, L2SP };
 
 struct DATASET {
     QString filename = "";
-    int     id = -1;
+    ushort  band = -1;
+    QString index = "";
     QString url = "";
     uint    width = -1, height = -1;
     QString projection = "", unit = "";
@@ -33,14 +34,14 @@ struct DATASET {
 };
 
 struct STATE {
-    ImportPage            *import_p;
-    ProcessPage           *process_p;
-    ResultPage            *result_p;
-    PAGE                   page;
-    QDir                   dir;
-    PROC_LEVEL             proc_level;
-    uint                   curr_req_id;
-    QMap<QString, DATASET> files; // band/index: DATASET
+    ImportPage    *import_p;
+    ProcessPage   *process_p;
+    ResultPage    *result_p;
+    PAGE           page;
+    QDir           dir;
+    PROC_LEVEL     proc_level;
+    uint           curr_req_id;
+    QList<DATASET> datasets;
 };
 
 class MainWindow : public QMainWindow {
@@ -72,7 +73,6 @@ private:
     void       handle_error(QNetworkReply *response);
     void       process_get(QUrl endpoint, QHttpHeaders headers, QByteArray body, QMap<QString, QString> options = {});
     void       process_post(QUrl endpoint, QHttpHeaders headers, QByteArray body, QMap<QString, QString> options = {});
-    QList<int> select_bands_for_index(QString index);
     QString    get_type_by_index(QString index);
     QString    get_index_by_type(QString type);
 

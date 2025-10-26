@@ -66,11 +66,8 @@ void MainWindow::send_request(QString type, QJsonObject data, QMap<QString, QStr
             if (!options.contains("scalebar")) {
                 return;
             }
-
             req.setUrl(req.url().toString() + "&sb=" + options.value("scalebar"));
             req.setRawHeader("Accept", "image/png");
-            req.setRawHeader("Width", QString::number(result["width"].toInt()).toUtf8());
-            req.setRawHeader("Height", QString::number(result["height"].toInt()).toUtf8());
         } else if (type == "index") {
             req.setRawHeader("Accept", "image/tiff");
         } else {
@@ -204,18 +201,17 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         append_log("good", "Сервер завершил работу.");
         set_status_message(true, "Сервер завершил работу");
     } else if (command == "import_gtiff") {
-        for (auto i = self.files.begin(), end = self.files.end(); i != end; ++i) {
-            if (i.value().filename == result["file"].toString()) {
+        for (DATASET &ds : self.datasets) {
+            if (ds.filename == result["file"].toString() && ds.band == result["band"].toInt()) {
                 QJsonObject info = result["info"].toObject();
-                i.value().id = result["id"].toInt();
-                i.value().width = info["width"].toInt();
-                i.value().height = info["height"].toInt();
-                i.value().projection = info["projection"].toString();
-                i.value().unit = info["unit"].toString();
-                i.value().origin[0] = info["origin"].toArray()[0].toDouble();
-                i.value().origin[1] = info["origin"].toArray()[1].toDouble();
-                i.value().pixel_size[0] = info["pixel_size"].toArray()[0].toDouble();
-                i.value().pixel_size[1] = info["pixel_size"].toArray()[1].toDouble();
+                ds.width = info["width"].toInt();
+                ds.height = info["height"].toInt();
+                ds.projection = info["projection"].toString();
+                ds.unit = info["unit"].toString();
+                ds.origin[0] = info["origin"].toArray()[0].toDouble();
+                ds.origin[1] = info["origin"].toArray()[1].toDouble();
+                ds.pixel_size[0] = info["pixel_size"].toArray()[0].toDouble();
+                ds.pixel_size[1] = info["pixel_size"].toArray()[1].toDouble();
                 break;
             }
         }
@@ -224,10 +220,10 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
     } else if (command == "calc_preview") {
         send_request("resource", QJsonDocument::fromJson(body).object(), options);
     } else if (command == "calc_index") {
-        DATASET     ds;
-        QJsonObject info = result["info"].toObject();
+        DATASET ds;
+        ds.index = result["index"].toString();
         ds.url = result["url"].toString();
-        ds.id = result["url"].toString().split('?').last().split('&').first().split('=').last().toInt();
+        QJsonObject info = result["info"].toObject();
         ds.width = info["width"].toInt();
         ds.height = info["height"].toInt();
         ds.projection = info["projection"].toString();
@@ -241,16 +237,22 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         ds.mean = info["mean"].toDouble();
         ds.stdev = info["stdev"].toDouble();
         ds.ph_unit = info["ph_unit"].toString();
-        self.files[result["index"].toString()] = ds;
+        self.datasets.append(ds);
 
         uint width = self.result_p->get_preview_width();
         uint height = self.result_p->get_preview_height();
-        send_request("command", proto.calc_preview(ds.id, ds.id, ds.id, width, height), options);
-        self.result_p->set_caption(get_type_by_index(result["index"].toString()), result["index"].toString().toUpper());
-        self.result_p->set_statistics(get_type_by_index(result["index"].toString()), ds.min, ds.max, ds.mean, ds.stdev, ds.ph_unit);
+        send_request("command", proto.calc_preview(ds.index, width, height), options);
+        self.result_p->set_caption(get_type_by_index(ds.index), ds.index.toUpper());
+        self.result_p->set_statistics(get_type_by_index(ds.index), ds.min, ds.max, ds.mean, ds.stdev, ds.ph_unit);
 
         append_log("info", "Индекс " + result["index"].toString() + " успешно рассчитан.");
         set_status_message(true, "Индекс успешно рассчитан");
+    } else if (command == "set_satellite") {
+        for (DATASET &ds : self.datasets) {
+            send_request("command", proto.import_gtiff(ds.filename, ds.band));
+        }
+        append_log("good", "Модель спутника задана.");
+        set_status_message(true, "Спутник задан");
     } else {
         append_log("info", "Запрошена неизвестная команда, но сервер её обработал: " + command + ".");
         set_status_message(false, "Неизвестная команда");
@@ -278,63 +280,42 @@ QString MainWindow::get_index_by_type(QString type) {
     if (type == "summary") {
         return "";
     } else if (type == "water") {
-        for (auto it = self.files.cbegin(), end = self.files.cend(); it != end; ++it) {
-            if (it.key() == "test" || it.key() == "wi2015") {
-                return it.key();
+        for (DATASET &ds : self.datasets) {
+            if (ds.index == "test" || ds.index == "wi2015") {
+                return ds.index;
             }
         }
         return "";
     } else if (type == "tss") {
-        for (auto it = self.files.cbegin(), end = self.files.cend(); it != end; ++it) {
-            if (it.key() == "nsmi") {
-                return it.key();
+        for (DATASET &ds : self.datasets) {
+            if (ds.index == "nsmi") {
+                return ds.index;
             }
         }
         return "";
     } else if (type == "chloro") {
-        for (auto it = self.files.cbegin(), end = self.files.cend(); it != end; ++it) {
-            if (it.key() == "oc3") {
-                return it.key();
+        for (DATASET &ds : self.datasets) {
+            if (ds.index == "oc3") {
+                return ds.index;
             }
         }
         return "";
     } else if (type == "cdom") {
-        for (auto it = self.files.cbegin(), end = self.files.cend(); it != end; ++it) {
-            if (it.key() == "cdom_ndwi") {
-                return it.key();
+        for (DATASET &ds : self.datasets) {
+            if (ds.index == "cdom_ndwi") {
+                return ds.index;
             }
         }
         return "";
     } else if (type == "temp") {
-        for (auto it = self.files.cbegin(), end = self.files.cend(); it != end; ++it) {
-            if (it.key() == "temperature_landsat_toa" || it.key() == "temperature_landsat_ls") {
-                return it.key();
+        for (DATASET &ds : self.datasets) {
+            if (ds.index == "temperature_landsat_toa" || ds.index == "temperature_landsat_ls") {
+                return ds.index;
             }
         }
         return "";
     } else {
         return "";
-    }
-}
-
-QList<int> MainWindow::select_bands_for_index(QString index) {
-    QString indx = index.toLower();
-    if (indx == "test") {
-        return QList<int>{self.files["L1"].id, self.files["L2"].id};
-    } else if (indx == "wi2015") {
-        return QList<int>{self.files["L3"].id, self.files["L4"].id, self.files["L5"].id, self.files["L6"].id, self.files["L7"].id};
-    } else if (indx == "nsmi") {
-        return QList<int>{self.files["L4"].id, self.files["L3"].id, self.files["L2"].id};
-    } else if (indx == "oc3") {
-        return QList<int>{self.files["L1"].id, self.files["L2"].id, self.files["L3"].id};
-    } else if (indx == "cdom_ndwi") {
-        return QList<int>{self.files["L3"].id, self.files["L5"].id};
-    } else if (indx == "temperature_landsat_toa") {
-        return QList<int>{self.files["L3"].id, self.files["L5"].id};
-    } else if (indx == "temperature_landsat_ls") {
-        return QList<int>{self.files["L3"].id, self.files["L5"].id};
-    } else {
-        return QList<int>{-1};
     }
 }
 
@@ -403,12 +384,11 @@ void MainWindow::change_page(PAGE to) {
                     ds.filename = dir.absolutePath() + "/" + f;
                     QString band = f.right(8);
                     if (band[0] == '_') {
-                        band = band.mid(2, 2).prepend('L');
+                        ds.band = band.mid(2, 2).toUShort();
                     } else {
-                        band = band.mid(3, 1).prepend('L');
+                        ds.band = band.mid(3, 1).toUShort();
                     }
-                    self.files[band] = ds;
-                    // send_request("command", proto.import_gtiff(ds.filename));
+                    self.datasets.append(ds);
                     counter++;
                 }
             }
@@ -447,12 +427,11 @@ void MainWindow::change_page(PAGE to) {
                     ds.filename = f;
                     QString band = f.right(8);
                     if (band[0] == '_') {
-                        band = band.mid(2, 2).prepend('L');
+                        ds.band = band.mid(2, 2).toUShort();
                     } else {
-                        band = band.mid(3, 1).prepend('L');
+                        ds.band = band.mid(3, 1).toUShort();
                     }
-                    self.files[band] = ds;
-                    // send_request("command", proto.import_gtiff(ds.filename));
+                    self.datasets.append(ds);
                     counter++;
                 }
             }
@@ -466,7 +445,7 @@ void MainWindow::change_page(PAGE to) {
             ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
         };
-        auto custom_files = [this](QString satellite, QList<QPair<QString, QString>> bands_files) {
+        auto custom_files = [this](QString proc_level, QList<QPair<QString, QString>> bands_files) {
             if (bands_files.isEmpty()) {
                 append_log("bad", "Не выбрано ни одного файла Tiff.");
                 set_status_message(false, "Файлы Tiff не выбраны");
@@ -475,14 +454,14 @@ void MainWindow::change_page(PAGE to) {
             for (auto &f : bands_files) {
                 DATASET ds;
                 ds.filename = f.second;
-                self.files[f.first.prepend('L')] = ds;
-                // send_request("command", proto.import_gtiff(ds.filename));
+                ds.band = f.first.toUShort();
+                self.datasets.append(ds);
             }
             send_request("command", proto.set_satellite("Landsat 8/9"));
             self.dir = bands_files[0].second.section('/', 0, -2);
-            if (satellite == "L1TP") {
+            if (proc_level == "L1TP") {
                 self.proc_level = PROC_LEVEL::L1TP;
-            } else if (satellite == "L2SP") {
+            } else if (proc_level == "L2SP") {
                 self.proc_level = PROC_LEVEL::L2SP;
             }
             ui->lbl_dir->setText(self.dir.dirName());
@@ -513,7 +492,7 @@ void MainWindow::change_page(PAGE to) {
         self.dir = QDir();
         self.proc_level = PROC_LEVEL::PROC_LEVEL_BAD;
         ui->lbl_dir->setText("");
-        self.files.clear();
+        self.datasets.clear();
 
         self.process_p->clear_preview();
         if (self.import_p->get_page() == ImportPage::MAIN) {
@@ -527,28 +506,24 @@ void MainWindow::change_page(PAGE to) {
     }
     case PAGE::SELECTION: {
         auto preview = [this](uint width, uint height) {
-            auto                   it_r = self.files.find("L4");
-            auto                   it_g = self.files.find("L3");
-            auto                   it_b = self.files.find("L2");
             QMap<QString, QString> options = {{"preview_type", "color"}, {"scalebar", "0"}};
-            if (it_r == self.files.end() || it_g == self.files.end() || it_b == self.files.end()) {
-                send_request("command", proto.calc_preview(0, 0, 0, width, height), options);
-            } else {
-                send_request("command", proto.calc_preview(it_r.value().id, it_g.value().id, it_b.value().id, width, height), options);
-            }
+            send_request("command", proto.calc_preview("nat_col", width, height), options);
         };
         auto metadata = [this]() {
             QStringList vals;
-            DATASET     ds = self.files.first();
-            QStringList keys_l = self.files.keys();
+            DATASET     ds = self.datasets[0];
+            QStringList keys_l;
+            QString     keys;
+            for (DATASET &ds : self.datasets) {
+                keys_l.append(QString::number(ds.band));
+            }
             keys_l.sort();
-            QString keys;
             for (QString &k : keys_l) {
-                keys.append(k.replace('L', 'B') + ", ");
+                keys.append(k.prepend('B') + ", ");
             }
             keys.chop(2);
             vals.append("Landsat 8/9");
-            vals.append(QString::number(self.files.size()));
+            vals.append(QString::number(self.datasets.length()));
             vals.append(keys);
             vals.append(QString::number(ds.width));
             vals.append(QString::number(ds.height));
@@ -559,10 +534,10 @@ void MainWindow::change_page(PAGE to) {
             emit this->metadata(vals);
         };
         auto indices = [this](QStringList indices) {
-            for (QString index : indices) {
+            for (QString &index : indices) {
                 index = index.toLower();
                 QMap<QString, QString> options = {{"preview_type", get_type_by_index(index)}, {"scalebar", "1"}};
-                send_request("command", proto.calc_index(index, select_bands_for_index(index)), options);
+                send_request("command", proto.calc_index(index), options);
             }
             change_page(PAGE::RESULT);
         };
@@ -589,39 +564,31 @@ void MainWindow::change_page(PAGE to) {
     }
     case PAGE::RESULT: {
         auto preview = [this]() {
-            auto                   it_r = self.files.find("L4");
-            auto                   it_g = self.files.find("L3");
-            auto                   it_b = self.files.find("L2");
             uint                   width = self.result_p->get_preview_width();
             uint                   height = self.result_p->get_preview_height();
             QMap<QString, QString> options = {{"preview_type", "summary"}, {"scalebar", "0"}};
-            if (it_r == self.files.end() || it_g == self.files.end() || it_b == self.files.end()) {
-                send_request("command", proto.calc_preview(0, 0, 0, width, height), options);
-            } else {
-                send_request("command", proto.calc_preview(it_r.value().id, it_g.value().id, it_b.value().id, width, height), options);
-            }
+            send_request("command", proto.calc_preview("nat_col", width, height), options);
         };
         auto refresh_previews = [this, preview]() {
             uint width = self.result_p->get_preview_width();
             uint height = self.result_p->get_preview_height();
-            for (auto it = self.files.cbegin(), end = self.files.cend(); it != end; ++it) {
-                QString key = it.key();
-                bool    num;
-                key.right(key.size() - 1).toInt(&num);
-                if (key[0] == 'L' && num) {
-                    continue;
+            for (DATASET &ds : self.datasets) {
+                if (!ds.index.isEmpty()) {
+                    QMap<QString, QString> options = {{"preview_type", get_type_by_index(ds.index)}, {"scalebar", "1"}};
+                    send_request("command", proto.calc_preview(ds.index, width, height), options);
                 }
-
-                int                    id = it.value().id;
-                QMap<QString, QString> options = {{"preview_type", get_type_by_index(key)}, {"scalebar", "1"}};
-                send_request("command", proto.calc_preview(id, id, id, width, height), options);
             }
             preview();
         };
         auto export_index = [this](QString type) {
-            QString     index = get_index_by_type(type);
-            QJsonObject data = {{"result", QJsonObject{{"url", self.files.value(index).url}}}};
-            send_request("resource", data);
+            QString index = get_index_by_type(type);
+            for (DATASET &ds : self.datasets) {
+                if (ds.index == index) {
+                    QJsonObject data = {{"result", QJsonObject{{"url", ds.url}}}};
+                    send_request("resource", data);
+                    return;
+                }
+            }
         };
 
         disconnect(self.import_p, nullptr, nullptr, nullptr);

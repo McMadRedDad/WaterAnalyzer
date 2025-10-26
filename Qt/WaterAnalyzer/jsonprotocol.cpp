@@ -15,21 +15,16 @@ QJsonObject JsonProtocol::shutdown() {
     return construct_json("SHUTDOWN", QJsonObject());
 }
 
-QJsonObject JsonProtocol::import_gtiff(QString file) {
-    return construct_json("import_gtiff", QJsonObject{{"file", file}});
+QJsonObject JsonProtocol::import_gtiff(QString file, ushort band) {
+    return construct_json("import_gtiff", QJsonObject{{"file", file}, {"band", band}});
 }
 
-QJsonObject JsonProtocol::calc_preview(int r, int g, int b, uint width, uint height) {
-    return construct_json("calc_preview",
-                          QJsonObject{{"ids", QJsonArray{(int) r, (int) g, (int) b}}, {"width", (int) width}, {"height", (int) height}});
+QJsonObject JsonProtocol::calc_preview(QString index, uint width, uint height) {
+    return construct_json("calc_preview", QJsonObject{{"index", index}, {"width", (int) width}, {"height", (int) height}});
 }
 
-QJsonObject JsonProtocol::calc_index(QString index, QList<int> ids) {
-    QJsonArray ids_arr;
-    for (uint id : ids) {
-        ids_arr.append((int) id);
-    }
-    return construct_json("calc_index", QJsonObject{{"index", index}, {"ids", ids_arr}});
+QJsonObject JsonProtocol::calc_index(QString index) {
+    return construct_json("calc_index", QJsonObject{{"index", index}});
 }
 
 QJsonObject JsonProtocol::set_satellite(QString satellite) {
