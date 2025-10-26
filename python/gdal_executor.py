@@ -45,7 +45,8 @@ class PreviewManager:
                 raise KeyError(f'Preview {id_} does not exist but "remove" method called')
 
     def remove_all(self) -> None:
-        for id_ in self._previews.keys():
+        ids = list(self._previews.keys())
+        for id_ in ids:
             self.remove(id_)
 
     def get(self, id_: int) -> Preview:
@@ -120,7 +121,8 @@ class DatasetManager:
                 raise KeyError(f'Dataset {id_} is not opened but "close" method called')
 
     def close_all(self) -> None:
-        for id_ in self._datasets.keys():
+        ids = list(self._datasets.keys())
+        for id_ in ids:
             self.close(id_)
 
     def get(self, id_: int) -> Dataset:
@@ -228,7 +230,7 @@ class IndexErr:
 
 class GdalExecutor:
     VERSION = '1.0.0'
-    SUPPORTED_PROTOCOL_VERSIONS = ('3.0.0')
+    SUPPORTED_PROTOCOL_VERSIONS = ('3.0.1')
     SUPPORTED_INDICES = ('test', 'wi2015', 'nsmi', 'oc3', 'cdom_ndwi')
     SUPPORTED_SATELLITES = ('Landsat 8/9')
     
@@ -521,6 +523,13 @@ class GdalExecutor:
                 return _response(20600, {"error": f"unsupported satellite model: '{satellite}'"})
 
             self.satellite = satellite
+            return _response(0, {})
+
+        if operation == 'end_session':
+            # 20700 !!! TBA with overall cancel mechanism !!!
+            self.ds_man.close_all()
+            self.pv_man.remove_all()
+            self.satellite = None
             return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})

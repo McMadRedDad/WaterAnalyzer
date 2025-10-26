@@ -1,4 +1,4 @@
-**VERSION 3.0.0**
+**VERSION 3.0.1**
 
 Communication via HTTP messages. The payload is sent as a JSON document in message bodies.
 
@@ -127,6 +127,7 @@ If the request passed body validation, it proceeds to the second layer of error 
 4. calc_preview     - request the server to calculate an image preview from cached GeoTiffs
 5. calc_index       - create a spectral index and cache it
 6. set_satellite    - save what satellite is used in the client's session
+7. end_session      - free resources occupied by the client. Indicates the end of the client's session
 
 ## Message structure
 
@@ -237,7 +238,7 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 0
     - `result` - { "data": "PONG" }
     -  HTTP 200 OK
-2. Non-empty `parameters`:
+2. Non-empty parameters:
     - `status` - 10100
     - `result` - { "error": "'`parameters`' must be an empty object for 'PING'request" }
     -  HTTP 400 Bad Request
@@ -255,7 +256,7 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 0
     - `result` - {}
     -  HTTP 200 OK
-2. Non-empty `parameters`:
+2. Non-empty parameters:
     - `status` - 10200
     - `result` - { "error": "'`parameters`' must be an empty object for 'SHUTDOWN' request" }
     -  HTTP 400 Bad Request
@@ -429,6 +430,28 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 20600
     - `result` - { "error": "unsupported satellite model: '`satellite`'" }
     -  HTTP 500 Internal Server Error
+
+## end session
+
+*REQUEST*
+
+- `operation`  - "end_session"
+- `parameters` - {}
+
+*RESPONSE*
+
+1. Success:
+    - `status` - 0
+    - `result` - {}
+    -  HTTP 200 OK
+2. Non-empty parameters:
+    - `status` - 10700
+    - `result` - { "error": "'`parameters`' must be an empty object for 'end_session'request" }
+    -  HTTP 400 Bad Request
+3. Server busy
+    - `status` - 20700
+    - `result` - { "error": "unable to end session: a request is being processed" }
+    -  HTTP 409 Conflict
 
 ## HTTP and JSON cross-validation
 

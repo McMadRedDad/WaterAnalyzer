@@ -738,6 +738,22 @@ requests_json = {
             "satellite": "NEW sAtEllItE 6/9"
         }
     },
+    'end_session_ok': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "end_session",
+        "parameters": {}
+    },
+    'end_session_non_empty_params': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "end_session",
+        "parameters": {
+            "rule34": 42069
+        }
+    },
 }
 
 # Able to override the Content-Type and Content-Length headers.
@@ -784,6 +800,18 @@ def check_all(endpoint, headers, body):
            res.get_json().get('status') if res.get_json() else None
 
 class Test(unittest.TestCase):
+    def prepare(self):
+        executor.execute(requests_json['set_satellite_ok'])
+        executor.execute(requests_json['import_gtiff_ok_big'])
+        executor.execute(requests_json['import_gtiff_ok_mid'])
+        executor.execute(requests_json['import_gtiff_ok_smol'])
+        executor.execute(requests_json['import_gtiff_ok_mid2'])
+        executor.execute(requests_json['import_gtiff_ok_mid3'])
+        executor.execute(requests_json['import_gtiff_ok_smol2'])
+        executor.execute(requests_json['import_gtiff_ok_nodata'])
+        executor.execute(requests_json['calc_preview_ok'])
+        executor.execute(requests_json['calc_index_ok1'])
+    
     def test_000(self):
         def _codes(response: 'Response'):
             return response.status_code, \
@@ -797,17 +825,7 @@ class Test(unittest.TestCase):
         self.assertEqual((500, 20004) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])))
         print('Done!')
 
-        POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok'])
-
-        executor.execute(requests_json['import_gtiff_ok_big'])
-        executor.execute(requests_json['import_gtiff_ok_mid'])
-        executor.execute(requests_json['import_gtiff_ok_smol'])
-        executor.execute(requests_json['import_gtiff_ok_mid2'])
-        executor.execute(requests_json['import_gtiff_ok_mid3'])
-        executor.execute(requests_json['import_gtiff_ok_smol2'])
-        executor.execute(requests_json['import_gtiff_ok_nodata'])
-        executor.execute(requests_json['calc_preview_ok'])
-        executor.execute(requests_json['calc_index_ok1'])
+        self.prepare()
 
         print('Imported GTiffs, created a preview, created an index.')
         print('Initialization successful!')
@@ -833,6 +851,8 @@ class Test(unittest.TestCase):
         self.assertEqual(200, GET(url_pr, http_headers['get_preview_ok'], '').status_code)
         self.assertEqual(200, GET(url_ind, http_headers['get_index_ok'], '').status_code)
         self.assertEqual(200, POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok']).status_code)
+        self.assertEqual(200, POST('/api/end_session', http_headers['ok'], requests_json['end_session_ok']).status_code)
+        self.prepare()
         
         self.assertIsNone(POST('/api/PING', http_headers['ok'], requests_json['ping_ok']).headers.get('Reason'))
         # self.assertIsNone(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok']).headers.get('Reason'))
@@ -845,9 +865,15 @@ class Test(unittest.TestCase):
         self.assertIsNone(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_nodata']).headers.get('Reason'))
         self.assertIsNone(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok']).headers.get('Reason'))
         self.assertIsNone(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1']).headers.get('Reason'))
+        prev = POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])
+        url_pr = prev.get_json()['result']['url'] + '&sb=0'
+        index = POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])
+        url_ind = index.get_json()['result']['url']
         self.assertIsNone(GET(url_pr, http_headers['get_preview_ok'], '').headers.get('Reason'))
         self.assertIsNone(GET(url_ind, http_headers['get_index_ok'], '').headers.get('Reason'))
         self.assertIsNone(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok']).headers.get('Reason'))
+        self.assertIsNone(POST('/api/end_session', http_headers['ok'], requests_json['end_session_ok']).headers.get('Reason'))
+        self.prepare()
    
     def test_http_endpoint(self):
         self.assertEqual(400, POST('/api/unsupported', http_headers['ok'], '').status_code)
@@ -987,6 +1013,8 @@ class Test(unittest.TestCase):
         self.assertEqual(0, check_json(requests_json['calc_preview_ok']))
         self.assertEqual(0, check_json(requests_json['calc_index_ok1']))
         self.assertEqual(0, check_json(requests_json['set_satellite_ok']))
+        self.assertEqual(0, check_json(requests_json['end_session_ok']))
+        self.prepare()
    
     def test_json_unknown_key(self):
         self.assertEqual(10000, check_json(requests_json['unknown_key1']))
@@ -1091,6 +1119,9 @@ class Test(unittest.TestCase):
         self.assertEqual(10600, check_json(requests_json['set_satellite_inv_satellite_type']))
         self.assertEqual(20600, check_json(requests_json['set_satellite_unsupported_satellite']))
 
+    def test_json_end_session(self):
+        self.assertEqual(10700, check_json(requests_json['end_session_non_empty_params']))
+
     ### BOTH ###
    
     def test_cross(self):
@@ -1127,6 +1158,8 @@ class Test(unittest.TestCase):
         self.assertEqual((200, 0) , _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])))
         self.assertEqual((200, 0) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])))
         self.assertEqual((200, 0) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok'])))
+        self.assertEqual((200, 0) , _codes(POST('/api/end_session', http_headers['ok'], requests_json['end_session_ok'])))
+        self.prepare()
 
         self.assertEqual((400, 10000) , _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key1'])))
         self.assertEqual((400, 10000) , _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key2'])))
@@ -1216,6 +1249,8 @@ class Test(unittest.TestCase):
 
         self.assertEqual((400, 10600) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_inv_satellite_type'])))
         self.assertEqual((500, 20600) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_unsupported_satellite'])))
+
+        self.assertEqual((400, 10700) , _codes(POST('/api/end_session', http_headers['ok'], requests_json['end_session_non_empty_params'])))
 
     ### DIFFERENT FILES ###
 

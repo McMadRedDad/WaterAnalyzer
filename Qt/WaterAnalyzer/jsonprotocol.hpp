@@ -19,6 +19,7 @@ public:
     QJsonObject calc_preview(QString index, uint width, uint height);
     QJsonObject calc_index(QString index);
     QJsonObject set_satellite(QString satellite);
+    QJsonObject end_session();
 
     void    inc_counter();
     QString get_proto_version();

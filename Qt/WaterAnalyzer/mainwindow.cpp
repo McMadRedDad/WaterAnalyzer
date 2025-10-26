@@ -251,8 +251,11 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         for (DATASET &ds : self.datasets) {
             send_request("command", proto.import_gtiff(ds.filename, ds.band));
         }
-        append_log("good", "Модель спутника задана.");
+        append_log("info", "Модель спутника задана.");
         set_status_message(true, "Спутник задан");
+    } else if (command == "end_session") {
+        append_log("info", "Сессия сброшена.");
+        set_status_message(true, "Сессия сброшена");
     } else {
         append_log("info", "Запрошена неизвестная команда, но сервер её обработал: " + command + ".");
         set_status_message(false, "Неизвестная команда");
@@ -624,6 +627,7 @@ void MainWindow::on_pb_back_clicked() {
         emit to_satellite_select_page();
         break;
     case PAGE::SELECTION:
+        send_request("command", proto.end_session());
         change_page(PAGE::IMPORT);
         break;
     case PAGE::RESULT:

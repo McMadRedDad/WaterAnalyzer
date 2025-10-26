@@ -1,6 +1,6 @@
 class Protocol:
-    VERSION = '3.0.0'
-    SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index', 'set_satellite')
+    VERSION = '3.0.1'
+    SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index', 'set_satellite', 'end_session')
 
     def __init__(self):
         print(f'Using protocol version {self.VERSION}')
@@ -149,6 +149,12 @@ class Protocol:
             if type(satellite) is not str:
                 return _response(10600, {"error": "invalid 'satellite' key: must be of string type"})
             return _response(0, {})
+
+        if operation == 'end_session':
+            if len(parameters) != 0:
+                return _response(10700, {"error": "'parameters' must be an empty JSON object for 'end_session' request"})
+            else:
+                return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})
 
