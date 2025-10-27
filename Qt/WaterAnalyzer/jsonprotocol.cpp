@@ -27,8 +27,8 @@ QJsonObject JsonProtocol::calc_index(QString index) {
     return construct_json("calc_index", QJsonObject{{"index", index}});
 }
 
-QJsonObject JsonProtocol::set_satellite(QString satellite) {
-    return construct_json("set_satellite", QJsonObject{{"satellite", satellite}});
+QJsonObject JsonProtocol::set_satellite(QString satellite, QString proc_level) {
+    return construct_json("set_satellite", QJsonObject{{"satellite", satellite}, {"proc_level", proc_level}});
 }
 
 QJsonObject JsonProtocol::end_session() {

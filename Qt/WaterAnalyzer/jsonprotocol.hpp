@@ -18,7 +18,7 @@ public:
     QJsonObject import_gtiff(QString file, ushort band);
     QJsonObject calc_preview(QString index, uint width, uint height);
     QJsonObject calc_index(QString index);
-    QJsonObject set_satellite(QString satellite);
+    QJsonObject set_satellite(QString satellite, QString proc_level);
     QJsonObject end_session();
 
     void    inc_counter();

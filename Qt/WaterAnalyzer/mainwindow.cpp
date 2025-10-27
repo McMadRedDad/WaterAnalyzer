@@ -369,9 +369,9 @@ void MainWindow::change_page(PAGE to) {
                 if (entry.endsWith(".TIF") && f.right(7).toUpper().contains('B')) {
                     if (self.proc_level == PROC_LEVEL::PROC_LEVEL_BAD) {
                         if (entry.contains("L1TP")) {
-                            self.proc_level = PROC_LEVEL::L1TP;
+                            self.proc_level = PROC_LEVEL::LANDSAT_L1TP;
                         } else if (entry.contains("L2SP")) {
-                            self.proc_level = PROC_LEVEL::L2SP;
+                            self.proc_level = PROC_LEVEL::LANDSAT_L2SP;
                         } else {
                             append_log(
                                 "bad",
@@ -400,7 +400,17 @@ void MainWindow::change_page(PAGE to) {
                 set_status_message(false, "В выбранной директории нет снимков");
                 return;
             }
-            send_request("command", proto.set_satellite("Landsat 8/9"));
+            switch (self.proc_level) {
+            case PROC_LEVEL::LANDSAT_L1TP:
+                send_request("command", proto.set_satellite("Landsat 8/9", "L1TP"));
+                break;
+            case PROC_LEVEL::LANDSAT_L2SP:
+                send_request("command", proto.set_satellite("Landsat 8/9", "L2SP"));
+                break;
+            default:
+                break;
+            }
+
             self.dir = dir;
             ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
@@ -412,9 +422,9 @@ void MainWindow::change_page(PAGE to) {
                 if (entry.endsWith(".TIF") && f.right(7).toUpper().contains("B")) {
                     if (self.proc_level == PROC_LEVEL::PROC_LEVEL_BAD) {
                         if (entry.contains("L1TP")) {
-                            self.proc_level = PROC_LEVEL::L1TP;
+                            self.proc_level = PROC_LEVEL::LANDSAT_L1TP;
                         } else if (entry.contains("L2SP")) {
-                            self.proc_level = PROC_LEVEL::L2SP;
+                            self.proc_level = PROC_LEVEL::LANDSAT_L2SP;
                         } else {
                             append_log(
                                 "bad",
@@ -443,7 +453,16 @@ void MainWindow::change_page(PAGE to) {
                 set_status_message(false, "Не выбрано ни одного снимка");
                 return;
             }
-            send_request("command", proto.set_satellite("Landsat 8/9"));
+            switch (self.proc_level) {
+            case PROC_LEVEL::LANDSAT_L1TP:
+                send_request("command", proto.set_satellite("Landsat 8/9", "L1TP"));
+                break;
+            case PROC_LEVEL::LANDSAT_L2SP:
+                send_request("command", proto.set_satellite("Landsat 8/9", "L2SP"));
+                break;
+            default:
+                break;
+            }
             self.dir = filenames[0].section('/', 0, -2);
             ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
@@ -460,12 +479,21 @@ void MainWindow::change_page(PAGE to) {
                 ds.band = f.first.toUShort();
                 self.datasets.append(ds);
             }
-            send_request("command", proto.set_satellite("Landsat 8/9"));
+            switch (self.proc_level) {
+            case PROC_LEVEL::LANDSAT_L1TP:
+                send_request("command", proto.set_satellite("Landsat 8/9", "L1TP"));
+                break;
+            case PROC_LEVEL::LANDSAT_L2SP:
+                send_request("command", proto.set_satellite("Landsat 8/9", "L2SP"));
+                break;
+            default:
+                break;
+            }
             self.dir = bands_files[0].second.section('/', 0, -2);
             if (proc_level == "L1TP") {
-                self.proc_level = PROC_LEVEL::L1TP;
+                self.proc_level = PROC_LEVEL::LANDSAT_L1TP;
             } else if (proc_level == "L2SP") {
-                self.proc_level = PROC_LEVEL::L2SP;
+                self.proc_level = PROC_LEVEL::LANDSAT_L2SP;
             }
             ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
@@ -555,9 +583,9 @@ void MainWindow::change_page(PAGE to) {
 
         self.page = PAGE::SELECTION;
 
-        if (self.proc_level == PROC_LEVEL::L1TP) {
+        if (self.proc_level == PROC_LEVEL::LANDSAT_L1TP) {
             self.process_p->set_temperature_type("toa");
-        } else if (self.proc_level == PROC_LEVEL::L2SP) {
+        } else if (self.proc_level == PROC_LEVEL::LANDSAT_L2SP) {
             self.process_p->set_temperature_type("surface");
         }
         ui->pb_back->show();
