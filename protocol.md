@@ -414,7 +414,10 @@ Below are specifics for requests and responses for each supported command.
 *REQUEST*
 
 - `operation`  - "set_satellite"
-- `parameters` - { "satellite": "`satellite model`" }   - [STRING] what satellite is used in the client's session
+- `parameters` - {
+    "satellite": "`satellite model`",   - [STRING] what satellite is used in the client's session
+    "proc_level": `processing level`    - [STRING] what processing level is used in the client's session
+    }
 
 *RESPONSE*
 
@@ -426,10 +429,18 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 10600
     - `result` - { "error": "invalid '`satellite`' key: must be of string type" }
     -  HTTP 400 Bad Request
-3. Unsupported satellite:
+3. Invalid proc_level type:
+    - `status` - 10601
+    - `result` - { "error": "invalid '`proc_level`' key: must be of string type" }
+    -  HTTP 400 Bad Request
+4. Unsupported satellite:
     - `status` - 20600
     - `result` - { "error": "unsupported satellite model: '`satellite`'" }
     -  HTTP 500 Internal Server Error
+5. Invalid proc_level:
+    - `status` - 20601
+    - `result` - { "error": "unknown/unsupported processing level '`proc_level`' for '`satellite`'" }
+    -  HTTP 400 Bad Request
 
 ## end session
 

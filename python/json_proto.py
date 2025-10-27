@@ -142,12 +142,14 @@ class Protocol:
             return _response(0, {})
 
         if operation == 'set_satellite':
-            params_check = _check_param_keys('set_satellite', ['satellite'], list(parameters.keys()))
+            params_check = _check_param_keys('set_satellite', ['satellite', 'proc_level'], list(parameters.keys()))
             if len(params_check) != 0:
                 return params_check
-            satellite = parameters['satellite']
+            satellite, proc_level = parameters['satellite'], parameters['proc_level']
             if type(satellite) is not str:
                 return _response(10600, {"error": "invalid 'satellite' key: must be of string type"})
+            if type(proc_level) is not str:
+                return _response(10601, {"error": "invalid 'proc_level' key: must be of string type"})
             return _response(0, {})
 
         if operation == 'end_session':

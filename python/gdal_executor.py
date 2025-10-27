@@ -232,7 +232,9 @@ class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('3.0.1')
     SUPPORTED_INDICES = ('test', 'wi2015', 'nsmi', 'oc3', 'cdom_ndwi')
-    SUPPORTED_SATELLITES = ('Landsat 8/9')
+    SUPPORTED_SATELLITES = {
+        'Landsat 8/9': ('L1TP', 'L2SP')
+    }
     
     def __new__(cls, protocol):
         if protocol.get_version() not in GdalExecutor.SUPPORTED_PROTOCOL_VERSIONS:
@@ -245,6 +247,7 @@ class GdalExecutor:
         self.pv_man = PreviewManager()
         self.geotiff = gdal.GetDriverByName('GTiff')
         self.satellite = None
+        self.proc_level = None
         print(f'Server running version {self.VERSION}')
 
     def _index(self, index: str) -> (IndexErr, (tuple[float], str, np.ma.MaskedArray, gdal.GDT_Float32, float | int, str)):
@@ -364,7 +367,7 @@ class GdalExecutor:
             return _response(0, {})
 
         if operation == 'import_gtiff':
-            if self.satellite is None:
+            if self.satellite is None or self.proc_level is None:
                 return _response(20004, {"error": "request 'import_gtiff' was received before 'set_satellite' request"})
             try:
                 dataset_id = self.ds_man.open(parameters['file'], parameters['band'])
@@ -392,7 +395,7 @@ class GdalExecutor:
             return _response(0, result)
 
         if operation == 'calc_preview':
-            if self.satellite is None:
+            if self.satellite is None or self.proc_level is None:
                 return _response(20004, {"error": "request 'calc_preview' was received before 'set_satellite' request"})
             index, width, height = parameters['index'], parameters['width'], parameters['height']
             if index not in self.SUPPORTED_INDICES and index != 'nat_col':
@@ -448,7 +451,7 @@ class GdalExecutor:
             })
 
         if operation == 'calc_index':
-            if self.satellite is None:
+            if self.satellite is None or self.proc_level is None:
                 return _response(20004, {"error": "request 'calc_index' was received before 'set_satellite' request"})
             index = parameters['index']
             if index not in self.SUPPORTED_INDICES:
@@ -518,11 +521,14 @@ class GdalExecutor:
             return _response(0, result)
 
         if operation == 'set_satellite':
-            satellite = parameters['satellite']
-            if satellite not in self.SUPPORTED_SATELLITES:
+            satellite, proc_level = parameters['satellite'], parameters['proc_level']
+            if satellite not in self.SUPPORTED_SATELLITES.keys():
                 return _response(20600, {"error": f"unsupported satellite model: '{satellite}'"})
+            if proc_level not in self.SUPPORTED_SATELLITES[satellite]:
+                return _response(20601, {"error": f"unknown/unsupported processing level '{proc_level}' for '{satellite}'"})
 
             self.satellite = satellite
+            self.proc_level = proc_level
             return _response(0, {})
 
         if operation == 'end_session':
@@ -530,6 +536,7 @@ class GdalExecutor:
             self.ds_man.close_all()
             self.pv_man.remove_all()
             self.satellite = None
+            self.proc_level = None
             return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})
@@ -546,5 +553,5 @@ class GdalExecutor:
     def get_supported_operations(self) -> tuple[str]:
         return self.supported_operations
 
-    def get_supported_satellites(self) -> tuple[str]:
+    def get_supported_satellites(self) -> dict:
         return self.SUPPORTED_SATELLITES

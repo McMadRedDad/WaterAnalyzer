@@ -717,6 +717,25 @@ requests_json = {
         "id": 0,
         "operation": "set_satellite",
         "parameters": {
+            "satellite": "Landsat 8/9",
+            "proc_level": "L1TP"
+        }
+    },
+    'set_satellite_no_satellite': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "set_satellite",
+        "parameters": {
+            "proc_level": "L1TP"
+        }
+    },
+    'set_satellite_no_proc_level': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "set_satellite",
+        "parameters": {
             "satellite": "Landsat 8/9"
         }
     },
@@ -726,7 +745,18 @@ requests_json = {
         "id": 0,
         "operation": "set_satellite",
         "parameters": {
-            "satellite": 69
+            "satellite": 69,
+            "proc_level": "L1TP"
+        }
+    },
+    'set_satellite_inv_proc_level_type': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "set_satellite",
+        "parameters": {
+            "satellite": "Landsat 8/9",
+            "proc_level": 69
         }
     },
     'set_satellite_unsupported_satellite': {
@@ -735,7 +765,18 @@ requests_json = {
         "id": 0,
         "operation": "set_satellite",
         "parameters": {
-            "satellite": "NEW sAtEllItE 6/9"
+            "satellite": "NEW sAtEllItE 6/9",
+            "proc_level": "L1TP"
+        }
+    },
+    'set_satellite_inv_proc_level': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "set_satellite",
+        "parameters": {
+            "satellite": "Landsat 8/9",
+            "proc_level": "hatsune miku"
         }
     },
     'end_session_ok': {
@@ -1116,8 +1157,12 @@ class Test(unittest.TestCase):
         # 20502
 
     def test_json_set_satellite(self):
+        self.assertEqual(10007, check_json(requests_json['set_satellite_no_satellite']))
+        self.assertEqual(10007, check_json(requests_json['set_satellite_no_proc_level']))
         self.assertEqual(10600, check_json(requests_json['set_satellite_inv_satellite_type']))
+        self.assertEqual(10601, check_json(requests_json['set_satellite_inv_proc_level_type']))
         self.assertEqual(20600, check_json(requests_json['set_satellite_unsupported_satellite']))
+        self.assertEqual(20601, check_json(requests_json['set_satellite_inv_proc_level']))
 
     def test_json_end_session(self):
         self.assertEqual(10700, check_json(requests_json['end_session_non_empty_params']))
@@ -1247,8 +1292,12 @@ class Test(unittest.TestCase):
         self.assertEqual((500, 20501) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_not_enough_bands'])))
         # 20502
 
+        self.assertEqual((400, 10007) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_no_satellite'])))
+        self.assertEqual((400, 10007) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_no_proc_level'])))
         self.assertEqual((400, 10600) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_inv_satellite_type'])))
+        self.assertEqual((400, 10601) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_inv_proc_level_type'])))
         self.assertEqual((500, 20600) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_unsupported_satellite'])))
+        self.assertEqual((400, 20601) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_inv_proc_level'])))
 
         self.assertEqual((400, 10700) , _codes(POST('/api/end_session', http_headers['ok'], requests_json['end_session_non_empty_params'])))
 
