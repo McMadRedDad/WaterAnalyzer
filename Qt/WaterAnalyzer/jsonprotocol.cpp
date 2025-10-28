@@ -35,6 +35,10 @@ QJsonObject JsonProtocol::end_session() {
     return construct_json("end_session", QJsonObject());
 }
 
+QJsonObject JsonProtocol::import_metafile(QString file) {
+    return construct_json("import_metafile", QJsonObject{{"file", file}});
+}
+
 void JsonProtocol::inc_counter() {
     counter++;
 }

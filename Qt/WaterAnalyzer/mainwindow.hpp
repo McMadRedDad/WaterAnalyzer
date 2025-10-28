@@ -39,6 +39,7 @@ struct STATE {
     ResultPage    *result_p;
     PAGE           page;
     QDir           dir;
+    QString        metadata_file;
     PROC_LEVEL     proc_level;
     uint           curr_req_id;
     QList<DATASET> datasets;
@@ -68,6 +69,7 @@ private:
 
     Ui::MainWindow *ui;
     QTimer          timer_status;
+    ushort          retries, curr_try;
 
     void       send_request(QString type, QJsonObject data, QMap<QString, QString> options = {});
     void       handle_error(QNetworkReply *response);

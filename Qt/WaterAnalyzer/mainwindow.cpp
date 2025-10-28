@@ -18,6 +18,8 @@ MainWindow::MainWindow(QWidget *parent)
     proto = JsonProtocol("1.0.0");
 
     connect(&timer_status, &QTimer::timeout, [this]() { ui->lbl_status->clear(); });
+    retries = 3;
+    curr_try = 0;
 }
 
 MainWindow::~MainWindow() {
@@ -251,11 +253,33 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         for (DATASET &ds : self.datasets) {
             send_request("command", proto.import_gtiff(ds.filename, ds.band));
         }
+        send_request("command", proto.import_metafile(self.metadata_file));
         append_log("info", "Модель спутника задана.");
         set_status_message(true, "Спутник задан");
     } else if (command == "end_session") {
         append_log("info", "Сессия сброшена.");
         set_status_message(true, "Сессия сброшена");
+    } else if (command == "import_metafile") {
+        qDebug() << result["loaded"] << self.datasets.length();
+
+        if (result["loaded"].toInt() != self.datasets.length()) {
+            if (curr_try < retries) {
+                QTimer::singleShot(500, [this]() {
+                    send_request("command", proto.import_metafile(self.metadata_file));
+                    curr_try++;
+                });
+            } else {
+                curr_try = 0;
+                append_log("bad",
+                           QString("Метаданные загружены только для %1 из %2 каналов.")
+                               .arg(QString::number(result["loaded"].toInt()), QString::number(self.datasets.length())));
+                set_status_message(false, "Метаданные загружены не для всех каналов");
+            }
+        } else {
+            curr_try = 0;
+            append_log("info", "Файл метаданных загружен.");
+            set_status_message(true, "Метаданные загружены");
+        }
     } else {
         append_log("info", "Запрошена неизвестная команда, но сервер её обработал: " + command + ".");
         set_status_message(false, "Неизвестная команда");
@@ -366,7 +390,7 @@ void MainWindow::change_page(PAGE to) {
             int counter = 0;
             for (const QString &f : dir.entryList()) {
                 QString entry = f.toUpper();
-                if (entry.endsWith(".TIF") && f.right(7).toUpper().contains('B')) {
+                if (entry.endsWith(".TIF") && entry.right(7).contains('B')) {
                     if (self.proc_level == PROC_LEVEL::PROC_LEVEL_BAD) {
                         if (entry.contains("L1TP")) {
                             self.proc_level = PROC_LEVEL::LANDSAT_L1TP;
@@ -386,13 +410,17 @@ void MainWindow::change_page(PAGE to) {
                     DATASET ds;
                     ds.filename = dir.absolutePath() + "/" + f;
                     QString band = f.right(8);
-                    if (band[0] == '_') {
-                        ds.band = band.mid(2, 2).toUShort();
-                    } else {
-                        ds.band = band.mid(3, 1).toUShort();
+                    if (!band.contains('Q')) {
+                        if (band[0] == '_') {
+                            ds.band = band.mid(2, 2).toUShort();
+                        } else {
+                            ds.band = band.mid(3, 1).toUShort();
+                        }
+                        self.datasets.append(ds);
+                        counter++;
                     }
-                    self.datasets.append(ds);
-                    counter++;
+                } else if (entry.endsWith("_MTL.TXT")) {
+                    self.metadata_file = dir.absolutePath() + "/" + f;
                 }
             }
             if (counter == 0) {
@@ -419,7 +447,7 @@ void MainWindow::change_page(PAGE to) {
             int counter = 0;
             for (const QString &f : filenames) {
                 QString entry = f.toUpper();
-                if (entry.endsWith(".TIF") && f.right(7).toUpper().contains("B")) {
+                if (entry.endsWith(".TIF") && entry.right(7).contains("B")) {
                     if (self.proc_level == PROC_LEVEL::PROC_LEVEL_BAD) {
                         if (entry.contains("L1TP")) {
                             self.proc_level = PROC_LEVEL::LANDSAT_L1TP;
@@ -439,13 +467,17 @@ void MainWindow::change_page(PAGE to) {
                     DATASET ds;
                     ds.filename = f;
                     QString band = f.right(8);
-                    if (band[0] == '_') {
-                        ds.band = band.mid(2, 2).toUShort();
-                    } else {
-                        ds.band = band.mid(3, 1).toUShort();
+                    if (!band.contains('Q')) {
+                        if (band[0] == '_') {
+                            ds.band = band.mid(2, 2).toUShort();
+                        } else {
+                            ds.band = band.mid(3, 1).toUShort();
+                        }
+                        self.datasets.append(ds);
+                        counter++;
                     }
-                    self.datasets.append(ds);
-                    counter++;
+                } else if (entry.endsWith("_MTL.TXT")) {
+                    self.metadata_file = f;
                 }
             }
             if (counter == 0) {
@@ -467,7 +499,7 @@ void MainWindow::change_page(PAGE to) {
             ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
         };
-        auto custom_files = [this](QString proc_level, QList<QPair<QString, QString>> bands_files) {
+        auto custom_files = [this](QString proc_level, QString metafile, QList<QPair<QString, QString>> bands_files) {
             if (bands_files.isEmpty()) {
                 append_log("bad", "Не выбрано ни одного файла Tiff.");
                 set_status_message(false, "Файлы Tiff не выбраны");
@@ -479,6 +511,11 @@ void MainWindow::change_page(PAGE to) {
                 ds.band = f.first.toUShort();
                 self.datasets.append(ds);
             }
+            if (proc_level == "L1TP") {
+                self.proc_level = PROC_LEVEL::LANDSAT_L1TP;
+            } else if (proc_level == "L2SP") {
+                self.proc_level = PROC_LEVEL::LANDSAT_L2SP;
+            }
             switch (self.proc_level) {
             case PROC_LEVEL::LANDSAT_L1TP:
                 send_request("command", proto.set_satellite("Landsat 8/9", "L1TP"));
@@ -489,12 +526,8 @@ void MainWindow::change_page(PAGE to) {
             default:
                 break;
             }
+            self.metadata_file = metafile;
             self.dir = bands_files[0].second.section('/', 0, -2);
-            if (proc_level == "L1TP") {
-                self.proc_level = PROC_LEVEL::LANDSAT_L1TP;
-            } else if (proc_level == "L2SP") {
-                self.proc_level = PROC_LEVEL::LANDSAT_L2SP;
-            }
             ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
         };
@@ -514,6 +547,10 @@ void MainWindow::change_page(PAGE to) {
             append_log("bad", QString("Выбранный файл %1 не является файлом Tiff.").arg(file));
             set_status_message(false, "Выбранный файл не Tiff");
         });
+        connect(self.import_p, &ImportPage::bad_metafile, [this](QString file) {
+            append_log("bad", QString("Выбранный файл %1 не является текстовым файлом.").arg(file));
+            set_status_message(false, "Выбранный файл не текстовый");
+        });
         connect(this, &MainWindow::to_satellite_select_page, self.import_p, &ImportPage::to_satellite_select_page);
         connect(self.import_p, &ImportPage::directory, directory);
         connect(self.import_p, &ImportPage::files, files);
@@ -522,6 +559,7 @@ void MainWindow::change_page(PAGE to) {
         self.page = PAGE::IMPORT;
         self.dir = QDir();
         self.proc_level = PROC_LEVEL::PROC_LEVEL_BAD;
+        self.metadata_file = "";
         ui->lbl_dir->setText("");
         self.datasets.clear();
 

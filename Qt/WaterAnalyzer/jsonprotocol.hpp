@@ -20,6 +20,7 @@ public:
     QJsonObject calc_index(QString index);
     QJsonObject set_satellite(QString satellite, QString proc_level);
     QJsonObject end_session();
+    QJsonObject import_metafile(QString file);
 
     void    inc_counter();
     QString get_proto_version();

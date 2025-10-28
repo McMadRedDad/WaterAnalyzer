@@ -36,7 +36,8 @@ signals:
     void custom_bands_page();
     void satellite_select_page();
     void bad_band(QString);
-    void custom_files(QString proc_level, QList<QPair<QString, QString>>);
+    void bad_metafile(QString);
+    void custom_files(QString proc_level, QString metafile, QList<QPair<QString, QString>>);
     void directory(QDir);
     void files(QStringList);
 
