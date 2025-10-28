@@ -175,7 +175,12 @@ test_files = {
     'regular_tif': '/home/tim/Учёба/Test data/japanese-stone-lantern.tif',
     'saga_grid': '/home/tim/Учёба/Test data/dacha.sg-grd-z',
     'shape': '/home/tim/Учёба/Test data/dacha.shp',
-    'non_existent': '/home/tim/42069.34'
+    'non_existent': '/home/tim/42069.34',
+    'metafile_ok': '/home/tim/Учёба/Test data/LC09_L1TP_188012_20230710_20230710_02_T1/LC09_L1TP_188012_20230710_20230710_02_T1_MTL.txt',
+    'metafile_inv_band': '/home/tim/Учёба/Test data/LC09_L1TP_188012_20230710_20230710_02_T1/bad metadata inv band.txt',
+    'metafile_not_float': '/home/tim/Учёба/Test data/LC09_L1TP_188012_20230710_20230710_02_T1/bad metadata not float.txt',
+    'metafile_no_coeffs': '/home/tim/Учёба/Test data/LC09_L1TP_188012_20230710_20230710_02_T1/bad metadata no coefficients.txt',
+    'metafile_not_full': '/home/tim/Учёба/Test data/LC09_L1TP_188012_20230710_20230710_02_T1/bad metadata not full.txt'
 }
 
 requests_json = {
@@ -795,6 +800,67 @@ requests_json = {
             "rule34": 42069
         }
     },
+    'import_metafile_ok': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_metafile",
+        "parameters": {
+            "file": test_files['metafile_ok']
+        }
+    },
+    'import_metafile_no_file': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_metafile",
+        "parameters": {}
+    },
+    'import_metafile_not_full': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_metafile",
+        "parameters": {
+            "file": test_files['metafile_not_full']
+        }
+    },
+    'import_metafile_no_coeffs': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_metafile",
+        "parameters": {
+            "file": test_files['metafile_no_coeffs']
+        }
+    },
+    'import_metafile_not_float': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_metafile",
+        "parameters": {
+            "file": test_files['metafile_not_float']
+        }
+    },
+    'import_metafile_inv_band': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_metafile",
+        "parameters": {
+            "file": test_files['metafile_inv_band']
+        }
+    },
+    'import_metafile_non_existent': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "import_metafile",
+        "parameters": {
+            "file": test_files['non_existent']
+        }
+    }
 }
 
 # Able to override the Content-Type and Content-Length headers.
@@ -864,7 +930,8 @@ class Test(unittest.TestCase):
         self.assertEqual((500, 20004) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid'])))
         self.assertEqual((500, 20004) , _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])))
         self.assertEqual((500, 20004) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])))
-        print('Done!')
+        self.assertEqual((500, 20004) , _codes(POST('/api/import_metafile', http_headers['ok'], requests_json['import_metafile_ok'])))
+        print('All good!')
 
         self.prepare()
 
@@ -894,6 +961,7 @@ class Test(unittest.TestCase):
         self.assertEqual(200, POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok']).status_code)
         self.assertEqual(200, POST('/api/end_session', http_headers['ok'], requests_json['end_session_ok']).status_code)
         self.prepare()
+        self.assertEqual(200, POST('/api/import_metafile', http_headers['ok'], requests_json['import_metafile_ok']).status_code)
         
         self.assertIsNone(POST('/api/PING', http_headers['ok'], requests_json['ping_ok']).headers.get('Reason'))
         # self.assertIsNone(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok']).headers.get('Reason'))
@@ -915,6 +983,7 @@ class Test(unittest.TestCase):
         self.assertIsNone(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok']).headers.get('Reason'))
         self.assertIsNone(POST('/api/end_session', http_headers['ok'], requests_json['end_session_ok']).headers.get('Reason'))
         self.prepare()
+        self.assertIsNone(POST('/api/import_metafile', http_headers['ok'], requests_json['import_metafile_ok']).headers.get('Reason'))
    
     def test_http_endpoint(self):
         self.assertEqual(400, POST('/api/unsupported', http_headers['ok'], '').status_code)
@@ -1056,6 +1125,7 @@ class Test(unittest.TestCase):
         self.assertEqual(0, check_json(requests_json['set_satellite_ok']))
         self.assertEqual(0, check_json(requests_json['end_session_ok']))
         self.prepare()
+        self.assertEqual(0, check_json(requests_json['import_metafile_ok']))
    
     def test_json_unknown_key(self):
         self.assertEqual(10000, check_json(requests_json['unknown_key1']))
@@ -1167,6 +1237,14 @@ class Test(unittest.TestCase):
     def test_json_end_session(self):
         self.assertEqual(10700, check_json(requests_json['end_session_non_empty_params']))
 
+    def test_json_import_metafile(self):
+        self.assertEqual(10007, check_json(requests_json['import_metafile_no_file']))
+        self.assertEqual(0, check_json(requests_json['import_metafile_not_full']))
+        self.assertEqual(20800, check_json(requests_json['import_metafile_no_coeffs']))
+        self.assertEqual(20800, check_json(requests_json['import_metafile_not_float']))
+        self.assertEqual(20800, check_json(requests_json['import_metafile_inv_band']))
+        self.assertEqual(20801, check_json(requests_json['import_metafile_non_existent']))
+
     ### BOTH ###
    
     def test_cross(self):
@@ -1191,88 +1269,89 @@ class Test(unittest.TestCase):
             return response.status_code, \
                    response.get_json().get('status') if response.get_json() else None
 
-        self.assertEqual((200, 0) , _codes(POST('/api/PING', http_headers['ok'], requests_json['ping_ok'])))
+        self.assertEqual((200, 0), _codes(POST('/api/PING', http_headers['ok'], requests_json['ping_ok'])))
         # self.assertEqual((200, 0) , _codes(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_big'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid2'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid3'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol2'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_nodata'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok'])))
-        self.assertEqual((200, 0) , _codes(POST('/api/end_session', http_headers['ok'], requests_json['end_session_ok'])))
+        self.assertEqual((200, 0), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_big'])))
+        self.assertEqual((200, 0), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid'])))
+        self.assertEqual((200, 0), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol'])))
+        self.assertEqual((200, 0), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid2'])))
+        self.assertEqual((200, 0), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid3'])))
+        self.assertEqual((200, 0), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_smol2'])))
+        self.assertEqual((200, 0), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_nodata'])))
+        self.assertEqual((200, 0), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])))
+        self.assertEqual((200, 0), _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])))
+        self.assertEqual((200, 0), _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_ok'])))
+        self.assertEqual((200, 0), _codes(POST('/api/end_session', http_headers['ok'], requests_json['end_session_ok'])))
         self.prepare()
+        self.assertEqual((200, 0), _codes(POST('/api/import_metafile', http_headers['ok'], requests_json['import_metafile_ok'])))
 
-        self.assertEqual((400, 10000) , _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key1'])))
-        self.assertEqual((400, 10000) , _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key2'])))
+        self.assertEqual((400, 10000), _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key1'])))
+        self.assertEqual((400, 10000), _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key2'])))
 
-        self.assertEqual((400, 10001) , _codes(POST('/api/PING', http_headers['ok'], requests_json['missing_key1'])))
-        self.assertEqual((400, 10001) , _codes(POST('/api/PING', http_headers['ok'], requests_json['missing_key2'])))
-        self.assertEqual((400, 10001) , _codes(POST('/api/PING', http_headers['ok'], requests_json['missing_key3'])))
-        self.assertEqual((400, 10001) , _codes(POST('/api/PING', http_headers['ok'], requests_json['missing_key4'])))
-        self.assertEqual((400, 10001) , _codes(POST('/api/PING', http_headers['ok'], requests_json['missing_key5'])))
+        self.assertEqual((400, 10001), _codes(POST('/api/PING', http_headers['ok'], requests_json['missing_key1'])))
+        self.assertEqual((400, 10001), _codes(POST('/api/PING', http_headers['ok'], requests_json['missing_key2'])))
+        self.assertEqual((400, 10001), _codes(POST('/api/PING', http_headers['ok'], requests_json['missing_key3'])))
+        self.assertEqual((400, 10001), _codes(POST('/api/PING', http_headers['ok'], requests_json['missing_key4'])))
+        self.assertEqual((400, 10001), _codes(POST('/api/PING', http_headers['ok'], requests_json['missing_key5'])))
 
-        self.assertEqual((400, None) , _codes(POST('/api/PING', http_headers['inv_proto_v'], requests_json['inv_proto_ver1'])))
+        self.assertEqual((400, None), _codes(POST('/api/PING', http_headers['inv_proto_v'], requests_json['inv_proto_ver1'])))
 
-        self.assertEqual((400, 10003) , _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_serv_ver1'])))
-        self.assertEqual((400, 10003) , _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_serv_ver2'])))
-        self.assertEqual((400, 10003) , _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_serv_ver3'])))
-        self.assertEqual((400, 10003) , _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_serv_ver4'])))
-        self.assertEqual((400, 10003) , _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_serv_ver5'])))
-        self.assertEqual((400, 10003) , _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_serv_ver6'])))
+        self.assertEqual((400, 10003), _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_serv_ver1'])))
+        self.assertEqual((400, 10003), _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_serv_ver2'])))
+        self.assertEqual((400, 10003), _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_serv_ver3'])))
+        self.assertEqual((400, 10003), _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_serv_ver4'])))
+        self.assertEqual((400, 10003), _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_serv_ver5'])))
+        self.assertEqual((400, 10003), _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_serv_ver6'])))
 
-        self.assertEqual((400, None) , _codes(POST('/api/PING', http_headers['inv_request_id_type'], requests_json['inv_id1'])))
-        self.assertEqual((400, None) , _codes(POST('/api/PING', http_headers['inv_request_id'], requests_json['inv_id1'])))
+        self.assertEqual((400, None), _codes(POST('/api/PING', http_headers['inv_request_id_type'], requests_json['inv_id1'])))
+        self.assertEqual((400, None), _codes(POST('/api/PING', http_headers['inv_request_id'], requests_json['inv_id1'])))
 
-        self.assertEqual((400, None) , _codes(POST('/api/PIG', http_headers['ok'], requests_json['ping_ok'])))
+        self.assertEqual((400, None), _codes(POST('/api/PIG', http_headers['ok'], requests_json['ping_ok'])))
 
-        self.assertEqual((400, 10006) , _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_params'])))
+        self.assertEqual((400, 10006), _codes(POST('/api/PING', http_headers['ok'], requests_json['inv_params'])))
 
         self.assertEqual((400, 10007), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['params_missing_key'])))
 
         self.assertEqual((400, 10008), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['params_unknown_key'])))
 
-        self.assertEqual((400, None) , _codes(POST('/api/PING', http_headers['inv_proto_v'], requests_json['ping_ok'])))
+        self.assertEqual((400, None), _codes(POST('/api/PING', http_headers['inv_proto_v'], requests_json['ping_ok'])))
 
         # mismatching keys ???
 
-        self.assertEqual((500, 20000) , _codes(POST('/api/PING', http_headers['ok'], requests_json['incorrect_serv_ver'])))
+        self.assertEqual((500, 20000), _codes(POST('/api/PING', http_headers['ok'], requests_json['incorrect_serv_ver'])))
 
         proto_v = proto.get_version()
         hdrs = http_headers['ok'].copy()
         proto.VERSION = requests_json['unsupported_proto_ver']['proto_version']
         hdrs['Protocol-Version'] = requests_json['unsupported_proto_ver']['proto_version']
-        self.assertEqual((500, 20001) , _codes(POST('/api/PING', hdrs, requests_json['unsupported_proto_ver'])))
+        self.assertEqual((500, 20001), _codes(POST('/api/PING', hdrs, requests_json['unsupported_proto_ver'])))
         proto.VERSION = proto_v
         hdrs['Protocol-Version'] = proto_v
         
-        self.assertEqual((400, None) , _codes(POST('/api/new_operation', http_headers['ok'], requests_json['unsupported_operation'])))
-        self.assertEqual((400, None) , _codes(GET('/resource/unsupported?id=0', http_headers['ok'], '')))
+        self.assertEqual((400, None), _codes(POST('/api/new_operation', http_headers['ok'], requests_json['unsupported_operation'])))
+        self.assertEqual((400, None), _codes(GET('/resource/unsupported?id=0', http_headers['ok'], '')))
 
-        self.assertEqual((400, None) , _codes(POST('/api/PING?=', http_headers['ok'], requests_json['ping_ok'])))
-        self.assertEqual((400, None) , _codes(GET('/resource/preview', http_headers['ok'], '')))
-        self.assertEqual((400, None) , _codes(GET('/resource/preview?a=1&b=2', http_headers['ok'], '')))
-        self.assertEqual((400, None) , _codes(GET('/resource/preview?id=abc', http_headers['ok'], '')))
+        self.assertEqual((400, None), _codes(POST('/api/PING?=', http_headers['ok'], requests_json['ping_ok'])))
+        self.assertEqual((400, None), _codes(GET('/resource/preview', http_headers['ok'], '')))
+        self.assertEqual((400, None), _codes(GET('/resource/preview?a=1&b=2', http_headers['ok'], '')))
+        self.assertEqual((400, None), _codes(GET('/resource/preview?id=abc', http_headers['ok'], '')))
         
         # 20003
 
         # 20004 is checked in test_000
 
-        self.assertEqual((400, 10100) , _codes(POST('/api/PING', http_headers['ok'], requests_json['ping_non_empty_params'])))
+        self.assertEqual((400, 10100), _codes(POST('/api/PING', http_headers['ok'], requests_json['ping_non_empty_params'])))
 
-        self.assertEqual((400, 10200) , _codes(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_non_empty_params'])))
+        self.assertEqual((400, 10200), _codes(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_non_empty_params'])))
         # 20200, 20201
 
-        self.assertEqual((400, 10007) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_no_file'])))
-        self.assertEqual((400, 10007) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_no_band'])))
-        self.assertEqual((400, 10300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_inv_band_type'])))
-        self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff1'])))
-        self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff2'])))
-        self.assertEqual((500, 20300) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff3'])))
-        self.assertEqual((500, 20301) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_non_existent'])))
+        self.assertEqual((400, 10007), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_no_file'])))
+        self.assertEqual((400, 10007), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_no_band'])))
+        self.assertEqual((400, 10300), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_inv_band_type'])))
+        self.assertEqual((500, 20300), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff1'])))
+        self.assertEqual((500, 20300), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff2'])))
+        self.assertEqual((500, 20300), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_not_geotiff3'])))
+        self.assertEqual((500, 20301), _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_non_existent'])))
 
         self.assertEqual((400, 10007), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_no_index'])))
         self.assertEqual((400, 10007), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_no_width'])))
@@ -1286,20 +1365,27 @@ class Test(unittest.TestCase):
         self.assertEqual((500, 20401), _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_index_not_created'])))
         # 20402
 
-        self.assertEqual((400, 10007) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_no_index'])))
-        self.assertEqual((400, 10500) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_inv_index_type'])))
-        self.assertEqual((400, 20500) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_unsupported_index'])))
-        self.assertEqual((500, 20501) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_not_enough_bands'])))
+        self.assertEqual((400, 10007), _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_no_index'])))
+        self.assertEqual((400, 10500), _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_inv_index_type'])))
+        self.assertEqual((400, 20500), _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_unsupported_index'])))
+        self.assertEqual((500, 20501), _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_not_enough_bands'])))
         # 20502
 
-        self.assertEqual((400, 10007) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_no_satellite'])))
-        self.assertEqual((400, 10007) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_no_proc_level'])))
-        self.assertEqual((400, 10600) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_inv_satellite_type'])))
-        self.assertEqual((400, 10601) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_inv_proc_level_type'])))
-        self.assertEqual((500, 20600) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_unsupported_satellite'])))
-        self.assertEqual((400, 20601) , _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_inv_proc_level'])))
+        self.assertEqual((400, 10007), _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_no_satellite'])))
+        self.assertEqual((400, 10007), _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_no_proc_level'])))
+        self.assertEqual((400, 10600), _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_inv_satellite_type'])))
+        self.assertEqual((400, 10601), _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_inv_proc_level_type'])))
+        self.assertEqual((500, 20600), _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_unsupported_satellite'])))
+        self.assertEqual((400, 20601), _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_inv_proc_level'])))
 
-        self.assertEqual((400, 10700) , _codes(POST('/api/end_session', http_headers['ok'], requests_json['end_session_non_empty_params'])))
+        self.assertEqual((400, 10700), _codes(POST('/api/end_session', http_headers['ok'], requests_json['end_session_non_empty_params'])))
+
+        self.assertEqual((400, 10007), _codes(POST('api/import_metafile', http_headers['ok'], requests_json['import_metafile_no_file'])))
+        self.assertEqual((200, 0), _codes(POST('api/import_metafile', http_headers['ok'], requests_json['import_metafile_not_full'])))
+        self.assertEqual((500, 20800), _codes(POST('api/import_metafile', http_headers['ok'], requests_json['import_metafile_no_coeffs'])))
+        self.assertEqual((500, 20800), _codes(POST('api/import_metafile', http_headers['ok'], requests_json['import_metafile_not_float'])))
+        self.assertEqual((500, 20800), _codes(POST('api/import_metafile', http_headers['ok'], requests_json['import_metafile_inv_band'])))
+        self.assertEqual((500, 20801), _codes(POST('api/import_metafile', http_headers['ok'], requests_json['import_metafile_non_existent'])))
 
     ### DIFFERENT FILES ###
 

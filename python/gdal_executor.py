@@ -1,4 +1,5 @@
 from math import isclose
+from time import sleep
 import threading
 from osgeo import gdal
 import numpy as np
@@ -65,6 +66,8 @@ class Dataset:
         self.dataset = dataset
         self.band = band
         self.no_data = None
+        self.mult_coeff = None
+        self.add_coeff = None
         self.stats = stats
 
 class DatasetManager:
@@ -538,6 +541,46 @@ class GdalExecutor:
             self.satellite = None
             self.proc_level = None
             return _response(0, {})
+
+        if operation == 'import_metafile':
+            if self.satellite is None or self.proc_level is None:
+                return _response(20004, {"error": "request 'import_metafile' was received before 'set_satellite' request"})
+            filename, file = parameters['file'], 0
+            try:
+                file = open(filename, 'r', encoding='utf-8')
+            except OSError:
+                return _response(20801, {"error": f"failed to open metadata file '{filename}'"})
+
+            with file:
+                found = False
+                if self.satellite == 'Landsat 8/9' and self.proc_level == 'L1TP':
+                    parsing = False
+                    counter = 0
+                    for l in file:
+                        if 'RADIOMETRIC_RESCALING' in l:
+                            found = True
+                            parsing = True if not parsing else False
+                            continue
+                        if parsing and 'RADIANCE' in l:
+                            band, _, coeff = l.partition('=')
+                            band = band.strip()[-2:]
+                            try:
+                                band = int(band[1:]) if band[0] == '_' else int(band)
+                                coeff = float(coeff.strip())
+                            except ValueError:
+                                return _response(20800, {"error": f"metadata file '{filename}' is invalid, unsupported or does not contain calibration coefficients"})
+                            id__ = self.ds_man.find(band)
+                            if id__ is not None:
+                                if 'MULT' in l:
+                                    self.ds_man.get(id__).mult_coeff = coeff
+                                if 'ADD' in l:
+                                    self.ds_man.get(id__).add_coeff = coeff
+                                counter += 1
+                if not found:
+                    return _response(20800, {"error": f"metadata file '{filename}' is either invalid or does not contain calibration coefficients"})
+            return _response(0, {
+                "loaded": counter // 2
+            })
         
         return _response(-1, {"error": "how's this even possible?"})
 

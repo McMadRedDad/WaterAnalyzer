@@ -1,6 +1,6 @@
 class Protocol:
     VERSION = '3.0.1'
-    SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index', 'set_satellite', 'end_session')
+    SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index', 'set_satellite', 'end_session', 'import_metafile')
 
     def __init__(self):
         print(f'Using protocol version {self.VERSION}')
@@ -97,14 +97,12 @@ class Protocol:
         if operation == 'PING':
             if len(parameters) != 0:
                 return _response(10100, {"error": "'parameters' must be an empty JSON object for 'PING' request"})
-            else:
-                return _response(0, {})
+            return _response(0, {})
 
         if operation == 'SHUTDOWN':
             if len(parameters) != 0:
                 return _response(10200, {"error": "'parameters' must be an empty JSON object for 'SHUTDOWN' request"})
-            else:
-                return _response(0, {})
+            return _response(0, {})
 
         if operation == 'import_gtiff':
             params_check = _check_param_keys('import_gtiff', ['file', 'band'], list(parameters.keys()))
@@ -155,8 +153,13 @@ class Protocol:
         if operation == 'end_session':
             if len(parameters) != 0:
                 return _response(10700, {"error": "'parameters' must be an empty JSON object for 'end_session' request"})
-            else:
-                return _response(0, {})
+            return _response(0, {})
+
+        if operation == 'import_metafile':
+            params_check = _check_param_keys('import_metafile', ['file'], list(parameters.keys()))
+            if len(params_check) != 0:
+                return params_check
+            return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})
 

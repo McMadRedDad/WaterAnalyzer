@@ -1,4 +1,4 @@
-**VERSION 3.0.1**
+**VERSION 3.0.2**
 
 Communication via HTTP messages. The payload is sent as a JSON document in message bodies.
 
@@ -128,6 +128,7 @@ If the request passed body validation, it proceeds to the second layer of error 
 5. calc_index       - create a spectral index and cache it
 6. set_satellite    - save what satellite is used in the client's session
 7. end_session      - free resources occupied by the client. Indicates the end of the client's session
+8. import_metafile  - load a metadata file
 
 ## Message structure
 
@@ -463,6 +464,34 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 20700
     - `result` - { "error": "unable to end session: a request is being processed" }
     -  HTTP 409 Conflict
+
+## import metadata
+
+**Must** be sent only after 'set_satellite' request.
+
+*REQUEST*
+
+- `operation`  - "import_metafile"
+- `parameters` - {
+    "file": "`/path/to/file`"  **!!!no local paths for remote servers; fine for now!!!**
+}
+
+*RESPONSE*
+
+1. Success:
+    - `status` - 0
+    - `result` - {
+        "loaded": `number`  - [INT] how many datasets the metadata was read for
+    }
+    -  HTTP 200 OK
+2. Invalid/wrong file:
+    - `status` - 20800
+    - `result` - { "error": "metadata file '`filename`' is invalid, unsupported or does not contain calibration coefficients" }
+    -  HTTP 500 Internal Server Error
+3. Unknown error:
+    - `status` - 20801
+    - `result` - { "error": "failed to open metadata file '`filename`'" }
+    -  HTTP 500 Internal Server Error
 
 ## HTTP and JSON cross-validation
 
