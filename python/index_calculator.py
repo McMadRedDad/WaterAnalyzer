@@ -30,6 +30,7 @@ def _test(array1: np.ma.MaskedArray, array2: np.ma.MaskedArray, nodata: int | fl
     test[~zeros] = array1[~zeros] / array2[~zeros]
     test[zeros] = nodata
     test[mask] = nodata
+    test.mask = mask
     return test
 
 def wi2015(green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedArray, swir1: np.ma.MaskedArray, swir2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
@@ -39,6 +40,7 @@ def wi2015(green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedAr
     mask = _full_mask(green, red, nir, swir1, swir2)
     wi2015 = 1.7204 + 171*green + 3*red - 70*nir - 45*swir1 - 71*swir2
     wi2015[mask] = nodata
+    wi2015.mask = mask
     return wi2015
 
 def nsmi(red: np.ma.MaskedArray, green: np.ma.MaskedArray, blue: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
@@ -52,6 +54,7 @@ def nsmi(red: np.ma.MaskedArray, green: np.ma.MaskedArray, blue: np.ma.MaskedArr
     nsmi[~zeros] = numerator[~zeros] / denominator[~zeros]
     nsmi[zeros] = nodata
     nsmi[mask] = nodata
+    nsmi.mask = mask
     return nsmi
 
 def oc3(aerosol: np.ma.MaskedArray, blue: np.ma.MaskedArray, green: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
@@ -63,6 +66,7 @@ def oc3(aerosol: np.ma.MaskedArray, blue: np.ma.MaskedArray, green: np.ma.Masked
     oc3[~zeros] = np.maximum(aerosol, blue)[~zeros] / green[~zeros]
     oc3[zeros] = nodata
     oc3[mask] = nodata
+    oc3.mask = mask
     return oc3
 
 def cdom_ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
@@ -80,6 +84,7 @@ def cdom_ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | fl
     cdom_ndwi[~zeros] = 2119.5*ndwi[~zeros]**3 + 4559.1*ndwi[~zeros]**2 - 2760.4*ndwi[~zeros] + 603.6
     cdom_ndwi[zeros] = nodata
     cdom_ndwi[mask] = nodata
+    cdom_ndwi.mask = mask
     return cdom_ndwi
 
 def landsat_dn_to_radiance(array: np.ma.MaskedArray, mult_factor: float, add_factor: float, nodata: float | int) -> np.ma.MaskedArray:
