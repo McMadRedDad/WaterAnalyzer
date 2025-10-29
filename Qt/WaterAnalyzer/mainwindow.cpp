@@ -262,8 +262,6 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         append_log("info", "Сессия сброшена.");
         set_status_message(true, "Сессия сброшена");
     } else if (command == "import_metafile") {
-        qDebug() << result["loaded"] << self.datasets.length();
-
         if (result["loaded"].toInt() != self.datasets.length()) {
             if (curr_try < retries) {
                 QTimer::singleShot(500, [this]() {
@@ -298,7 +296,7 @@ QString MainWindow::get_type_by_index(QString index) {
         return "chloro";
     } else if (indx == "cdom_ndwi") {
         return "cdom";
-    } else if (indx == "temperature_landsat_toa" || indx == "temperature_landsat_ls") {
+    } else if (indx == "temperature_landsat_toa" || indx == "temperature_landsat_lst") {
         return "temp";
     } else {
         return "";
@@ -623,10 +621,8 @@ void MainWindow::change_page(PAGE to) {
 
         self.page = PAGE::SELECTION;
 
-        if (self.proc_level == PROC_LEVEL::LANDSAT_L1TP) {
-            self.process_p->set_temperature_type("toa");
-        } else if (self.proc_level == PROC_LEVEL::LANDSAT_L2SP) {
-            self.process_p->set_temperature_type("surface");
+        if (self.proc_level == PROC_LEVEL::LANDSAT_L2SP) {
+            self.process_p->hide_temperature_toa();
         }
         ui->pb_back->show();
         ui->widget_main->layout()->addWidget(self.process_p);

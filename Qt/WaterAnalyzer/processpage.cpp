@@ -47,8 +47,8 @@ void ProcessPage::fill_metadata(QStringList metadata) {
     tb->show();
 }
 
-void ProcessPage::set_temperature_type(QString type) {
-    temperature_type = type;
+void ProcessPage::hide_temperature_toa() {
+    ui->combo_temp->removeItem(0);
 }
 
 void ProcessPage::on_pb_refresh_clicked() {
@@ -66,12 +66,10 @@ void ProcessPage::on_pb_go_clicked() {
     indices.append(ui->combo_tss->currentText());
     indices.append(ui->combo_chloro->currentText());
     indices.append(ui->combo_cdom->currentText());
-    if (ui->chbx_temp->isChecked()) {
-        if (temperature_type == "toa") {
-            indices.append("temperature_landsat_toa");
-        } else if (temperature_type == "ls") {
-            indices.append("temperature_landsat_ls");
-        }
+    if (ui->combo_temp->currentIndex() == 0) {
+        indices.append("temperature_landsat_toa");
+    } else {
+        indices.append("temperature_landsat_lst");
     }
     emit this->indices(indices);
 }

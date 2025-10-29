@@ -332,21 +332,21 @@ class GdalExecutor:
             green = self.ds_man.read_band(id1, 1, nodata=0)
             nir = self.ds_man.read_band(id2, 1, nodata=0)
             result = indcal.cdom_ndwi(green, nir, nodata)
-        # if index == 'temperature_landsat_toa':
-        #     if self.satellite != 'Landsat 8/9':
-        #         return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} satellite"), ()
-        #     nodata = float('nan')
-        #     ph_unit = 'mg/L'
-        #     id1, id2 = -1, -1
-        #     if self.satellite == 'Landsat 8/9':
-        #         id1, id2 = self.ds_man.find(3), self.ds_man.find(5)
-        #         if id1 is None or id2 is None:
-        #             return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 3 and 5 are needed"), ()
-        #     geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
-        #     projection = self.ds_man.get(id1).dataset.GetProjection()
-        #     green = self.ds_man.read_band(id1, 1, nodata=0)
-        #     nir = self.ds_man.read_band(id2, 1, nodata=0)
-        #     result = indcal.cdom_ndwi(green, nir, nodata)
+        if index == 'temperature_landsat_toa':
+            if self.satellite != 'Landsat 8/9':
+                return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} satellite"), ()
+            nodata = float('nan')
+            ph_unit = '°C'
+            id1 = -1
+            id1 = self.ds_man.find(10)
+            if id1 is None:
+                return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} band number 10 is needed"), ()
+            dataset = self.ds_man.get(id1)
+            geotransform = dataset.dataset.GetGeoTransform()
+            projection = dataset.dataset.GetProjection()
+            thermal = self.ds_man.read_band(id1, 1, nodata=0)
+            radiance = indcal.landsat_dn_to_radiance(thermal, dataset.radio_mult, dataset.radio_add, nodata)
+            result = indcal.landsat_temperature_toa(radiance, dataset.thermal_k1, dataset.thermal_k2, nodata, 'C')
         return None, (geotransform, projection, result, data_type, nodata, ph_unit)
 
     def execute(self, request: dict) -> dict:
@@ -619,7 +619,7 @@ class GdalExecutor:
                 if not found:
                     return _response(20800, {"error": f"metadata file '{filename}' is either invalid or does not contain calibration coefficients"})
             return _response(0, {
-                "loaded": counter // 2 - 4
+                "loaded": counter // 2 - 2
             })
         
         return _response(-1, {"error": "how's this even possible?"})

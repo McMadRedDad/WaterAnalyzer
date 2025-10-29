@@ -18,7 +18,7 @@ public:
     void set_preview(QPixmap image);
     void clear_preview();
     void fill_metadata(QStringList metadata);
-    void set_temperature_type(QString type);
+    void hide_temperature_toa();
 
 private slots:
     void on_pb_refresh_clicked();
@@ -33,7 +33,6 @@ signals:
 private:
     Ui::ProcessPage *ui;
     QTableWidget    *tb;
-    QString          temperature_type;
 };
 
 #endif // PROCESSPAGE_HPP

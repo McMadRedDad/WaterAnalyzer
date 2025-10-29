@@ -94,6 +94,25 @@ def landsat_dn_to_radiance(array: np.ma.MaskedArray, mult_factor: float, add_fac
     mask = array.mask
     radiance = mult_factor * array + add_factor
     radiance[mask] = nodata
+    radiance.mask = mask
     return radiance
 
-# def landsat_temperature_toa()
+def landsat_temperature_toa(radiance: np.ma.MaskedArray, K1: float, K2: float, nodata: float | int, unit: str) -> np.ma.MaskedArray:
+    """'unit' is either 'K' or 'C'
+    for unit='K': temperature_toa = K2 / ln(K1/radiance + 1)
+    for unit='C': temperature_toa = K2 / ln(K1/radiance + 1) - 273,15"""
+
+    if unit not in ('K', 'C'):
+        raise ValueError(f'invalid value "{unit}" passed as "unit" argument for "landsat_temperature_toa" function')
+    temperature_toa = np.ma.empty(radiance.shape, dtype=np.float32)
+    mask = radiance.mask
+    denominator = np.log1p(K1 / radiance)
+    zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
+    if unit == 'K':
+        temperature_toa[~zeros] = K2 / denominator[~zeros]
+    if unit == 'C':
+        temperature_toa[~zeros] = K2 / denominator[~zeros] - 273.15
+    temperature_toa[zeros] = nodata
+    temperature_toa[mask] = nodata
+    temperature_toa.mask = mask
+    return temperature_toa

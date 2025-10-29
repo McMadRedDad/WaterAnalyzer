@@ -265,10 +265,17 @@
       </widget>
      </item>
      <item row="5" column="2">
-      <widget class="QCheckBox" name="chbx_temp">
-       <property name="text">
-        <string/>
-       </property>
+      <widget class="QComboBox" name="combo_temp">
+       <item>
+        <property name="text">
+         <string>Поверхность атмосферы</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Поверхность Земли</string>
+        </property>
+       </item>
       </widget>
      </item>
     </layout>
