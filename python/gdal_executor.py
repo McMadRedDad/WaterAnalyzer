@@ -234,7 +234,7 @@ class IndexErr:
 class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('3.0.1')
-    SUPPORTED_INDICES = ('test', 'wi2015', 'nsmi', 'oc3', 'cdom_ndwi')
+    SUPPORTED_INDICES = ('test', 'wi2015', 'nsmi', 'oc3', 'cdom_ndwi', 'temperature_landsat_toa')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
     }
@@ -265,7 +265,7 @@ class GdalExecutor:
             if self.satellite == 'Landsat 8/9':
                 id1, id2 = self.ds_man.find(2), self.ds_man.find(4)
                 if id1 is None or id2 is None:
-                    return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 2 and 4 are needed"), ()
+                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 2 and 4 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
             projection = self.ds_man.get(id1).dataset.GetProjection()
@@ -278,7 +278,7 @@ class GdalExecutor:
             if self.satellite == 'Landsat 8/9':
                 id1, id2, id3, id4, id5 = self.ds_man.find(3), self.ds_man.find(4), self.ds_man.find(5), self.ds_man.find(6), self.ds_man.find(7)
                 if id1 is None or id2 is None or id3 is None or id4 is None or id5 is None:
-                    return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 3, 4, 5, 6 and 7 are needed"), ()
+                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 3, 4, 5, 6 and 7 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
             projection = self.ds_man.get(id1).dataset.GetProjection()
@@ -294,7 +294,7 @@ class GdalExecutor:
             if self.satellite == 'Landsat 8/9':
                 id1, id2, id3 = self.ds_man.find(4), self.ds_man.find(3), self.ds_man.find(2)
                 if id1 is None or id2 is None or id3 is None:
-                    return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 2, 3 and 4 are needed"), ()
+                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 2, 3 and 4 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
             projection = self.ds_man.get(id1).dataset.GetProjection()
@@ -308,7 +308,7 @@ class GdalExecutor:
             if self.satellite == 'Landsat 8/9':
                 id1, id2, id3 = self.ds_man.find(1), self.ds_man.find(2), self.ds_man.find(3)
                 if id1 is None or id2 is None or id3 is None:
-                    return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 1, 2 and 3 are needed"), ()
+                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 1, 2 and 3 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
             projection = self.ds_man.get(id1).dataset.GetProjection()
@@ -323,8 +323,23 @@ class GdalExecutor:
             if self.satellite == 'Landsat 8/9':
                 id1, id2 = self.ds_man.find(3), self.ds_man.find(5)
                 if id1 is None or id2 is None:
-                    return IndexErr(20501, f"unable to calculate index '{index}': {self.satellite} bands number 3 and 5 are needed"), ()
+                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 3 and 5 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
+            geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
+            projection = self.ds_man.get(id1).dataset.GetProjection()
+            green = self.ds_man.read_band(id1, 1, nodata=0)
+            nir = self.ds_man.read_band(id2, 1, nodata=0)
+            result = indcal.cdom_ndwi(green, nir, nodata)
+        if index == 'temperature_landsat_toa':
+            if self.satellite != 'Landsat 8/9':
+                return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} satellite"), ()
+            nodata = float('nan')
+            ph_unit = 'mg/L'
+            id1, id2 = -1, -1
+            if self.satellite == 'Landsat 8/9':
+                id1, id2 = self.ds_man.find(3), self.ds_man.find(5)
+                if id1 is None or id2 is None:
+                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 3 and 5 are needed"), ()
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
             projection = self.ds_man.get(id1).dataset.GetProjection()
             green = self.ds_man.read_band(id1, 1, nodata=0)

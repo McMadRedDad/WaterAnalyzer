@@ -715,7 +715,16 @@ requests_json = {
             "index": "wi2015"
         }
     },
-    # calc_index 20502
+    'calc_index_unsupported_index_by_satellite': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "calc_index",
+        "parameters": {
+            "index": "temperature_landsat_toa"
+        }
+    },
+    # calc_index 20503
     'set_satellite_ok': {
         "proto_version": proto_version,
         "server_version": server_version,
@@ -1223,8 +1232,11 @@ class Test(unittest.TestCase):
         self.assertEqual(10007, check_json(requests_json['calc_index_no_index']))
         self.assertEqual(10500, check_json(requests_json['calc_index_inv_index_type']))
         self.assertEqual(20500, check_json(requests_json['calc_index_unsupported_index']))
-        self.assertEqual(20501, check_json(requests_json['calc_index_not_enough_bands']))
-        # 20502
+        self.assertEqual(20502, check_json(requests_json['calc_index_not_enough_bands']))
+        executor.satellite = 'Sentinel 2'
+        self.assertEqual(20501, check_json(requests_json['calc_index_unsupported_index_by_satellite']))
+        executor.satellite = 'Landsat 8/9'
+        # 20503
 
     def test_json_set_satellite(self):
         self.assertEqual(10007, check_json(requests_json['set_satellite_no_satellite']))
@@ -1368,8 +1380,11 @@ class Test(unittest.TestCase):
         self.assertEqual((400, 10007), _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_no_index'])))
         self.assertEqual((400, 10500), _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_inv_index_type'])))
         self.assertEqual((400, 20500), _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_unsupported_index'])))
-        self.assertEqual((500, 20501), _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_not_enough_bands'])))
-        # 20502
+        self.assertEqual((500, 20502), _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_not_enough_bands'])))
+        executor.satellite = 'Sentinel 2'
+        self.assertEqual((500, 20501), _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_unsupported_index_by_satellite'])))
+        executor.satellite = 'Landsat 8/9'
+        # 20503
 
         self.assertEqual((400, 10007), _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_no_satellite'])))
         self.assertEqual((400, 10007), _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_no_proc_level'])))

@@ -401,12 +401,16 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 20500
     - `result` - { "error": "index '`index`' is not supported or unknown" }
     -  HTTP 400 Bad Request
-4. Not enough bands:
+4. Not supported by satellite:
     - `status` - 20501
+    - `result` - { "error": "index '`index`' is not supported for `satellite model` satellite" }
+    -  HTTP 500 Internal Server Error
+5. Not enough bands:
+    - `status` - 20502
     - `result` - { "error": "unable to calculate index '`index`': `satellite model` bands number `needed bands` are needed" }
     -  HTTP 500 Internal Server Error
-5. Unknown error:
-    - `status` - 20502
+6. Unknown error:
+    - `status` - 20503
     - `result` - { "error": "unknown error" }
     -  HTTP 500 Internal Server Error
 
