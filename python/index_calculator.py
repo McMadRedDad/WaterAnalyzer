@@ -81,3 +81,14 @@ def cdom_ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | fl
     cdom_ndwi[zeros] = nodata
     cdom_ndwi[mask] = nodata
     return cdom_ndwi
+
+def landsat_dn_to_radiance(array: np.ma.MaskedArray, mult_factor: float, add_factor: float, nodata: float | int) -> np.ma.MaskedArray:
+    """mult_factor * array + add_factor"""
+
+    radiance = np.ma.empty(array.shape, dtype=np.float32)
+    mask = array.mask
+    radiance = mult_factor * array + add_factor
+    radiance[mask] = nodata
+    return radiance
+
+# def landsat_temperature_toa()

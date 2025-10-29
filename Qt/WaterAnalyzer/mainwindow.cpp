@@ -253,7 +253,9 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         for (DATASET &ds : self.datasets) {
             send_request("command", proto.import_gtiff(ds.filename, ds.band));
         }
-        send_request("command", proto.import_metafile(self.metadata_file));
+        if (self.proc_level != PROC_LEVEL::LANDSAT_L2SP) {
+            send_request("command", proto.import_metafile(self.metadata_file));
+        }
         append_log("info", "Модель спутника задана.");
         set_status_message(true, "Спутник задан");
     } else if (command == "end_session") {
