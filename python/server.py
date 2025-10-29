@@ -183,12 +183,14 @@ def normalize_brightness(img: Image) -> Image:
     else:
         return img
 
-def image_with_scalebar(src_image: Image, gap: int, values: np.ndarray) -> Image:
+def image_with_scalebar(src_image: Image, gap: int, values: np.ma.MaskedArray) -> Image:
     """Generates a scalebar (bar diagram flled with gradient) with min and max values from 'values' array and returns a new PIL.Image with 'src_image', the scalebar and a 'gap' in between."""
 
     scalebar_w, scalebar_h = max(25, src_image.width // 20), src_image.height
     total_w, total_h = src_image.width + gap + scalebar_w, src_image.height
-    min_, mid, max_ = round(float(values.min()), 3), round(values.max() / 2, 3), round(float(values.max()), 3)
+    min_ = round(float(np.nanmin(values)), 2)
+    mid = round(np.nanmin(values) + (np.nanmax(values) - np.nanmin(values)) / 2, 2)
+    max_ = round(float(np.nanmax(values)), 2)
     
     gradient = Image.new('L', (1, scalebar_h))
     line = np.linspace(255, 0, scalebar_h, dtype=np.uint8)
