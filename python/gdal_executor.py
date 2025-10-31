@@ -62,10 +62,10 @@ class PreviewManager:
             return list(self._previews.values())
 
 class Dataset:
-    def __init__(self, dataset: gdal.Dataset, band: int | str=None, stats: dict=None):
+    def __init__(self, dataset: gdal.Dataset, band: int | str=None, nodata: float | int=None, stats: dict=None):
         self.dataset = dataset
         self.band = band
-        self.no_data = None
+        self.no_data = nodata
         self.radio_mult = None
         self.radio_add = None
         self.thermal_k1 = None
@@ -78,11 +78,11 @@ class DatasetManager:
         self._counter = 0
         self._lock = threading.Lock()
 
-    def add_index(self, dataset: gdal.Dataset, index: str, stats: dict) -> int:
-        """Stores 'dataset' with its associated 'index' name and 'stats' and returns its own generated id."""
+    def add_index(self, dataset: gdal.Dataset, index: str, nodata: float | int, statistics: dict) -> int:
+        """Stores 'dataset' with its associated 'index' name, 'nodata' and 'statistics' and returns its own generated id."""
 
         with self._lock:
-            self._datasets[self._counter] = Dataset(dataset, index, stats)
+            self._datasets[self._counter] = Dataset(dataset, index, nodata, statistics)
             self._counter += 1
             return self._counter - 1
 
@@ -96,8 +96,8 @@ class DatasetManager:
                     return id_
             return None
 
-    def open(self, filename: str, band: int) -> int:
-        """Tries to open 'file' as a GDAL dataset, saves 'band' and returns dataset's generated id.
+    def open(self, filename: str, band: int, nodata: float | int) -> int:
+        """Tries to open 'file' as a GDAL dataset, saves 'band' and 'nodata' and returns dataset's generated id.
         If a dataset with 'band' is already open, overwrites it with a new dataset."""
 
         try:
@@ -112,9 +112,9 @@ class DatasetManager:
                 if ds.dataset.GetDescription() == dataset.GetDescription():
                     return id_
                 if ds.band == band:
-                    self._datasets[id_] = Dataset(dataset, band)
+                    self._datasets[id_] = Dataset(dataset, band, nodata)
                     return id_
-            self._datasets[self._counter] = Dataset(dataset, band)
+            self._datasets[self._counter] = Dataset(dataset, band, nodata)
             self._counter += 1
             return self._counter - 1
 
@@ -220,12 +220,11 @@ class DatasetManager:
                 data = np.ma.hstack((data, win))
                 
         if nodata is not None:
-            dataset.no_data = nodata
-        if dataset.no_data is None:
-            data = np.ma.array(data, mask=False)
-        else:
+            data = np.ma.masked_values(data, nodata, atol=indcal.FLOAT_PRECISION)
+        elif dataset.no_data is not None:
             data = np.ma.masked_values(data, dataset.no_data, atol=indcal.FLOAT_PRECISION)
-            
+        else:
+            data = np.ma.array(data, mask=False)
         return np.ma.array(data, dtype=np.float32)
 
 class IndexErr:
@@ -271,8 +270,8 @@ class GdalExecutor:
             # if self.satellite == 'Sentinel 2:'
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
             projection = self.ds_man.get(id1).dataset.GetProjection()
-            array1 = self.ds_man.read_band(id1, 1, nodata=0)
-            array2 = self.ds_man.read_band(id2, 1, nodata=0)
+            array1 = self.ds_man.read_band(id1, 1)
+            array2 = self.ds_man.read_band(id2, 1)
             result = indcal._test(array1, array2, nodata)
         if index == 'wi2015':
             nodata = float('nan')
@@ -284,12 +283,13 @@ class GdalExecutor:
             # if self.satellite == 'Sentinel 2:'
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
             projection = self.ds_man.get(id1).dataset.GetProjection()
-            green = self.ds_man.read_band(id1, 1, nodata=0)
-            red = self.ds_man.read_band(id2, 1, nodata=0)
-            nir = self.ds_man.read_band(id3, 1, nodata=0)
-            swir1 = self.ds_man.read_band(id4, 1, nodata=0)
-            swir2 = self.ds_man.read_band(id5, 1, nodata=0)
+            green = self.ds_man.read_band(id1, 1)
+            red = self.ds_man.read_band(id2, 1)
+            nir = self.ds_man.read_band(id3, 1)
+            swir1 = self.ds_man.read_band(id4, 1)
+            swir2 = self.ds_man.read_band(id5, 1)
             result = indcal.wi2015(green, red, nir, swir1, swir2, nodata)
+            # result = indcal.otsu_binarization(result)
         if index == 'nsmi':
             nodata = float('nan')
             id1, id2, id3 = -1, -1, -1
@@ -300,9 +300,9 @@ class GdalExecutor:
             # if self.satellite == 'Sentinel 2:'
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
             projection = self.ds_man.get(id1).dataset.GetProjection()
-            red = self.ds_man.read_band(id1, 1, nodata=0)
-            green = self.ds_man.read_band(id2, 1, nodata=0)
-            blue = self.ds_man.read_band(id3, 1, nodata=0)
+            red = self.ds_man.read_band(id1, 1)
+            green = self.ds_man.read_band(id2, 1)
+            blue = self.ds_man.read_band(id3, 1)
             result = indcal.nsmi(red, green, blue, nodata)
         if index == 'oc3':
             nodata = float('nan')
@@ -314,9 +314,9 @@ class GdalExecutor:
             # if self.satellite == 'Sentinel 2:'
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
             projection = self.ds_man.get(id1).dataset.GetProjection()
-            aerosol = self.ds_man.read_band(id1, 1, nodata=0)
-            blue = self.ds_man.read_band(id2, 1, nodata=0)
-            green = self.ds_man.read_band(id3, 1, nodata=0)
+            aerosol = self.ds_man.read_band(id1, 1)
+            blue = self.ds_man.read_band(id2, 1)
+            green = self.ds_man.read_band(id3, 1)
             result = indcal.oc3(aerosol, blue, green, nodata)
         if index == 'cdom_ndwi':
             nodata = float('nan')
@@ -329,8 +329,8 @@ class GdalExecutor:
             # if self.satellite == 'Sentinel 2:'
             geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
             projection = self.ds_man.get(id1).dataset.GetProjection()
-            green = self.ds_man.read_band(id1, 1, nodata=0)
-            nir = self.ds_man.read_band(id2, 1, nodata=0)
+            green = self.ds_man.read_band(id1, 1)
+            nir = self.ds_man.read_band(id2, 1)
             result = indcal.cdom_ndwi(green, nir, nodata)
         if index == 'temperature_landsat_toa':
             if self.satellite != 'Landsat 8/9':
@@ -389,20 +389,23 @@ class GdalExecutor:
         if operation == 'import_gtiff':
             if self.satellite is None or self.proc_level is None:
                 return _response(20004, {"error": "request 'import_gtiff' was received before 'set_satellite' request"})
+            file, band, nodata = parameters['file'], parameters['band'], -1
+            if self.satellite == 'Landsat 8/9' and band in range(1, 12):
+                nodata = 0
             try:
-                dataset_id = self.ds_man.open(parameters['file'], parameters['band'])
+                dataset_id = self.ds_man.open(file, band, nodata)
             except RuntimeError:
-                return _response(20301, {"error": f"failed to open file '{parameters['file']}'"})
+                return _response(20301, {"error": f"failed to open file '{file}'"})
             except ValueError:
-                return _response(20300, {"error": f"provided file '{parameters['file']}' is not a GeoTiff image"})
+                return _response(20300, {"error": f"provided file '{file}' is not a GeoTiff image"})
             dataset = self.ds_man.get(dataset_id).dataset
             if dataset.GetDriver().ShortName != 'GTiff':
-                return _response(20300, {"error": f"provided file '{parameters['file']}' is not a GeoTiff image"})
+                return _response(20300, {"error": f"provided file '{file}' is not a GeoTiff image"})
             
             geotransform = dataset.GetGeoTransform()
             result = {
-                'file': parameters['file'],
-                'band': parameters['band'],
+                'file': file,
+                'band': band,
                 'info': {
                     'width': dataset.RasterXSize,
                     'height': dataset.RasterYSize,
@@ -519,7 +522,7 @@ class GdalExecutor:
                 'stdev': np.nanstd(result).item(),
                 'ph_unit': ph_unit
             }
-            dataset_id = self.ds_man.add_index(res_ds, index, stats)
+            dataset_id = self.ds_man.add_index(res_ds, index, nodata, stats)
 
             result = {
                 'url': dataset_id,
