@@ -237,7 +237,7 @@ class IndexErr:
 class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('3.0.1')
-    SUPPORTED_INDICES = ('test', 'wi2015', 'nsmi', 'oc3', 'cdom_ndwi', 'temperature_landsat_toa')
+    SUPPORTED_INDICES = ('test', 'wi2015', 'nsmi', 'oc3', 'cdom_ndwi', 'temperature_landsat_toa', 'temperature_landsat_lst')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
     }
@@ -274,6 +274,9 @@ class GdalExecutor:
             projection = self.ds_man.get(id1).dataset.GetProjection()
             array1 = self.ds_man.read_band(id1, 1)
             array2 = self.ds_man.read_band(id2, 1)
+            if self.proc_level == 'L1TP':
+                array1 = indcal.landsat_dn_to_radiance(array1, self.ds_man.get(id1).radio_mult, self.ds_man.get(id1).radio_add, float('nan'))
+                array2 = indcal.landsat_dn_to_radiance(array2, self.ds_man.get(id2).radio_mult, self.ds_man.get(id2).radio_add, float('nan'))
             result = indcal._test(array1, array2, nodata)
         if index == 'wi2015':
             nodata = float('nan')
@@ -290,8 +293,13 @@ class GdalExecutor:
             nir = self.ds_man.read_band(id3, 1)
             swir1 = self.ds_man.read_band(id4, 1)
             swir2 = self.ds_man.read_band(id5, 1)
+            if self.proc_level == 'L1TP':
+                green = indcal.landsat_dn_to_radiance(green, self.ds_man.get(id1).radio_mult, self.ds_man.get(id1).radio_add, float('nan'))
+                red = indcal.landsat_dn_to_radiance(red, self.ds_man.get(id2).radio_mult, self.ds_man.get(id2).radio_add, float('nan'))
+                nir = indcal.landsat_dn_to_radiance(nir, self.ds_man.get(id3).radio_mult, self.ds_man.get(id3).radio_add, float('nan'))
+                swir1 = indcal.landsat_dn_to_radiance(swir1, self.ds_man.get(id4).radio_mult, self.ds_man.get(id4).radio_add, float('nan'))
+                swir2 = indcal.landsat_dn_to_radiance(swir2, self.ds_man.get(id5).radio_mult, self.ds_man.get(id5).radio_add, float('nan'))
             result = indcal.wi2015(green, red, nir, swir1, swir2, nodata)
-            # result = indcal.otsu_binarization(result)
         if index == 'nsmi':
             nodata = float('nan')
             id1, id2, id3 = -1, -1, -1
@@ -305,6 +313,10 @@ class GdalExecutor:
             red = self.ds_man.read_band(id1, 1)
             green = self.ds_man.read_band(id2, 1)
             blue = self.ds_man.read_band(id3, 1)
+            if self.proc_level == 'L1TP':
+                red = indcal.landsat_dn_to_radiance(red, self.ds_man.get(id1).radio_mult, self.ds_man.get(id1).radio_add, float('nan'))
+                green = indcal.landsat_dn_to_radiance(green, self.ds_man.get(id2).radio_mult, self.ds_man.get(id2).radio_add, float('nan'))
+                blue = indcal.landsat_dn_to_radiance(blue, self.ds_man.get(id3).radio_mult, self.ds_man.get(id3).radio_add, float('nan'))
             result = indcal.nsmi(red, green, blue, nodata)
         if index == 'oc3':
             nodata = float('nan')
@@ -319,6 +331,10 @@ class GdalExecutor:
             aerosol = self.ds_man.read_band(id1, 1)
             blue = self.ds_man.read_band(id2, 1)
             green = self.ds_man.read_band(id3, 1)
+            if self.proc_level == 'L1TP':
+                aerosol = indcal.landsat_dn_to_radiance(aerosol, self.ds_man.get(id1).radio_mult, self.ds_man.get(id1).radio_add, float('nan'))
+                blue = indcal.landsat_dn_to_radiance(blue, self.ds_man.get(id2).radio_mult, self.ds_man.get(id2).radio_add, float('nan'))
+                green = indcal.landsat_dn_to_radiance(green, self.ds_man.get(id3).radio_mult, self.ds_man.get(id3).radio_add, float('nan'))
             result = indcal.oc3(aerosol, blue, green, nodata)
         if index == 'cdom_ndwi':
             nodata = float('nan')
@@ -333,10 +349,13 @@ class GdalExecutor:
             projection = self.ds_man.get(id1).dataset.GetProjection()
             green = self.ds_man.read_band(id1, 1)
             nir = self.ds_man.read_band(id2, 1)
+            if self.proc_level == 'L1TP':
+                green = indcal.landsat_dn_to_radiance(green, self.ds_man.get(id1).radio_mult, self.ds_man.get(id1).radio_add, float('nan'))
+                nir = indcal.landsat_dn_to_radiance(nir, self.ds_man.get(id2).radio_mult, self.ds_man.get(id2).radio_add, float('nan'))
             result = indcal.cdom_ndwi(green, nir, nodata)
         if index == 'temperature_landsat_toa':
-            if self.satellite != 'Landsat 8/9':
-                return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} satellite"), ()
+            if not (self.satellite == 'Landsat 8/9' and self.proc_level == 'L1TP'):
+                return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} {self.proc_level}"), ()
             nodata = float('nan')
             ph_unit = '°C'
             id1 = -1
@@ -349,6 +368,25 @@ class GdalExecutor:
             thermal = self.ds_man.read_band(id1, 1)
             radiance = indcal.landsat_dn_to_radiance(thermal, dataset.radio_mult, dataset.radio_add, nodata)
             result = indcal.landsat_temperature_toa(radiance, dataset.thermal_k1, dataset.thermal_k2, nodata, 'C')
+        if index == 'temperature_landsat_lst':
+            if self.satellite != 'Landsat 8/9':
+                return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} satellite"), ()
+            if self.proc_level == 'L1TP':
+                err, res = self._index('temperature_landsat_toa')
+                if err is not None:
+                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} band number 10 is needed"), ()
+                geotransform, projection, temperature_toa, data_type, nodata, _ = res
+                ph_unit = '°C'
+                id1, id2 = -1, -1
+                id1, id2 = self.ds_man.find(5), self.ds_man.find(4)
+                if id1 is None or id2 is None:
+                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 10, 4 and 5 are needed"), ()
+                dataset = self.ds_man.get(id1)
+                nir = self.ds_man.read_band(id1, 1)
+                red = self.ds_man.read_band(id2, 1)
+                ndvi = indcal.ndvi(nir, red, nodata)
+                result = indcal.landsat_temperature_toa(radiance, dataset.thermal_k1, dataset.thermal_k2, nodata, 'C')
+            # if self.proc_level == 'L2SP':
         return None, (geotransform, projection, result, data_type, nodata, ph_unit)
 
     def execute(self, request: dict) -> dict:
@@ -442,6 +480,7 @@ class GdalExecutor:
 
             existing = self.pv_man.find(index, width, height)
             if existing is not None:
+                print('yes')
                 return _response(0, {
                     "url": existing
                 })

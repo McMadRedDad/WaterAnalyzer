@@ -403,7 +403,7 @@ Below are specifics for requests and responses for each supported command.
     -  HTTP 400 Bad Request
 4. Not supported by satellite:
     - `status` - 20501
-    - `result` - { "error": "index '`index`' is not supported for `satellite model` satellite" }
+    - `result` - { "error": "index '`index`' is not supported for `satellite model` `proc level`" }
     -  HTTP 500 Internal Server Error
 5. Not enough bands:
     - `status` - 20502

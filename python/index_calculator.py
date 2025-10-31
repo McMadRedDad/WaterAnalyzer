@@ -48,13 +48,22 @@ def _otsu_threshold(array: np.ma.MaskedArray, nbins: int=256) -> float:
 
 def otsu_binarization(array: np.ma.MaskedArray, nodata: float | int, nbins: int=256) -> np.ma.MaskedArray:
     ret = np.ma.empty(array.shape, dtype=np.uint8)
-    # ret = np.ma.empty(array.shape, dtype=np.float32)
     mask = array.mask
     threshold = _otsu_threshold(array)
     ret[~mask] = np.ma.where(array[~mask] > threshold, 1, 0)
     ret[mask] = nodata
     ret.mask = mask
     return ret
+
+def landsat_dn_to_radiance(array: np.ma.MaskedArray, mult_factor: float, add_factor: float, nodata: float | int) -> np.ma.MaskedArray:
+    """mult_factor * array + add_factor"""
+
+    radiance = np.ma.empty(array.shape, dtype=np.float32)
+    mask = array.mask
+    radiance = mult_factor * array + add_factor
+    radiance[mask] = nodata
+    radiance.mask = mask
+    return radiance
 
 def _full_mask(array: np.ma.MaskedArray, *arrays: np.ma.MaskedArray) -> np.typing.NDArray[bool]:
     """Combines masks from every array into one preserving invalid bits from each mask and returns it."""
@@ -129,16 +138,6 @@ def cdom_ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | fl
     cdom_ndwi[mask] = nodata
     cdom_ndwi.mask = mask
     return cdom_ndwi
-
-def landsat_dn_to_radiance(array: np.ma.MaskedArray, mult_factor: float, add_factor: float, nodata: float | int) -> np.ma.MaskedArray:
-    """mult_factor * array + add_factor"""
-
-    radiance = np.ma.empty(array.shape, dtype=np.float32)
-    mask = array.mask
-    radiance = mult_factor * array + add_factor
-    radiance[mask] = nodata
-    radiance.mask = mask
-    return radiance
 
 def landsat_temperature_toa(radiance: np.ma.MaskedArray, K1: float, K2: float, nodata: float | int, unit: str) -> np.ma.MaskedArray:
     """'unit' is either 'K' or 'C'

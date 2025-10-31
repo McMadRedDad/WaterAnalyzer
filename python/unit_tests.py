@@ -4,6 +4,7 @@
 
 import unittest
 from copy import deepcopy
+from time import sleep
 from werkzeug.test import EnvironBuilder
 from server import server, proto, executor, generate_http_response
 
@@ -925,6 +926,10 @@ class Test(unittest.TestCase):
         executor.execute(requests_json['import_gtiff_ok_mid3'])
         executor.execute(requests_json['import_gtiff_ok_smol2'])
         executor.execute(requests_json['import_gtiff_ok_nodata'])
+        print('sleeping...')
+        sleep(1)
+        print('slept')
+        executor.execute(requests_json['import_metafile_ok'])
         executor.execute(requests_json['calc_preview_ok'])
         executor.execute(requests_json['calc_index_ok1'])
     

@@ -188,9 +188,9 @@ def image_with_scalebar(src_image: Image, gap: int, values: np.ma.MaskedArray) -
 
     scalebar_w, scalebar_h = max(25, src_image.width // 20), src_image.height
     total_w, total_h = src_image.width + gap + scalebar_w, src_image.height
-    min_ = round(float(np.nanmin(values)), 2)
+    min_ = round(np.nanmin(values), 2)
     mid = round(np.nanmin(values) + (np.nanmax(values) - np.nanmin(values)) / 2, 2)
-    max_ = round(float(np.nanmax(values)), 2)
+    max_ = round(np.nanmax(values), 2)
     
     gradient = Image.new('L', (1, scalebar_h))
     line = np.linspace(255, 0, scalebar_h, dtype=np.uint8)
