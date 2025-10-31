@@ -15,6 +15,47 @@ def map_to_8bit(array: np.ma.MaskedArray) -> np.ma.MaskedArray:
     else:
         return np.ma.array((arr - min_) / (max_ - min_) * 255, mask=mask_, dtype=np.uint8)
 
+def _otsu_threshold(array: np.ma.MaskedArray, nbins: int=256) -> float:
+    """Using Otsu method, calculates threshold that best divides 'array's values into 2 classes and returns it.
+    'nbins' defines length of the probability histogram."""
+
+    data = array.compressed()
+    if len(data) == 0:
+        raise ValueError('Cannot calc Otsu threshold for array with all elements masked')
+
+    hist, bin_edges = np.histogram(data, nbins)  # probability distribution (number of occurencies)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2  # centers of each of histogram's ranges, correspond to actual value
+
+    prob = hist / hist.sum()
+    cum_sum = np.cumsum(prob)  # cum_sum of the whole data range = 1 (sum of probabilities)
+    cum_mean = np.cumsum(prob * bin_centers)
+    
+    glob_mean = cum_mean[-1]  # global mean ~ cumulative mean for the whole data range
+    max_var = 0
+    best_thresh = bin_edges[0]
+    for i in range(1, nbins):
+        if isclose(cum_sum[i], 0) or isclose(cum_sum[i], 1):
+            continue
+
+        mean0 = cum_mean[i] / cum_sum[i]  # mean of class0 (below threshold=current bin center)
+        mean1 = (glob_mean - cum_mean[i]) / (1 - cum_sum[i])  # mean of class1 (above threshold=current bin center)
+        inter_var = cum_sum[i] * (1 - cum_sum[i]) * (mean0 - mean1) ** 2  # main resulting formula by Otsu
+        if inter_var > max_var:  # if inter_var > current variance, update current threshold
+            max_var = inter_var
+            best_thresh = bin_edges[i]
+    
+    return best_thresh
+
+def otsu_binarization(array: np.ma.MaskedArray, nodata: float | int, nbins: int=256) -> np.ma.MaskedArray:
+    ret = np.ma.empty(array.shape, dtype=np.uint8)
+    # ret = np.ma.empty(array.shape, dtype=np.float32)
+    mask = array.mask
+    threshold = _otsu_threshold(array)
+    ret[~mask] = np.ma.where(array[~mask] > threshold, 1, 0)
+    ret[mask] = nodata
+    ret.mask = mask
+    return ret
+
 def _full_mask(array: np.ma.MaskedArray, *arrays: np.ma.MaskedArray) -> np.typing.NDArray[bool]:
     """Combines masks from every array into one preserving invalid bits from each mask and returns it."""
 
