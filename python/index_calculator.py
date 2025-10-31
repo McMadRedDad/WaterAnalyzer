@@ -7,11 +7,12 @@ def map_to_8bit(array: np.ma.MaskedArray) -> np.ma.MaskedArray:
     """Fits 'array's values into [0; 255] range and returns a new masked array of uint8 type.
     If 'array's range is 0, i.e. array.min() == array.max(), all values are set to 0."""
 
-    min_, max_ = array.min(), array.max()
+    arr = np.nan_to_num(array.data, nan=0)
+    min_, max_ = arr.min(), arr.max()
     if isclose(min_, max_, abs_tol=FLOAT_PRECISION):
-        return np.ma.zeros(array.shape, dtype=np.uint8)
+        return np.ma.array(np.zeros(array.shape), mask=array.mask, dtype=np.uint8)
     else:
-        return np.ma.array((array - min_) / (max_ - min_) * 255, dtype=np.uint8)
+        return np.ma.array((arr - min_) / (max_ - min_) * 255, mask=array.mask, dtype=np.uint8)
 
 def _full_mask(array: np.ma.MaskedArray, *arrays: np.ma.MaskedArray) -> np.typing.NDArray[bool]:
     """Combines masks from every array into one preserving invalid bits from each mask and returns it."""
@@ -116,3 +117,17 @@ def landsat_temperature_toa(radiance: np.ma.MaskedArray, K1: float, K2: float, n
     temperature_toa[mask] = nodata
     temperature_toa.mask = mask
     return temperature_toa
+
+def ndvi(nir: np.ma.MaskedArray, red: np.ma.MaskedArray, nodata: float | int) -> np.ma.MaskedArray:
+    """(nir - red) / (nir + red)"""
+
+    ndvi = np.ma.empty(nir.shape, dtype=np.float32)
+    mask = _full_mask(nir, red)
+    numerator = nir - red
+    denominator = nir + red
+    zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
+    ndvi[~zeros] = numerator[~zeros] / denominator[~zeros]
+    ndvi[zeros] = nodata
+    ndvi[mask] = nodata
+    ndvi.mask = mask
+    return ndvi

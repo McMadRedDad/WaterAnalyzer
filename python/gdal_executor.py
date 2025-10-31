@@ -221,8 +221,10 @@ class DatasetManager:
                 
         if nodata is not None:
             data = np.ma.masked_values(data, nodata, atol=indcal.FLOAT_PRECISION)
+            data = np.ma.masked_invalid(data)
         elif dataset.no_data is not None:
             data = np.ma.masked_values(data, dataset.no_data, atol=indcal.FLOAT_PRECISION)
+            data = np.ma.masked_invalid(data)
         else:
             data = np.ma.array(data, mask=False)
         return np.ma.array(data, dtype=np.float32)
@@ -344,7 +346,7 @@ class GdalExecutor:
             dataset = self.ds_man.get(id1)
             geotransform = dataset.dataset.GetGeoTransform()
             projection = dataset.dataset.GetProjection()
-            thermal = self.ds_man.read_band(id1, 1, nodata=0)
+            thermal = self.ds_man.read_band(id1, 1)
             radiance = indcal.landsat_dn_to_radiance(thermal, dataset.radio_mult, dataset.radio_add, nodata)
             result = indcal.landsat_temperature_toa(radiance, dataset.thermal_k1, dataset.thermal_k2, nodata, 'C')
         return None, (geotransform, projection, result, data_type, nodata, ph_unit)
@@ -450,13 +452,12 @@ class GdalExecutor:
                 res = height / ds.dataset.RasterYSize * 100
             else:
                 res = width / ds.dataset.RasterXSize * 100
-            no_data = ds.no_data if ds.no_data else 0
             r, g, b, a = 0, 0, 0, 0
-            r = self.ds_man.read_band(ids[0], 1, nodata=no_data, resolution_percent=res)
+            r = self.ds_man.read_band(ids[0], 1, resolution_percent=res)
             r = indcal.map_to_8bit(r)
             if index == 'nat_col':
-                g = self.ds_man.read_band(ids[1], 1, nodata=no_data, resolution_percent=res)
-                b = self.ds_man.read_band(ids[2], 1, nodata=no_data, resolution_percent=res)
+                g = self.ds_man.read_band(ids[1], 1, resolution_percent=res)
+                b = self.ds_man.read_band(ids[2], 1, resolution_percent=res)
                 g = indcal.map_to_8bit(g)
                 b = indcal.map_to_8bit(b)
             else:
