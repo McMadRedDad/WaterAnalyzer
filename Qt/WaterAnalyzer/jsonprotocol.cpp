@@ -1,6 +1,6 @@
 #include "jsonprotocol.hpp"
 
-const QString JsonProtocol::proto_version = "3.0.1";
+const QString JsonProtocol::proto_version = "3.0.3";
 
 JsonProtocol::JsonProtocol(QString server_version) {
     this->server_version = server_version;
@@ -15,7 +15,7 @@ QJsonObject JsonProtocol::shutdown() {
     return construct_json("SHUTDOWN", QJsonObject());
 }
 
-QJsonObject JsonProtocol::import_gtiff(QString file, ushort band) {
+QJsonObject JsonProtocol::import_gtiff(QString file, QString band) {
     return construct_json("import_gtiff", QJsonObject{{"file", file}, {"band", band}});
 }
 

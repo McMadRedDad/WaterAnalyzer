@@ -22,7 +22,7 @@ enum PROC_LEVEL { PROC_LEVEL_BAD = -1, LANDSAT_L1TP, LANDSAT_L2SP };
 
 struct DATASET {
     QString filename = "";
-    ushort  band = -1;
+    QString band = "";
     QString index = "";
     QString url = "";
     uint    width = -1, height = -1;
@@ -80,6 +80,7 @@ private:
 
     void set_status_message(bool good, QString message, short msec = 3000);
     void append_log(QString type, QString line);
+    bool parse_filenames(QStringList filenames);
     void change_page(PAGE to);
     void lock_interface(bool on);
     void closeEvent(QCloseEvent *e) override;

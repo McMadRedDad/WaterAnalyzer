@@ -204,7 +204,7 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         set_status_message(true, "Сервер завершил работу");
     } else if (command == "import_gtiff") {
         for (DATASET &ds : self.datasets) {
-            if (ds.filename == result["file"].toString() && ds.band == result["band"].toInt()) {
+            if (ds.filename == result["file"].toString() && ds.band == result["band"].toString()) {
                 QJsonObject info = result["info"].toObject();
                 ds.width = info["width"].toInt();
                 ds.height = info["height"].toInt();
@@ -279,6 +279,16 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
             curr_try = 0;
             append_log("info", "Файл метаданных загружен.");
             set_status_message(true, "Метаданные загружены");
+            bool cloud = false;
+            for (DATASET &ds : self.datasets) {
+                if (ds.band == "QA_PIXEL") {
+                    cloud = true;
+                }
+            }
+            if (!cloud) {
+                append_log("info", "Отсутствует растр оценки качества. Вычисления будут производиться без учёта облаков.");
+                set_status_message(false, "Нет растра оценки качества");
+            }
         }
     } else {
         append_log("info", "Запрошена неизвестная команда, но сервер её обработал: " + command + ".");
@@ -376,6 +386,53 @@ void MainWindow::append_log(QString type, QString line) {
     ui->plainTextEdit_log->appendHtml(html);
 }
 
+bool MainWindow::parse_filenames(QStringList filenames) {
+    if (filenames.isEmpty()) {
+        return false;
+    }
+    int counter = 0;
+    for (const QString &f : filenames) {
+        QString entry = f.toUpper();
+        if (entry.endsWith(".TIF") && (entry.right(7).contains('B') || entry.contains("QA_PIXEL"))) {
+            if (self.proc_level == PROC_LEVEL::PROC_LEVEL_BAD) {
+                if (entry.contains("L1TP")) {
+                    self.proc_level = PROC_LEVEL::LANDSAT_L1TP;
+                } else if (entry.contains("L2SP")) {
+                    self.proc_level = PROC_LEVEL::LANDSAT_L2SP;
+                } else {
+                    append_log("bad",
+                               QString("Уровень обработки снимка %1 не поддерживается. Для спутника Landsat доступны только уровень 1 и 2.")
+                                   .arg(f));
+                    set_status_message(false, "Неподдерживаемый уровень обработки снимка");
+                    return false;
+                }
+            }
+
+            DATASET ds;
+            ds.filename = f;
+            QString band = f.right(8);
+            if (band[0] == '_') {
+                ds.band = band.mid(2, 2);
+            } else {
+                ds.band = band.mid(3, 1);
+            }
+            if (entry.contains("QA_PIXEL")) {
+                ds.band = "QA_PIXEL";
+            }
+            self.datasets.append(ds);
+            counter++;
+        } else if (entry.endsWith("_MTL.TXT")) {
+            self.metadata_file = f;
+        }
+    }
+    if (counter == 0) {
+        append_log("bad", QString("В выбранной директории %1 нет снимков Landsat или Sentinel.").arg(QDir(filenames[0]).absolutePath()));
+        set_status_message(false, "В выбранной директории нет снимков");
+        return false;
+    }
+    return true;
+}
+
 void MainWindow::change_page(PAGE to) {
     self.import_p->hide();
     self.process_p->hide();
@@ -387,45 +444,12 @@ void MainWindow::change_page(PAGE to) {
     switch (to) {
     case PAGE::IMPORT: {
         auto directory = [this](QDir dir) {
-            int counter = 0;
-            for (const QString &f : dir.entryList()) {
-                QString entry = f.toUpper();
-                if (entry.endsWith(".TIF") && entry.right(7).contains('B')) {
-                    if (self.proc_level == PROC_LEVEL::PROC_LEVEL_BAD) {
-                        if (entry.contains("L1TP")) {
-                            self.proc_level = PROC_LEVEL::LANDSAT_L1TP;
-                        } else if (entry.contains("L2SP")) {
-                            self.proc_level = PROC_LEVEL::LANDSAT_L2SP;
-                        } else {
-                            append_log(
-                                "bad",
-                                QString(
-                                    "Уровень обработки снимка %1 не поддерживается. Для спутника Landsat доступны только уровень 1 и 2.")
-                                    .arg(f));
-                            set_status_message(false, "Неподдерживаемый уровень обработки снимка");
-                            return;
-                        }
-                    }
-
-                    DATASET ds;
-                    ds.filename = dir.absolutePath() + "/" + f;
-                    QString band = f.right(8);
-                    if (!band.contains('Q')) {
-                        if (band[0] == '_') {
-                            ds.band = band.mid(2, 2).toUShort();
-                        } else {
-                            ds.band = band.mid(3, 1).toUShort();
-                        }
-                        self.datasets.append(ds);
-                        counter++;
-                    }
-                } else if (entry.endsWith("_MTL.TXT")) {
-                    self.metadata_file = dir.absolutePath() + "/" + f;
-                }
+            QStringList filenames = dir.entryList();
+            for (QString &f : filenames) {
+                f.prepend(dir.absolutePath() + '/');
             }
-            if (counter == 0) {
-                append_log("bad", QString("В выбранной директории %1 нет снимков Landsat или Sentinel.").arg(dir.absolutePath()));
-                set_status_message(false, "В выбранной директории нет снимков");
+            bool ok = parse_filenames(filenames);
+            if (!ok) {
                 return;
             }
             switch (self.proc_level) {
@@ -438,51 +462,13 @@ void MainWindow::change_page(PAGE to) {
             default:
                 break;
             }
-
             self.dir = dir;
             ui->lbl_dir->setText(self.dir.dirName());
             change_page(PAGE::SELECTION);
         };
         auto files = [this](QStringList filenames) {
-            int counter = 0;
-            for (const QString &f : filenames) {
-                QString entry = f.toUpper();
-                if (entry.endsWith(".TIF") && entry.right(7).contains("B")) {
-                    if (self.proc_level == PROC_LEVEL::PROC_LEVEL_BAD) {
-                        if (entry.contains("L1TP")) {
-                            self.proc_level = PROC_LEVEL::LANDSAT_L1TP;
-                        } else if (entry.contains("L2SP")) {
-                            self.proc_level = PROC_LEVEL::LANDSAT_L2SP;
-                        } else {
-                            append_log(
-                                "bad",
-                                QString(
-                                    "Уровень обработки снимка %1 не поддерживается. Для спутника Landsat доступны только уровень 1 и 2.")
-                                    .arg(f));
-                            set_status_message(false, "Неподдерживаемый уровень обработки снимка");
-                            return;
-                        }
-                    }
-
-                    DATASET ds;
-                    ds.filename = f;
-                    QString band = f.right(8);
-                    if (!band.contains('Q')) {
-                        if (band[0] == '_') {
-                            ds.band = band.mid(2, 2).toUShort();
-                        } else {
-                            ds.band = band.mid(3, 1).toUShort();
-                        }
-                        self.datasets.append(ds);
-                        counter++;
-                    }
-                } else if (entry.endsWith("_MTL.TXT")) {
-                    self.metadata_file = f;
-                }
-            }
-            if (counter == 0) {
-                append_log("bad", "Не выбрано ни одного снимка Landsat или Sentinel.");
-                set_status_message(false, "Не выбрано ни одного снимка");
+            bool ok = parse_filenames(filenames);
+            if (!ok) {
                 return;
             }
             switch (self.proc_level) {
@@ -508,7 +494,7 @@ void MainWindow::change_page(PAGE to) {
             for (auto &f : bands_files) {
                 DATASET ds;
                 ds.filename = f.second;
-                ds.band = f.first.toUShort();
+                ds.band = f.first;
                 self.datasets.append(ds);
             }
             if (proc_level == "L1TP") {
@@ -584,7 +570,7 @@ void MainWindow::change_page(PAGE to) {
             QStringList keys_l;
             QString     keys;
             for (DATASET &ds : self.datasets) {
-                keys_l.append(QString::number(ds.band));
+                keys_l.append(ds.band);
             }
             keys_l.sort();
             for (QString &k : keys_l) {

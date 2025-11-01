@@ -35,7 +35,7 @@ void ImportPage::Landsat() {
     level_lyt->addWidget(rb_l2);
     lyt->addLayout(level_lyt, 0, 0, 1, 3);
 
-    int rows = 12;
+    int rows = 13;
     for (int i = 1; i <= rows; i++) {
         QLabel      *lbl = new QLabel("Канал " + QString::number(i));
         QLineEdit   *le = new QLineEdit();
@@ -60,6 +60,9 @@ void ImportPage::Landsat() {
                 }
             }
         });
+        if (i == rows - 1) {
+            lbl->setText("Растр оценки качества");
+        }
         if (i == rows) {
             lbl->setText("Файл метаданных MTL");
         }
