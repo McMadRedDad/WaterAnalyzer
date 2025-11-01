@@ -1,5 +1,5 @@
 class Protocol:
-    VERSION = '3.0.1'
+    VERSION = '3.0.3'
     SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index', 'set_satellite', 'end_session', 'import_metafile')
 
     def __init__(self):
@@ -109,8 +109,8 @@ class Protocol:
             if len(params_check) != 0: 
                 return params_check
             band = parameters['band']
-            if type(band) is not int:
-                return _response(10300, {"error": "invalid 'band' key: must be of integer type"})
+            if type(band) is not str:
+                return _response(10300, {"error": "invalid 'band' key: must be of string type"})
             return _response(0, {})
             
         if operation == 'calc_preview':

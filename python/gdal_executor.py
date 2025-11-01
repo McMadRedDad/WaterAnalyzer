@@ -20,7 +20,7 @@ class PreviewManager:
         self._lock = threading.Lock()
 
     def add(self, array: np.ndarray, index: str) -> int:
-        """Stores 'array' referring to a preview image and returns its id. The array must be suitable for PIL.Image.fromarray() function, i.e. of shape (height, width, channels).
+        """Stores 'array' referring to a preview image and returns its id. The array must be of shape (height, width, channels).
         'index' refers to the index for which the preview was created. index='nat_col' is for natural color."""
 
         with self._lock:
@@ -62,7 +62,7 @@ class PreviewManager:
             return list(self._previews.values())
 
 class Dataset:
-    def __init__(self, dataset: gdal.Dataset, band: int | str=None, nodata: float | int=None, stats: dict=None):
+    def __init__(self, dataset: gdal.Dataset, band: str=None, nodata: float | int=None, stats: dict=None):
         self.dataset = dataset
         self.band = band
         self.no_data = nodata
@@ -86,8 +86,8 @@ class DatasetManager:
             self._counter += 1
             return self._counter - 1
 
-    def find(self, band_index: int | str) -> int | None:
-        """Tries to find a band by its number or spectral index by its name.
+    def find(self, band_index: str) -> int | None:
+        """Tries to find a band by or a spectral index by its name.
         If the band or the index is found, returns its id, otherwise returns None."""
 
         with self._lock:
@@ -96,7 +96,7 @@ class DatasetManager:
                     return id_
             return None
 
-    def open(self, filename: str, band: int, nodata: float | int) -> int:
+    def open(self, filename: str, band: str, nodata: float | int) -> int:
         """Tries to open 'file' as a GDAL dataset, saves 'band' and 'nodata' and returns dataset's generated id.
         If a dataset with 'band' is already open, overwrites it with a new dataset."""
 
@@ -236,7 +236,7 @@ class IndexErr:
 
 class GdalExecutor:
     VERSION = '1.0.0'
-    SUPPORTED_PROTOCOL_VERSIONS = ('3.0.1')
+    SUPPORTED_PROTOCOL_VERSIONS = ('3.0.3')
     SUPPORTED_INDICES = ('test', 'wi2015', 'nsmi', 'oc3', 'cdom_ndwi', 'temperature_landsat_toa', 'temperature_landsat_lst')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
@@ -266,7 +266,7 @@ class GdalExecutor:
             nodata = -99999.0
             id1, id2 = -1, -1
             if self.satellite == 'Landsat 8/9':
-                id1, id2 = self.ds_man.find(2), self.ds_man.find(4)
+                id1, id2 = self.ds_man.find("2"), self.ds_man.find("4")
                 if id1 is None or id2 is None:
                     return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 2 and 4 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
@@ -282,7 +282,7 @@ class GdalExecutor:
             nodata = float('nan')
             id1, id2, id3, id4, id5 = -1, -1, -1, -1, -1
             if self.satellite == 'Landsat 8/9':
-                id1, id2, id3, id4, id5 = self.ds_man.find(3), self.ds_man.find(4), self.ds_man.find(5), self.ds_man.find(6), self.ds_man.find(7)
+                id1, id2, id3, id4, id5 = self.ds_man.find("3"), self.ds_man.find("4"), self.ds_man.find("5"), self.ds_man.find("6"), self.ds_man.find("7")
                 if id1 is None or id2 is None or id3 is None or id4 is None or id5 is None:
                     return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 3, 4, 5, 6 and 7 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
@@ -304,7 +304,7 @@ class GdalExecutor:
             nodata = float('nan')
             id1, id2, id3 = -1, -1, -1
             if self.satellite == 'Landsat 8/9':
-                id1, id2, id3 = self.ds_man.find(4), self.ds_man.find(3), self.ds_man.find(2)
+                id1, id2, id3 = self.ds_man.find("4"), self.ds_man.find("3"), self.ds_man.find("2")
                 if id1 is None or id2 is None or id3 is None:
                     return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 2, 3 and 4 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
@@ -322,7 +322,7 @@ class GdalExecutor:
             nodata = float('nan')
             id1, id2, id3 = -1, -1, -1
             if self.satellite == 'Landsat 8/9':
-                id1, id2, id3 = self.ds_man.find(1), self.ds_man.find(2), self.ds_man.find(3)
+                id1, id2, id3 = self.ds_man.find("1"), self.ds_man.find("2"), self.ds_man.find("3")
                 if id1 is None or id2 is None or id3 is None:
                     return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 1, 2 and 3 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
@@ -341,7 +341,7 @@ class GdalExecutor:
             ph_unit = 'mg/L'
             id1, id2 = -1, -1
             if self.satellite == 'Landsat 8/9':
-                id1, id2 = self.ds_man.find(3), self.ds_man.find(5)
+                id1, id2 = self.ds_man.find("3"), self.ds_man.find("5")
                 if id1 is None or id2 is None:
                     return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 3 and 5 are needed"), ()
             # if self.satellite == 'Sentinel 2:'
@@ -359,7 +359,7 @@ class GdalExecutor:
             nodata = float('nan')
             ph_unit = '°C'
             id1 = -1
-            id1 = self.ds_man.find(10)
+            id1 = self.ds_man.find("10")
             if id1 is None:
                 return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} band number 10 is needed"), ()
             dataset = self.ds_man.get(id1)
@@ -378,7 +378,7 @@ class GdalExecutor:
                 geotransform, projection, temperature_toa, data_type, nodata, _ = res
                 ph_unit = '°C'
                 id1, id2 = -1, -1
-                id1, id2 = self.ds_man.find(5), self.ds_man.find(4)
+                id1, id2 = self.ds_man.find("5"), self.ds_man.find("4")
                 if id1 is None or id2 is None:
                     return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 10, 4 and 5 are needed"), ()
                 dataset = self.ds_man.get(id1)
@@ -430,7 +430,7 @@ class GdalExecutor:
             if self.satellite is None or self.proc_level is None:
                 return _response(20004, {"error": "request 'import_gtiff' was received before 'set_satellite' request"})
             file, band, nodata = parameters['file'], parameters['band'], -1
-            if self.satellite == 'Landsat 8/9' and band in range(1, 12):
+            if self.satellite == 'Landsat 8/9':
                 nodata = 0
             try:
                 dataset_id = self.ds_man.open(file, band, nodata)
@@ -466,9 +466,9 @@ class GdalExecutor:
             ids = []
             if index == 'nat_col':
                 if self.satellite == 'Landsat 8/9':
-                    ids.append(self.ds_man.find(4))
-                    ids.append(self.ds_man.find(3))
-                    ids.append(self.ds_man.find(2))
+                    ids.append(self.ds_man.find("4"))
+                    ids.append(self.ds_man.find("3"))
+                    ids.append(self.ds_man.find("2"))
                     for num, id__ in zip((4, 3, 2), ids):
                         if id__ is None:
                             return _response(20401, {"error": f"{self.satellite} band number '{num}' is not loaded but needed for preview generation"})
@@ -480,7 +480,6 @@ class GdalExecutor:
 
             existing = self.pv_man.find(index, width, height)
             if existing is not None:
-                print('yes')
                 return _response(0, {
                     "url": existing
                 })
@@ -624,8 +623,8 @@ class GdalExecutor:
                         if parsing and 'RADIANCE' in l:
                             band, _, coeff = l.partition('=')
                             band = band.strip()[-2:]
+                            band = band[1:] if band[0] == '_' else band
                             try:
-                                band = int(band[1:]) if band[0] == '_' else int(band)
                                 coeff = float(coeff.strip())
                             except ValueError:
                                 return _response(20800, {"error": f"metadata file '{filename}' is invalid, unsupported or does not contain calibration coefficients"})
@@ -647,7 +646,6 @@ class GdalExecutor:
                             if const not in ('K1', 'K2'):
                                 return _response(20800, {"error": f"metadata file '{filename}' is invalid, unsupported or does not contain calibration coefficients"})
                             try:
-                                band = int(band)
                                 coeff = float(coeff.strip())
                             except ValueError:
                                 return _response(20800, {"error": f"metadata file '{filename}' is invalid, unsupported or does not contain calibration coefficients"})

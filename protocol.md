@@ -1,4 +1,4 @@
-**VERSION 3.0.2**
+**VERSION 3.0.3**
 
 Communication via HTTP messages. The payload is sent as a JSON document in message bodies.
 
@@ -281,7 +281,7 @@ Below are specifics for requests and responses for each supported command.
 - `operation`  - "import_gtiff"
 - `parameters` - {
     "file": "`/path/to/file.tif`",  **!!!no local paths for remote servers; fine for now!!!**
-    "band": `band number`           - [INT] what spectral band the file represents
+    "band": `band name`             - [STRING] what spectral band the file represents
 }
 
 *RESPONSE*
@@ -303,7 +303,7 @@ Below are specifics for requests and responses for each supported command.
     -  HTTP 200 OK
 2. Invalid band type:
     - `status` - 10300
-    - `result` - { "error": "invalid '`band`' key: must be of integer type" }
+    - `result` - { "error": "invalid '`band`' key: must be of string type" }
     -  HTTP 400 Bad Request
 3. Not a GeoTiff:
     - `status` - 20300

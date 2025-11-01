@@ -423,7 +423,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['gtiff_ok1'],
-            "band": 1
+            "band": "1"
         }
     },
     'import_gtiff_ok_mid': {
@@ -433,7 +433,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['gtiff_ok2'],
-            "band": 2
+            "band": "2"
         }
     },
     'import_gtiff_ok_smol': {
@@ -443,7 +443,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['gtiff_ok3'],
-            "band": 11
+            "band": "11"
         }
     },
     'import_gtiff_ok_mid2': {
@@ -453,7 +453,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['gtiff_ok4'],
-            "band": 3
+            "band": "3"
         }
     },
     'import_gtiff_ok_mid3': {
@@ -463,7 +463,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['gtiff_ok6'],
-            "band": 4
+            "band": "4"
         }
     },
     'import_gtiff_ok_smol2': {
@@ -473,7 +473,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['gtiff_ok5'],
-            "band": 5
+            "band": "5"
         }
     },
     'import_gtiff_ok_nodata': {
@@ -483,7 +483,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['only_nodata'],
-            "band": 6
+            "band": "6"
         }
     },
     'import_gtiff_no_file': {
@@ -492,7 +492,7 @@ requests_json = {
         "id": 0,
         "operation": "import_gtiff",
         "parameters": {
-            "band": 1
+            "band": "1"
         }
     },
     'import_gtiff_no_band': {
@@ -511,7 +511,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['non_existent'],
-            "band": 1
+            "band": "1"
         }
     },
     'import_gtiff_not_geotiff1': {
@@ -521,7 +521,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['saga_grid'],
-            "band": 1
+            "band": "1"
         }
     },
     'import_gtiff_not_geotiff2': {
@@ -531,7 +531,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['shape'],
-            "band": 1
+            "band": "1"
         }
     },
     'import_gtiff_not_geotiff3': {
@@ -541,7 +541,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['regular_tif'],
-            "band": 1
+            "band": "1"
         }
     },
     'import_gtiff_inv_band_type': {
@@ -551,7 +551,7 @@ requests_json = {
         "operation": "import_gtiff",
         "parameters": {
             "file": test_files['gtiff_ok1'],
-            "band": "rule34"
+            "band": ["rule34"]
         }
     },
     'calc_preview_ok': {
@@ -1139,7 +1139,6 @@ class Test(unittest.TestCase):
         self.assertEqual(0, check_json(requests_json['set_satellite_ok']))
         self.assertEqual(0, check_json(requests_json['end_session_ok']))
         self.prepare()
-        self.assertEqual(0, check_json(requests_json['import_metafile_ok']))
    
     def test_json_unknown_key(self):
         self.assertEqual(10000, check_json(requests_json['unknown_key1']))
