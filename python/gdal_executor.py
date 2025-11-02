@@ -682,7 +682,7 @@ class GdalExecutor:
                 if not found:
                     return _response(20800, {"error": f"metadata file '{filename}' is either invalid or does not contain calibration coefficients"})
             return _response(0, {
-                "loaded": counter // 2 - 2
+                "loaded": counter // 2 - 1  # -1 for QA_PIXEL band
             })
         
         return _response(-1, {"error": "how's this even possible?"})
