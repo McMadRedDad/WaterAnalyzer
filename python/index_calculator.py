@@ -65,6 +65,18 @@ def landsat_dn_to_radiance(array: np.ma.MaskedArray, mult_factor: float, add_fac
     radiance.mask = mask
     return radiance
 
+def cloud_mask(array: np.ma.MaskedArray, bit_pos: int) -> np.ma.MaskedArray:
+    """Returns a boolean array of bits at 'bit_pos'."""
+
+    if bit_pos < 0 or bit_pos > 15:
+        raise ValueError(f'Cloud mask is 16 bit, but bit position {bit_pos} provided')
+
+    ret = np.ma.empty(array.shape, dtype=np.bool)
+    mask = array.mask
+    ret[~mask] = ((array[~mask] & (1 << bit_pos)) >> bit_pos) != 0
+    ret.mask = mask
+    return ret
+
 def _full_mask(array: np.ma.MaskedArray, *arrays: np.ma.MaskedArray) -> np.typing.NDArray[bool]:
     """Combines masks from every array into one preserving invalid bits from each mask and returns it."""
 

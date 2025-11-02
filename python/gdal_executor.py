@@ -75,6 +75,7 @@ class Dataset:
 class DatasetManager:
     def __init__(self):
         self._datasets = {}
+        self._cloud_mask = None
         self._counter = 0
         self._lock = threading.Lock()
 
@@ -85,6 +86,11 @@ class DatasetManager:
             self._datasets[self._counter] = Dataset(dataset, index, nodata, statistics)
             self._counter += 1
             return self._counter - 1
+
+    def add_cloud_mask(self, cloud_mask: np.ma.MaskedArray) -> None:
+        """Save a cloud mask for future calculations."""
+        self._cloud_mask = cloud_mask
+
 
     def find(self, band_index: str) -> int | None:
         """Tries to find a band by or a spectral index by its name.
@@ -143,6 +149,9 @@ class DatasetManager:
     def get_all(self) -> list[Dataset]:
         with self._lock:
             return self._datasets.values()
+
+    def get_cloud_mask(self) -> np.ma.MaskedArray | None:
+        return self._cloud_mask
 
     def read_band(self, dataset_id: int, band_id: int, nodata: float | int=None, step_size_percent: float | int=100, resolution_percent: float | int=100) -> np.ma.MaskedArray:
         """Reads a band from the dataset and returns it as a numpy masked array, where mask corresponds to NoData values.
@@ -227,6 +236,14 @@ class DatasetManager:
             data = np.ma.masked_invalid(data)
         else:
             data = np.ma.array(data, mask=False)
+        clouds = self.get_cloud_mask()
+        if clouds is not None:
+            if resolution_percent != 100:
+                x = np.linspace(0, clouds.shape[0] - 1, data.shape[0]).astype(np.uint16)
+                y = np.linspace(0, clouds.shape[1] - 1, data.shape[1]).astype(np.uint16)
+                data.mask |= clouds[np.ix_(x, y)]
+            else:
+                data.mask |= clouds
         return np.ma.array(data, dtype=np.float32)
 
 class IndexErr:
@@ -432,6 +449,8 @@ class GdalExecutor:
             file, band, nodata = parameters['file'], parameters['band'], -1
             if self.satellite == 'Landsat 8/9':
                 nodata = 0
+                if band == 'QA_PIXEL':
+                    nodata = 1
             try:
                 dataset_id = self.ds_man.open(file, band, nodata)
             except RuntimeError:
@@ -441,6 +460,11 @@ class GdalExecutor:
             dataset = self.ds_man.get(dataset_id).dataset
             if dataset.GetDriver().ShortName != 'GTiff':
                 return _response(20300, {"error": f"provided file '{file}' is not a GeoTiff image"})
+
+            if self.satellite == 'Landsat 8/9' and band == 'QA_PIXEL':
+                cloud_mask = self.ds_man.read_band(dataset_id, 1).astype(np.uint16)
+                cloud_mask = indcal.cloud_mask(cloud_mask, 3)
+                self.ds_man.add_cloud_mask(cloud_mask)
             
             geotransform = dataset.GetGeoTransform()
             result = {
@@ -493,19 +517,17 @@ class GdalExecutor:
             r, g, b, a = 0, 0, 0, 0
             r = self.ds_man.read_band(ids[0], 1, resolution_percent=res)
             r = indcal.map_to_8bit(r)
+            a = r.mask
             if index == 'nat_col':
                 g = self.ds_man.read_band(ids[1], 1, resolution_percent=res)
                 b = self.ds_man.read_band(ids[2], 1, resolution_percent=res)
                 g = indcal.map_to_8bit(g)
                 b = indcal.map_to_8bit(b)
+                a = a | g.mask | b.mask
             else:
                 g = r
                 b = r
-            a = np.empty(r.shape, dtype=np.uint8)
-            if np.ma.is_masked(r):
-                a = np.array(np.where(r.mask, 0, 255), dtype=np.uint8)
-            else:
-                a.fill(255)
+            a = np.array(np.where(a, 0, 255), dtype=np.uint8)
 
             pv_id = self.pv_man.add(np.transpose(np.stack((r, g, b, a)), (1, 2, 0)), index)
             return _response(0, {

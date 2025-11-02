@@ -1,5 +1,6 @@
 Qt/build/
 Qt/WaterAnalyzer/*.pro.user*
+Qt/WaterAnalyzer/.qtcreator/
 python/gdal_backend/
 python/__pycache__
 python/requirements.txt
