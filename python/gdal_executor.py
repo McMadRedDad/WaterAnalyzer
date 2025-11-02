@@ -70,12 +70,16 @@ class Dataset:
         self.radio_add = None
         self.thermal_k1 = None
         self.thermal_k2 = None
+        self.rad_max = None
+        self.refl_max = None
         self.stats = stats
 
 class DatasetManager:
     def __init__(self):
         self._datasets = {}
         self._cloud_mask = None
+        self._sun_elev = None
+        self._earth_sun_dist = None
         self._counter = 0
         self._lock = threading.Lock()
 
@@ -135,6 +139,9 @@ class DatasetManager:
         ids = list(self._datasets.keys())
         for id_ in ids:
             self.close(id_)
+        self._cloud_mask = None
+        self._sun_elev = None
+        self._earth_sun_dist = None
 
     def get(self, id_: int) -> Dataset:
         with self._lock:
@@ -152,6 +159,18 @@ class DatasetManager:
 
     def get_cloud_mask(self) -> np.ma.MaskedArray | None:
         return self._cloud_mask
+
+    def get_sun_elevation(self) -> float | None:
+        return self._sun_elev
+
+    def get_earth_sun_distance(self) -> float | None:
+        return self._earth_sun_dist
+
+    def set_sun_elevation(self, val: float) -> None:
+        self._sun_elev = val
+
+    def set_earth_sun_distance(self, val: float) -> None:
+        self._earth_sun_dist = val
 
     def read_band(self, dataset_id: int, band_id: int, nodata: float | int=None, step_size_percent: float | int=100, resolution_percent: float | int=100) -> np.ma.MaskedArray:
         """Reads a band from the dataset and returns it as a numpy masked array, where mask corresponds to NoData values.
@@ -633,13 +652,64 @@ class GdalExecutor:
                 return _response(20801, {"error": f"failed to open metadata file '{filename}'"})
 
             with file:
-                found = False
                 if self.satellite == 'Landsat 8/9' and self.proc_level == 'L1TP':
                     parsing = False
-                    counter = 0
+                    count, count_1_9, count_10_11 = 0, 0, 0
                     for l in file:
+                        if self.ds_man.get_sun_elevation() is not None and 'SUN_ELEVATION' in l:
+                            _, _, s_elev = l.partition('=')
+                            try:
+                                s_elev = float(s_elev.strip())
+                            except ValueError:
+                                return _response(20800, {"error": f"metadata file '{filename}' is invalid, unsupported or does not contain calibration coefficients"})
+                            self.ds_man.set_sun_elevation(s_elev)
+                            count += 1
+                            continue
+                        if self.ds_man.get_earth_sun_distance() is not None and 'EARTH_SUN_DISTANCE' in l:
+                            _, _, es_dist = l.partition('=')
+                            try:
+                                es_dist = float(es_dist.strip())
+                            except ValueError:
+                                return _response(20800, {"error": f"metadata file '{filename}' is invalid, unsupported or does not contain calibration coefficients"})
+                            self.ds_man.set_earth_sun_distance(es_dist)
+                            count += 1
+                            continue
+                        if 'MIN_MAX_RADIANCE' in l:
+                            parsing = True if not parsing else False
+                            continue
+                        if parsing and 'MAXIMUM' in l:
+                            band, _, coeff = l.partition('=')
+                            band = band.strip()[-2:]
+                            band = band[1:] if band[0] == '_' else band
+                            try:
+                                coeff = float(coeff.strip())
+                            except ValueError:
+                                return _response(20800, {"error": f"metadata file '{filename}' is invalid, unsupported or does not contain calibration coefficients"})
+                            id__ = self.ds_man.find(band)
+                            if id__ is not None:
+                                self.ds_man.get(id__).rad_max = coeff
+                                if band in ('10', '11'):
+                                    count_10_11 += 1
+                                else:
+                                    count_1_9 += 1
+                            continue
+                        if 'MIN_MAX_REFLECTANCE' in l:
+                            parsing = True if not parsing else False
+                            continue
+                        if parsing and 'MAXIMUM' in l:
+                            band, _, coeff = l.partition('=')
+                            band = band.strip()[-2:]
+                            band = band[1:] if band[0] == '_' else band
+                            try:
+                                coeff = float(coeff.strip())
+                            except ValueError:
+                                return _response(20800, {"error": f"metadata file '{filename}' is invalid, unsupported or does not contain calibration coefficients"})
+                            id__ = self.ds_man.find(band)
+                            if id__ is not None:
+                                self.ds_man.get(id__).refl_max = coeff
+                                count_1_9 += 1
+                            continue
                         if 'RADIOMETRIC_RESCALING' in l:
-                            found = True
                             parsing = True if not parsing else False
                             continue
                         if parsing and 'RADIANCE' in l:
@@ -654,10 +724,17 @@ class GdalExecutor:
                             if id__ is not None:
                                 if 'MULT' in l:
                                     self.ds_man.get(id__).radio_mult = coeff
-                                    counter += 1
+                                    if band in ('10', '11'):
+                                        count_10_11 += 1
+                                    else:
+                                        count_1_9 += 1
                                 if 'ADD' in l:
                                     self.ds_man.get(id__).radio_add = coeff
-                                    counter += 1
+                                    if band in ('10', '11'):
+                                        count_10_11 += 1
+                                    else:
+                                        count_1_9 += 1
+                            continue
                         if 'THERMAL_CONSTANTS' in l:
                             parsing = True if not parsing else False
                             continue
@@ -675,14 +752,15 @@ class GdalExecutor:
                             if id__ is not None:
                                 if const == 'K1':
                                     self.ds_man.get(id__).thermal_k1 = coeff
-                                    counter += 1
+                                    count_10_11 += 1
                                 if const == 'K2':
                                     self.ds_man.get(id__).thermal_k2 = coeff
-                                    counter += 1
-                if not found:
+                                    count_10_11 += 1
+                            continue
+                if count + count_1_9 + count_10_11 == 0:
                     return _response(20800, {"error": f"metadata file '{filename}' is either invalid or does not contain calibration coefficients"})
             return _response(0, {
-                "loaded": counter // 2 - 1  # -1 for QA_PIXEL band
+                "loaded": count_1_9 / 4 + count_10_11 / 5
             })
         
         return _response(-1, {"error": "how's this even possible?"})
