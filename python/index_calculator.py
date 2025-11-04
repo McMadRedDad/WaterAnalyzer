@@ -55,18 +55,38 @@ def otsu_binarization(array: np.ma.MaskedArray, nodata: float | int, nbins: int=
     ret.mask = mask
     return ret
 
-def landsat_l1_dn_to_toa_radiance(dn: np.ma.MaskedArray, mult_factor: float, add_factor: float, nodata: float | int) -> np.ma.MaskedArray:
+def landsat_l1_dn_to_toa_radiance(dn: np.ma.MaskedArray, radio_mult: float, radio_add: float, nodata: float | int) -> np.ma.MaskedArray:
     """Converts DN to TOA radiance."""
 
-    toa_radiance = np.ma.empty(dn.shape, dtype=np.float32)
+    toa_rad = np.ma.empty(dn.shape, dtype=np.float32)
     mask = dn.mask
-    toa_radiance = mult_factor * dn + add_factor
-    toa_radiance[mask] = nodata
-    toa_radiance.mask = mask
-    return toa_radiance
+    toa_rad = radio_mult * dn + radio_add
+    toa_rad[mask] = nodata
+    toa_rad.mask = mask
+    return toa_rad
+
+def landsat_l1_dn_to_toa_reflectance(dn: np.ma.MaskedArray, radio_mult: float | int, radio_add: float | int, sun_elev: float | int, earth_sun_dist: float | int, rad_max: float | int, refl_max: float | int, nodata: float | int) -> np.ma.MaskedArray:
+    """Converts DN to TOA reflectance. Negative reflectance is mapped to 1.01*FLOAT_PRECISION."""
+
+    if isclose(refl_max, 0, abs_tol=FLOAT_PRECISION):
+        raise ZeroDivisionError(f'maximum reflectance = {refl_max}')
+    if isclose(earth_sun_dist, 0, abs_tol=FLOAT_PRECISION):
+        raise ZeroDivisionError(f'Earth Sun distance = {earth_sun_dist}')
+
+    toa_refl = np.ma.empty(dn.shape, dtype=np.float32)
+    mask = dn.mask
+    pi_d2 = np.pi * earth_sun_dist**2
+    E_sun = pi_d2 * rad_max / refl_max
+    sun_rad = E_sun * np.sin(sun_elev * np.pi/180) / pi_d2
+    toa_rad = landsat_l1_dn_to_toa_radiance(dn, radio_mult, radio_add, nodata)
+    toa_refl = toa_rad / sun_rad
+    toa_refl[toa_refl < 0] = FLOAT_PRECISION * 1.01
+    toa_refl[mask] = nodata
+    toa_refl.mask = mask
+    return toa_refl
 
 def landsat_l1_dn_to_dos1_reflectance(dn: np.ma.MaskedArray, radio_mult: float | int, radio_add: float | int, sun_elev: float | int, earth_sun_dist: float | int, rad_max: float | int, refl_max: float | int, nodata: float | int) -> np.ma.MaskedArray:
-    """DOS1 algorithm to approximately account for atmosphere. Converts DN to LS reflectance."""
+    """DOS1 algorithm to approximately account for atmosphere. Converts DN to LS reflectance. Negative reflectance is mapped to 1.01*FLOAT_PRECISION."""
 
     if isclose(refl_max, 0, abs_tol=FLOAT_PRECISION):
         raise ZeroDivisionError(f'maximum reflectance = {refl_max}')
@@ -81,22 +101,21 @@ def landsat_l1_dn_to_dos1_reflectance(dn: np.ma.MaskedArray, radio_mult: float |
                 return np.ceil(bin_edges[i])
         return np.ceil(data.min())
 
-    pi_d2 = np.pi * earth_sun_dist**2
-    dark_dn = _darkest_dn(dn, dn.size * 0.05)
-    toa_rad = landsat_l1_dn_to_toa_radiance(dn, radio_mult, radio_add, nodata)
-    ls_reflectance = np.ma.empty(dn.shape, dtype=np.float32)
+    ls_refl = np.ma.empty(dn.shape, dtype=np.float32)
     mask = dn.mask
-
+    pi_d2 = np.pi * earth_sun_dist**2
     E_sun = pi_d2 * rad_max / refl_max
     sun_rad = E_sun * np.sin(sun_elev * np.pi/180) / pi_d2
+    dark_dn = _darkest_dn(dn, dn.size * 0.05)
     dark_rad = radio_mult * dark_dn + radio_add
     path_rad = dark_rad - 0.01 * sun_rad
+    toa_rad = landsat_l1_dn_to_toa_radiance(dn, radio_mult, radio_add, nodata)
     ls_rad = toa_rad - path_rad
-    ls_reflectance = ls_rad / sun_rad
-    ls_reflectance[ls_reflectance < 0] = FLOAT_PRECISION * 1.01
-    ls_reflectance[mask] = nodata
-    ls_reflectance.mask = mask
-    return ls_reflectance
+    ls_refl = ls_rad / sun_rad
+    ls_refl[ls_refl < 0] = FLOAT_PRECISION * 1.01
+    ls_refl[mask] = nodata
+    ls_refl.mask = mask
+    return ls_refl
 
 def cloud_mask(array: np.ma.MaskedArray, bit_pos: int) -> np.ma.MaskedArray:
     """Returns a boolean array of bits at 'bit_pos'."""
