@@ -295,115 +295,92 @@ class GdalExecutor:
     def _index(self, index: str) -> (IndexErr, (tuple[float], str, np.ma.MaskedArray, gdal.GDT_Float32, float | int, str)):
         """Returns (None, (...)) on success and (err, ()) on failure."""
 
+        def _prepare_inputs(atm_correction: str, nodata: float | int, *bands: int) -> (IndexErr, (tuple[float], str, tuple[np.ma.MaskedArray])):
+            if atm_correction not in ('toa_rad', 'toa_refl', 'ls_rad', 'ls_refl'):
+                raise ValueError(f'invalid argument "{atm_correction}"')
+
+            inputs = []
+            geotransform, projection = None, ''
+            for i in bands:
+                id_ = self.ds_man.find(str(i))
+                if id_ is None:
+                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number {bands} are needed"), ()
+                ds = self.ds_man.get(id_)
+                inp = self.ds_man.read_band(id_, 1)
+                if len(projection) <= 0:
+                    geotransform = ds.dataset.GetGeoTransform()
+                    projection = ds.dataset.GetProjection()
+                if self.satellite == 'Landsat 8/9':
+                    if self.proc_level == 'L1TP':
+                        if atm_correction =='toa_rad':
+                            inp = indcal.landsat_l1_dn_to_toa_radiance(inp, ds.radio_mult, ds.radio_add, nodata)
+                        if atm_correction == 'toa_refl':
+                            sun_elev, es_dist = self.ds_man.get_sun_elevation(), self.ds_man.get_earth_sun_distance()
+                            inp = indcal.landsat_l1_dn_to_toa_reflectance(inp, ds.radio_mult, ds.radio_add, sun_elev, es_dist, ds.rad_max, ds.refl_max, nodata)
+                        # if atm_correction == 'ls_rad':
+                        if atm_correction == 'ls_refl':
+                            sun_elev, es_dist = self.ds_man.get_sun_elevation(), self.ds_man.get_earth_sun_distance()
+                            inp = indcal.landsat_l1_dn_to_dos1_reflectance(inp, ds.radio_mult, ds.radio_add, sun_elev, es_dist, ds.rad_max, ds.refl_max, nodata)
+                # if self.satellite == 'Sentinel 2':
+                inputs.append(inp)
+            return None, (geotransform, projection, inputs)
+
         geotransform, projection = None, ''
         data_type, nodata, ph_unit = gdal.GDT_Float32, -99999, '--'
         result = None
         if index == 'test':
             nodata = -99999.0
-            id1, id2 = -1, -1
             if self.satellite == 'Landsat 8/9':
-                id1, id2 = self.ds_man.find("2"), self.ds_man.find("4")
-                if id1 is None or id2 is None:
-                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 2 and 4 are needed"), ()
-            # if self.satellite == 'Sentinel 2:'
-            geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
-            projection = self.ds_man.get(id1).dataset.GetProjection()
-            array1 = self.ds_man.read_band(id1, 1)
-            array2 = self.ds_man.read_band(id2, 1)
-            if self.proc_level == 'L1TP':
-                array1 = indcal.landsat_dn_to_radiance(array1, self.ds_man.get(id1).radio_mult, self.ds_man.get(id1).radio_add, float('nan'))
-                array2 = indcal.landsat_dn_to_radiance(array2, self.ds_man.get(id2).radio_mult, self.ds_man.get(id2).radio_add, float('nan'))
-            result = indcal._test(array1, array2, nodata)
+                err, res = _prepare_inputs('toa_refl', nodata, 2, 4)
+            if err is not None:
+                return err, ()
+            geotransform, projection, inputs = res
+            result = indcal._test(*inputs, nodata)
         if index == 'wi2015':
             nodata = float('nan')
-            id1, id2, id3, id4, id5 = -1, -1, -1, -1, -1
             if self.satellite == 'Landsat 8/9':
-                id1, id2, id3, id4, id5 = self.ds_man.find("3"), self.ds_man.find("4"), self.ds_man.find("5"), self.ds_man.find("6"), self.ds_man.find("7")
-                if id1 is None or id2 is None or id3 is None or id4 is None or id5 is None:
-                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 3, 4, 5, 6 and 7 are needed"), ()
-            # if self.satellite == 'Sentinel 2:'
-            geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
-            projection = self.ds_man.get(id1).dataset.GetProjection()
-            green = self.ds_man.read_band(id1, 1)
-            red = self.ds_man.read_band(id2, 1)
-            nir = self.ds_man.read_band(id3, 1)
-            swir1 = self.ds_man.read_band(id4, 1)
-            swir2 = self.ds_man.read_band(id5, 1)
-            if self.proc_level == 'L1TP':
-                green = indcal.landsat_dn_to_radiance(green, self.ds_man.get(id1).radio_mult, self.ds_man.get(id1).radio_add, float('nan'))
-                red = indcal.landsat_dn_to_radiance(red, self.ds_man.get(id2).radio_mult, self.ds_man.get(id2).radio_add, float('nan'))
-                nir = indcal.landsat_dn_to_radiance(nir, self.ds_man.get(id3).radio_mult, self.ds_man.get(id3).radio_add, float('nan'))
-                swir1 = indcal.landsat_dn_to_radiance(swir1, self.ds_man.get(id4).radio_mult, self.ds_man.get(id4).radio_add, float('nan'))
-                swir2 = indcal.landsat_dn_to_radiance(swir2, self.ds_man.get(id5).radio_mult, self.ds_man.get(id5).radio_add, float('nan'))
-            result = indcal.wi2015(green, red, nir, swir1, swir2, nodata)
+                err, res = _prepare_inputs('toa_refl', nodata, 3, 4, 5, 6, 7)
+            if err is not None:
+                return err, ()
+            geotransform, projection, inputs = res
+            result = indcal.wi2015(*inputs, nodata)
         if index == 'nsmi':
             nodata = float('nan')
-            id1, id2, id3 = -1, -1, -1
             if self.satellite == 'Landsat 8/9':
-                id1, id2, id3 = self.ds_man.find("4"), self.ds_man.find("3"), self.ds_man.find("2")
-                if id1 is None or id2 is None or id3 is None:
-                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 2, 3 and 4 are needed"), ()
-            # if self.satellite == 'Sentinel 2:'
-            geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
-            projection = self.ds_man.get(id1).dataset.GetProjection()
-            red = self.ds_man.read_band(id1, 1)
-            green = self.ds_man.read_band(id2, 1)
-            blue = self.ds_man.read_band(id3, 1)
-            if self.proc_level == 'L1TP':
-                red = indcal.landsat_dn_to_radiance(red, self.ds_man.get(id1).radio_mult, self.ds_man.get(id1).radio_add, float('nan'))
-                green = indcal.landsat_dn_to_radiance(green, self.ds_man.get(id2).radio_mult, self.ds_man.get(id2).radio_add, float('nan'))
-                blue = indcal.landsat_dn_to_radiance(blue, self.ds_man.get(id3).radio_mult, self.ds_man.get(id3).radio_add, float('nan'))
-            result = indcal.nsmi(red, green, blue, nodata)
+                err, res = _prepare_inputs('toa_refl', nodata, 4, 3, 2)
+            if err is not None:
+                return err, ()
+            geotransform, projection, inputs = res
+            result = indcal.nsmi(*inputs, nodata)
         if index == 'oc3':
             nodata = float('nan')
-            id1, id2, id3 = -1, -1, -1
             if self.satellite == 'Landsat 8/9':
-                id1, id2, id3 = self.ds_man.find("1"), self.ds_man.find("2"), self.ds_man.find("3")
-                if id1 is None or id2 is None or id3 is None:
-                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 1, 2 and 3 are needed"), ()
-            # if self.satellite == 'Sentinel 2:'
-            geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
-            projection = self.ds_man.get(id1).dataset.GetProjection()
-            aerosol = self.ds_man.read_band(id1, 1)
-            blue = self.ds_man.read_band(id2, 1)
-            green = self.ds_man.read_band(id3, 1)
-            if self.proc_level == 'L1TP':
-                aerosol = indcal.landsat_dn_to_radiance(aerosol, self.ds_man.get(id1).radio_mult, self.ds_man.get(id1).radio_add, float('nan'))
-                blue = indcal.landsat_dn_to_radiance(blue, self.ds_man.get(id2).radio_mult, self.ds_man.get(id2).radio_add, float('nan'))
-                green = indcal.landsat_dn_to_radiance(green, self.ds_man.get(id3).radio_mult, self.ds_man.get(id3).radio_add, float('nan'))
-            result = indcal.oc3(aerosol, blue, green, nodata)
+                err, res = _prepare_inputs('toa_refl', nodata, 1, 2, 3)
+            if err is not None:
+                return err, ()
+            geotransform, projection, inputs = res
+            result = indcal.oc3(*inputs, nodata)
         if index == 'cdom_ndwi':
             nodata = float('nan')
             ph_unit = 'mg/L'
-            id1, id2 = -1, -1
             if self.satellite == 'Landsat 8/9':
-                id1, id2 = self.ds_man.find("3"), self.ds_man.find("5")
-                if id1 is None or id2 is None:
-                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 3 and 5 are needed"), ()
-            # if self.satellite == 'Sentinel 2:'
-            geotransform = self.ds_man.get(id1).dataset.GetGeoTransform()
-            projection = self.ds_man.get(id1).dataset.GetProjection()
-            green = self.ds_man.read_band(id1, 1)
-            nir = self.ds_man.read_band(id2, 1)
-            if self.proc_level == 'L1TP':
-                green = indcal.landsat_dn_to_radiance(green, self.ds_man.get(id1).radio_mult, self.ds_man.get(id1).radio_add, float('nan'))
-                nir = indcal.landsat_dn_to_radiance(nir, self.ds_man.get(id2).radio_mult, self.ds_man.get(id2).radio_add, float('nan'))
-            result = indcal.cdom_ndwi(green, nir, nodata)
+                err, res = _prepare_inputs('toa_refl', nodata, 3, 5)
+            if err is not None:
+                return err, ()
+            geotransform, projection, inputs = res
+            result = indcal.cdom_ndwi(*inputs, nodata)
         if index == 'temperature_landsat_toa':
             if not (self.satellite == 'Landsat 8/9' and self.proc_level == 'L1TP'):
                 return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} {self.proc_level}"), ()
             nodata = float('nan')
             ph_unit = '°C'
-            id1 = -1
-            id1 = self.ds_man.find("10")
-            if id1 is None:
-                return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} band number 10 is needed"), ()
-            dataset = self.ds_man.get(id1)
-            geotransform = dataset.dataset.GetGeoTransform()
-            projection = dataset.dataset.GetProjection()
-            thermal = self.ds_man.read_band(id1, 1)
-            radiance = indcal.landsat_dn_to_radiance(thermal, dataset.radio_mult, dataset.radio_add, nodata)
-            result = indcal.landsat_temperature_toa(radiance, dataset.thermal_k1, dataset.thermal_k2, nodata, 'C')
+            if self.satellite == 'Landsat 8/9':
+                err, res = _prepare_inputs('toa_rad', nodata, 10)
+            if err is not None:
+                return err, ()
+            geotransform, projection, inputs = res
+            ds = self.ds_man.get(self.ds_man.find("10"))
+            result = indcal.landsat_temperature_toa(*inputs, ds.thermal_k1, ds.thermal_k2, nodata, 'C')
         if index == 'temperature_landsat_lst':
             if self.satellite != 'Landsat 8/9':
                 return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} satellite"), ()
