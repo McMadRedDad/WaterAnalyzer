@@ -656,7 +656,7 @@ class GdalExecutor:
                     parsing = False
                     count, count_1_9, count_10_11 = 0, 0, 0
                     for l in file:
-                        if self.ds_man.get_sun_elevation() is not None and 'SUN_ELEVATION' in l:
+                        if self.ds_man.get_sun_elevation() is None and 'SUN_ELEVATION' in l:
                             _, _, s_elev = l.partition('=')
                             try:
                                 s_elev = float(s_elev.strip())
@@ -665,7 +665,7 @@ class GdalExecutor:
                             self.ds_man.set_sun_elevation(s_elev)
                             count += 1
                             continue
-                        if self.ds_man.get_earth_sun_distance() is not None and 'EARTH_SUN_DISTANCE' in l:
+                        if self.ds_man.get_earth_sun_distance() is None and 'EARTH_SUN_DISTANCE' in l:
                             _, _, es_dist = l.partition('=')
                             try:
                                 es_dist = float(es_dist.strip())
@@ -677,7 +677,7 @@ class GdalExecutor:
                         if 'MIN_MAX_RADIANCE' in l:
                             parsing = True if not parsing else False
                             continue
-                        if parsing and 'MAXIMUM' in l:
+                        if parsing and 'RADIANCE_MAXIMUM' in l:
                             band, _, coeff = l.partition('=')
                             band = band.strip()[-2:]
                             band = band[1:] if band[0] == '_' else band
@@ -696,7 +696,7 @@ class GdalExecutor:
                         if 'MIN_MAX_REFLECTANCE' in l:
                             parsing = True if not parsing else False
                             continue
-                        if parsing and 'MAXIMUM' in l:
+                        if parsing and 'REFLECTANCE_MAXIMUM' in l:
                             band, _, coeff = l.partition('=')
                             band = band.strip()[-2:]
                             band = band[1:] if band[0] == '_' else band
