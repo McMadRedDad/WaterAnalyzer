@@ -273,7 +273,7 @@ class IndexErr:
 class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('3.0.3')
-    SUPPORTED_INDICES = ('test', 'wi2015', 'nsmi', 'oc3', 'cdom_ndwi', 'temperature_landsat_toa', 'temperature_landsat_lst')
+    SUPPORTED_INDICES = ('test', 'wi2015', 'andwi', 'nsmi', 'oc3', 'cdom_ndwi', 'temperature_landsat_toa', 'temperature_landsat_lst')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
     }
@@ -321,6 +321,7 @@ class GdalExecutor:
                         if atm_correction == 'ls_refl':
                             sun_elev, es_dist = self.ds_man.get_sun_elevation(), self.ds_man.get_earth_sun_distance()
                             inp = indcal.landsat_l1_dn_to_dos1_reflectance(inp, ds.radio_mult, ds.radio_add, sun_elev, es_dist, ds.rad_max, ds.refl_max, nodata)
+                    # if self.proc_level == 'L2SP:'
                 # if self.satellite == 'Sentinel 2':
                 inputs.append(inp)
             return None, (geotransform, projection, inputs)
@@ -344,6 +345,14 @@ class GdalExecutor:
                 return err, ()
             geotransform, projection, inputs = res
             result = indcal.wi2015(*inputs, nodata)
+        if index == 'andwi':
+            nodata = float('nan')
+            if self.satellite == 'Landsat 8/9':
+                err, res = _prepare_inputs('toa_refl', nodata, 2, 3, 4, 5, 6, 7)
+            if err is not None:
+                return err, ()
+            geotransform, projection, inputs = res
+            result = indcal.andwi(*inputs, nodata)
         if index == 'nsmi':
             nodata = float('nan')
             if self.satellite == 'Landsat 8/9':
@@ -374,8 +383,7 @@ class GdalExecutor:
                 return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} {self.proc_level}"), ()
             nodata = float('nan')
             ph_unit = '°C'
-            if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs('toa_rad', nodata, 10)
+            err, res = _prepare_inputs('toa_rad', nodata, 10)
             if err is not None:
                 return err, ()
             geotransform, projection, inputs = res
@@ -384,12 +392,13 @@ class GdalExecutor:
         if index == 'temperature_landsat_lst':
             if self.satellite != 'Landsat 8/9':
                 return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} satellite"), ()
+            nodata = float('nan')
+            ph_unit = '°C'
             if self.proc_level == 'L1TP':
                 err, res = self._index('temperature_landsat_toa')
                 if err is not None:
-                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} band number 10 is needed"), ()
+                    return err, ()
                 geotransform, projection, temperature_toa, data_type, nodata, _ = res
-                ph_unit = '°C'
                 id1, id2 = -1, -1
                 id1, id2 = self.ds_man.find("5"), self.ds_man.find("4")
                 if id1 is None or id2 is None:

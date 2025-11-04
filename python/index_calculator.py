@@ -1,5 +1,4 @@
 import numpy as np
-from math import isclose
 
 FLOAT_PRECISION = 1e-6
 
@@ -10,12 +9,12 @@ def map_to_8bit(array: np.ma.MaskedArray) -> np.ma.MaskedArray:
     mask_ = array.mask
     arr = np.ma.array(np.nan_to_num(array.data, nan=0), mask=mask_)
     min_, max_ = arr.min(), arr.max()
-    if isclose(min_, max_, abs_tol=FLOAT_PRECISION):
+    if np.isclose(min_, max_, atol=FLOAT_PRECISION):
         return np.ma.array(np.zeros(array.shape), mask=mask_, dtype=np.uint8)
     else:
         return np.ma.array((arr - min_) / (max_ - min_) * 255, mask=mask_, dtype=np.uint8)
 
-def _otsu_threshold(array: np.ma.MaskedArray, nbins: int=256) -> float:
+def _otsu_threshold(array: np.ma.MaskedArray, nbins: int) -> float:
     """Using Otsu method, calculates threshold that best divides 'array's values into 2 classes and returns it.
     'nbins' defines length of the probability histogram."""
 
@@ -32,9 +31,9 @@ def _otsu_threshold(array: np.ma.MaskedArray, nbins: int=256) -> float:
     
     glob_mean = cum_mean[-1]  # global mean ~ cumulative mean for the whole data range
     max_var = 0
-    best_thresh = bin_edges[0]
+    best_thresh = bin_centers[0]
     for i in range(1, nbins):
-        if isclose(cum_sum[i], 0) or isclose(cum_sum[i], 1):
+        if np.isclose(cum_sum[i], 0, atol=FLOAT_PRECISION) or np.isclose(cum_sum[i], 1, atol=FLOAT_PRECISION):
             continue
 
         mean0 = cum_mean[i] / cum_sum[i]  # mean of class0 (below threshold=current bin center)
@@ -42,14 +41,14 @@ def _otsu_threshold(array: np.ma.MaskedArray, nbins: int=256) -> float:
         inter_var = cum_sum[i] * (1 - cum_sum[i]) * (mean0 - mean1) ** 2  # main resulting formula by Otsu
         if inter_var > max_var:  # if inter_var > current variance, update current threshold
             max_var = inter_var
-            best_thresh = bin_edges[i]
+            best_thresh = bin_centers[i]
     
     return best_thresh
 
-def otsu_binarization(array: np.ma.MaskedArray, nodata: float | int, nbins: int=256) -> np.ma.MaskedArray:
+def otsu_binarization(array: np.ma.MaskedArray, nodata: int, nbins: int=256) -> np.ma.MaskedArray:
     ret = np.ma.empty(array.shape, dtype=np.uint8)
     mask = array.mask
-    threshold = _otsu_threshold(array)
+    threshold = _otsu_threshold(array, nbins)
     ret[~mask] = np.ma.where(array[~mask] > threshold, 1, 0)
     ret[mask] = nodata
     ret.mask = mask
@@ -68,9 +67,9 @@ def landsat_l1_dn_to_toa_radiance(dn: np.ma.MaskedArray, radio_mult: float, radi
 def landsat_l1_dn_to_toa_reflectance(dn: np.ma.MaskedArray, radio_mult: float | int, radio_add: float | int, sun_elev: float | int, earth_sun_dist: float | int, rad_max: float | int, refl_max: float | int, nodata: float | int) -> np.ma.MaskedArray:
     """Converts DN to TOA reflectance. Negative reflectance is mapped to 1.01*FLOAT_PRECISION."""
 
-    if isclose(refl_max, 0, abs_tol=FLOAT_PRECISION):
+    if np.isclose(refl_max, 0, atol=FLOAT_PRECISION):
         raise ZeroDivisionError(f'maximum reflectance = {refl_max}')
-    if isclose(earth_sun_dist, 0, abs_tol=FLOAT_PRECISION):
+    if np.isclose(earth_sun_dist, 0, atol=FLOAT_PRECISION):
         raise ZeroDivisionError(f'Earth Sun distance = {earth_sun_dist}')
 
     toa_refl = np.ma.empty(dn.shape, dtype=np.float32)
@@ -88,9 +87,9 @@ def landsat_l1_dn_to_toa_reflectance(dn: np.ma.MaskedArray, radio_mult: float | 
 def landsat_l1_dn_to_dos1_reflectance(dn: np.ma.MaskedArray, radio_mult: float | int, radio_add: float | int, sun_elev: float | int, earth_sun_dist: float | int, rad_max: float | int, refl_max: float | int, nodata: float | int) -> np.ma.MaskedArray:
     """DOS1 algorithm to approximately account for atmosphere. Converts DN to LS reflectance. Negative reflectance is mapped to 1.01*FLOAT_PRECISION."""
 
-    if isclose(refl_max, 0, abs_tol=FLOAT_PRECISION):
+    if np.isclose(refl_max, 0, atol=FLOAT_PRECISION):
         raise ZeroDivisionError(f'maximum reflectance = {refl_max}')
-    if isclose(earth_sun_dist, 0, abs_tol=FLOAT_PRECISION):
+    if np.isclose(earth_sun_dist, 0, atol=FLOAT_PRECISION):
         raise ZeroDivisionError(f'Earth Sun distance = {earth_sun_dist}')
 
     def _darkest_dn(DN, pixel_count=1000):
@@ -237,3 +236,17 @@ def ndvi(nir: np.ma.MaskedArray, red: np.ma.MaskedArray, nodata: float | int) ->
     ndvi[mask] = nodata
     ndvi.mask = mask
     return ndvi
+
+def andwi(blue: np.ma.MaskedArray, green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedArray, swir1: np.ma.MaskedArray, swir2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
+    """(blue + green + red - nir - swir1 - swir2) / (blue + green + red + nir + swir1 + swir2)"""
+    
+    andwi = np.ma.empty(red.shape, dtype=np.float32)
+    mask = _full_mask(blue, green, red, nir, swir1, swir2)
+    numerator = blue + green + red - nir - swir1 - swir2
+    denominator = blue + green + red + nir + swir1 + swir2
+    zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
+    andwi[~zeros] = numerator[~zeros] / denominator[~zeros]
+    andwi[zeros] = nodata
+    andwi[mask] = nodata
+    andwi.mask = mask
+    return andwi
