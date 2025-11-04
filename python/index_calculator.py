@@ -55,15 +55,48 @@ def otsu_binarization(array: np.ma.MaskedArray, nodata: float | int, nbins: int=
     ret.mask = mask
     return ret
 
-def landsat_dn_to_radiance(array: np.ma.MaskedArray, mult_factor: float, add_factor: float, nodata: float | int) -> np.ma.MaskedArray:
-    """mult_factor * array + add_factor"""
+def landsat_l1_dn_to_toa_radiance(dn: np.ma.MaskedArray, mult_factor: float, add_factor: float, nodata: float | int) -> np.ma.MaskedArray:
+    """Converts DN to TOA radiance."""
 
-    radiance = np.ma.empty(array.shape, dtype=np.float32)
-    mask = array.mask
-    radiance = mult_factor * array + add_factor
-    radiance[mask] = nodata
-    radiance.mask = mask
-    return radiance
+    toa_radiance = np.ma.empty(dn.shape, dtype=np.float32)
+    mask = dn.mask
+    toa_radiance = mult_factor * dn + add_factor
+    toa_radiance[mask] = nodata
+    toa_radiance.mask = mask
+    return toa_radiance
+
+def landsat_l1_dn_to_dos1_reflectance(dn: np.ma.MaskedArray, radio_mult: float | int, radio_add: float | int, sun_elev: float | int, earth_sun_dist: float | int, rad_max: float | int, refl_max: float | int, nodata: float | int) -> np.ma.MaskedArray:
+    """DOS1 algorithm to approximately account for atmosphere. Converts DN to LS reflectance."""
+
+    if isclose(refl_max, 0, abs_tol=FLOAT_PRECISION):
+        raise ZeroDivisionError(f'maximum reflectance = {refl_max}')
+    if isclose(earth_sun_dist, 0, abs_tol=FLOAT_PRECISION):
+        raise ZeroDivisionError(f'Earth Sun distance = {earth_sun_dist}')
+
+    def _darkest_dn(DN, pixel_count=1000):
+        data = DN.compressed()
+        hist, bin_edges = np.histogram(data, bins=int(data.min()+data.max()+2))
+        for i, count in enumerate(hist):
+            if count >= pixel_count:
+                return np.ceil(bin_edges[i])
+        return np.ceil(data.min())
+
+    pi_d2 = np.pi * earth_sun_dist**2
+    dark_dn = _darkest_dn(dn, dn.size * 0.05)
+    toa_rad = landsat_l1_dn_to_toa_radiance(dn, radio_mult, radio_add, nodata)
+    ls_reflectance = np.ma.empty(dn.shape, dtype=np.float32)
+    mask = dn.mask
+
+    E_sun = pi_d2 * rad_max / refl_max
+    sun_rad = E_sun * np.sin(sun_elev * np.pi/180) / pi_d2
+    dark_rad = radio_mult * dark_dn + radio_add
+    path_rad = dark_rad - 0.01 * sun_rad
+    ls_rad = toa_rad - path_rad
+    ls_reflectance = ls_rad / sun_rad
+    ls_reflectance[ls_reflectance < 0] = FLOAT_PRECISION * 1.01
+    ls_reflectance[mask] = nodata
+    ls_reflectance.mask = mask
+    return ls_reflectance
 
 def cloud_mask(array: np.ma.MaskedArray, bit_pos: int) -> np.ma.MaskedArray:
     """Returns a boolean array of bits at 'bit_pos'."""
@@ -157,7 +190,8 @@ def landsat_temperature_toa(radiance: np.ma.MaskedArray, K1: float, K2: float, n
     for unit='C': temperature_toa = K2 / ln(K1/radiance + 1) - 273,15"""
 
     if unit not in ('K', 'C'):
-        raise ValueError(f'invalid value "{unit}" passed as "unit" argument for "landsat_temperature_toa" function')
+        raise ValueError(f'invalid value "{unit}" passed as "unit" argument to "landsat_temperature_toa" function')
+
     temperature_toa = np.ma.empty(radiance.shape, dtype=np.float32)
     mask = radiance.mask
     denominator = np.log1p(K1 / radiance)
