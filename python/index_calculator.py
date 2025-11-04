@@ -240,7 +240,7 @@ def ndvi(nir: np.ma.MaskedArray, red: np.ma.MaskedArray, nodata: float | int) ->
 def andwi(blue: np.ma.MaskedArray, green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedArray, swir1: np.ma.MaskedArray, swir2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
     """(blue + green + red - nir - swir1 - swir2) / (blue + green + red + nir + swir1 + swir2)"""
     
-    andwi = np.ma.empty(red.shape, dtype=np.float32)
+    andwi = np.ma.empty(blue.shape, dtype=np.float32)
     mask = _full_mask(blue, green, red, nir, swir1, swir2)
     numerator = blue + green + red - nir - swir1 - swir2
     denominator = blue + green + red + nir + swir1 + swir2
@@ -250,3 +250,17 @@ def andwi(blue: np.ma.MaskedArray, green: np.ma.MaskedArray, red: np.ma.MaskedAr
     andwi[mask] = nodata
     andwi.mask = mask
     return andwi
+
+def ndbi(swir1: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
+    """(swir1 - nir) / (swir1 + nir)"""
+    
+    ndbi = np.ma.empty(swir1.shape, dtype=np.float32)
+    mask = _full_mask(swir1, nir)
+    numerator = swir1 - nir
+    denominator = swir1 + nir
+    zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
+    ndbi[~zeros] = numerator[~zeros] / denominator[~zeros]
+    ndbi[zeros] = nodata
+    ndbi[mask] = nodata
+    ndbi.mask = mask
+    return ndbi

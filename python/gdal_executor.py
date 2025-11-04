@@ -273,7 +273,7 @@ class IndexErr:
 class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('3.0.3')
-    SUPPORTED_INDICES = ('test', 'wi2015', 'andwi', 'nsmi', 'oc3', 'cdom_ndwi', 'temperature_landsat_toa', 'temperature_landsat_lst')
+    SUPPORTED_INDICES = ('test', 'ndbi', 'wi2015', 'andwi', 'nsmi', 'oc3', 'cdom_ndwi', 'temperature_landsat_toa', 'temperature_landsat_lst')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
     }
@@ -337,6 +337,14 @@ class GdalExecutor:
                 return err, ()
             geotransform, projection, inputs = res
             result = indcal._test(*inputs, nodata)
+        if index == 'ndbi':
+            nodata = float('nan')
+            if self.satellite == 'Landsat 8/9':
+                err, res = _prepare_inputs('ls_refl', nodata, 6, 5)
+            if err is not None:
+                return err, ()
+            geotransform, projection, inputs = res
+            result = indcal.ndbi(*inputs, nodata)
         if index == 'wi2015':
             nodata = float('nan')
             if self.satellite == 'Landsat 8/9':
