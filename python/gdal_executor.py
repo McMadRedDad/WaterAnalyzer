@@ -337,14 +337,6 @@ class GdalExecutor:
                 return err, ()
             geotransform, projection, inputs = res
             result = indcal._test(*inputs, nodata)
-        if index == 'ndbi':
-            nodata = float('nan')
-            if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs('ls_refl', nodata, 6, 5)
-            if err is not None:
-                return err, ()
-            geotransform, projection, inputs = res
-            result = indcal.ndbi(*inputs, nodata)
         if index == 'wi2015':
             nodata = float('nan')
             if self.satellite == 'Landsat 8/9':
@@ -396,7 +388,7 @@ class GdalExecutor:
                 return err, ()
             geotransform, projection, inputs = res
             ds = self.ds_man.get(self.ds_man.find("10"))
-            result = indcal.landsat_temperature_toa(*inputs, ds.thermal_k1, ds.thermal_k2, nodata, 'C')
+            result = indcal.landsat_l1_toa_radiance_to_toa_temperature(*inputs, ds.thermal_k1, ds.thermal_k2, nodata, 'C')
         if index == 'temperature_landsat_lst':
             if self.satellite != 'Landsat 8/9':
                 return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} satellite"), ()
@@ -417,6 +409,14 @@ class GdalExecutor:
                 ndvi = indcal.ndvi(nir, red, nodata)
                 result = indcal.landsat_temperature_toa(radiance, dataset.thermal_k1, dataset.thermal_k2, nodata, 'C')
             # if self.proc_level == 'L2SP':
+        if index == 'ndbi':
+            nodata = float('nan')
+            if self.satellite == 'Landsat 8/9':
+                err, res = _prepare_inputs('ls_refl', nodata, 6, 5)
+            if err is not None:
+                return err, ()
+            geotransform, projection, inputs = res
+            result = indcal.ndbi(*inputs, nodata)
         return None, (geotransform, projection, result, data_type, nodata, ph_unit)
 
     def execute(self, request: dict) -> dict:

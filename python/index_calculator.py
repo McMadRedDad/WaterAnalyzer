@@ -54,6 +54,26 @@ def otsu_binarization(array: np.ma.MaskedArray, nodata: int, nbins: int=256) -> 
     ret.mask = mask
     return ret
 
+def cloud_mask(array: np.ma.MaskedArray, bit_pos: int) -> np.ma.MaskedArray:
+    """Returns a boolean array of bits at 'bit_pos'."""
+
+    if bit_pos < 0 or bit_pos > 15:
+        raise ValueError(f'Cloud mask is 16 bit, but bit position {bit_pos} provided')
+
+    ret = np.ma.empty(array.shape, dtype=np.bool)
+    mask = array.mask
+    ret[~mask] = ((array[~mask] & (1 << bit_pos)) >> bit_pos) != 0
+    ret.mask = mask
+    return ret
+
+def _full_mask(array: np.ma.MaskedArray, *arrays: np.ma.MaskedArray) -> np.typing.NDArray[bool]:
+    """Combines masks from every array into one preserving invalid bits from each mask and returns it."""
+
+    mask = array.mask
+    for a in arrays:
+        mask |= a.mask
+    return mask
+
 def landsat_l1_dn_to_toa_radiance(dn: np.ma.MaskedArray, radio_mult: float, radio_add: float, nodata: float | int) -> np.ma.MaskedArray:
     """Converts DN to TOA radiance."""
 
@@ -116,25 +136,26 @@ def landsat_l1_dn_to_dos1_reflectance(dn: np.ma.MaskedArray, radio_mult: float |
     ls_refl.mask = mask
     return ls_refl
 
-def cloud_mask(array: np.ma.MaskedArray, bit_pos: int) -> np.ma.MaskedArray:
-    """Returns a boolean array of bits at 'bit_pos'."""
+def landsat_l1_toa_radiance_to_toa_temperature(radiance: np.ma.MaskedArray, K1: float, K2: float, nodata: float | int, unit: str) -> np.ma.MaskedArray:
+    """'unit' is either 'K' or 'C'
+    for unit='K': temperature_toa = K2 / ln(K1/radiance + 1)
+    for unit='C': temperature_toa = K2 / ln(K1/radiance + 1) - 273,15"""
 
-    if bit_pos < 0 or bit_pos > 15:
-        raise ValueError(f'Cloud mask is 16 bit, but bit position {bit_pos} provided')
+    if unit not in ('K', 'C'):
+        raise ValueError(f'invalid value "{unit}" passed as "unit" argument to "landsat_temperature_toa" function')
 
-    ret = np.ma.empty(array.shape, dtype=np.bool)
-    mask = array.mask
-    ret[~mask] = ((array[~mask] & (1 << bit_pos)) >> bit_pos) != 0
-    ret.mask = mask
-    return ret
-
-def _full_mask(array: np.ma.MaskedArray, *arrays: np.ma.MaskedArray) -> np.typing.NDArray[bool]:
-    """Combines masks from every array into one preserving invalid bits from each mask and returns it."""
-
-    mask = array.mask
-    for a in arrays:
-        mask |= a.mask
-    return mask
+    temperature_toa = np.ma.empty(radiance.shape, dtype=np.float32)
+    mask = radiance.mask
+    denominator = np.log1p(K1 / radiance)
+    zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
+    if unit == 'K':
+        temperature_toa[~zeros] = K2 / denominator[~zeros]
+    if unit == 'C':
+        temperature_toa[~zeros] = K2 / denominator[~zeros] - 273.15
+    temperature_toa[zeros] = nodata
+    temperature_toa[mask] = nodata
+    temperature_toa.mask = mask
+    return temperature_toa
 
 def _test(array1: np.ma.MaskedArray, array2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
     """array1 / array2"""
@@ -157,6 +178,20 @@ def wi2015(green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedAr
     wi2015[mask] = nodata
     wi2015.mask = mask
     return wi2015
+
+def andwi(blue: np.ma.MaskedArray, green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedArray, swir1: np.ma.MaskedArray, swir2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
+    """(blue + green + red - nir - swir1 - swir2) / (blue + green + red + nir + swir1 + swir2)"""
+    
+    andwi = np.ma.empty(blue.shape, dtype=np.float32)
+    mask = _full_mask(blue, green, red, nir, swir1, swir2)
+    numerator = blue + green + red - nir - swir1 - swir2
+    denominator = blue + green + red + nir + swir1 + swir2
+    zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
+    andwi[~zeros] = numerator[~zeros] / denominator[~zeros]
+    andwi[zeros] = nodata
+    andwi[mask] = nodata
+    andwi.mask = mask
+    return andwi
 
 def nsmi(red: np.ma.MaskedArray, green: np.ma.MaskedArray, blue: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
     """(red + green - blue) / (red + green + blue)"""
@@ -202,27 +237,6 @@ def cdom_ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | fl
     cdom_ndwi.mask = mask
     return cdom_ndwi
 
-def landsat_temperature_toa(radiance: np.ma.MaskedArray, K1: float, K2: float, nodata: float | int, unit: str) -> np.ma.MaskedArray:
-    """'unit' is either 'K' or 'C'
-    for unit='K': temperature_toa = K2 / ln(K1/radiance + 1)
-    for unit='C': temperature_toa = K2 / ln(K1/radiance + 1) - 273,15"""
-
-    if unit not in ('K', 'C'):
-        raise ValueError(f'invalid value "{unit}" passed as "unit" argument to "landsat_temperature_toa" function')
-
-    temperature_toa = np.ma.empty(radiance.shape, dtype=np.float32)
-    mask = radiance.mask
-    denominator = np.log1p(K1 / radiance)
-    zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
-    if unit == 'K':
-        temperature_toa[~zeros] = K2 / denominator[~zeros]
-    if unit == 'C':
-        temperature_toa[~zeros] = K2 / denominator[~zeros] - 273.15
-    temperature_toa[zeros] = nodata
-    temperature_toa[mask] = nodata
-    temperature_toa.mask = mask
-    return temperature_toa
-
 def ndvi(nir: np.ma.MaskedArray, red: np.ma.MaskedArray, nodata: float | int) -> np.ma.MaskedArray:
     """(nir - red) / (nir + red)"""
 
@@ -236,20 +250,6 @@ def ndvi(nir: np.ma.MaskedArray, red: np.ma.MaskedArray, nodata: float | int) ->
     ndvi[mask] = nodata
     ndvi.mask = mask
     return ndvi
-
-def andwi(blue: np.ma.MaskedArray, green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedArray, swir1: np.ma.MaskedArray, swir2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
-    """(blue + green + red - nir - swir1 - swir2) / (blue + green + red + nir + swir1 + swir2)"""
-    
-    andwi = np.ma.empty(blue.shape, dtype=np.float32)
-    mask = _full_mask(blue, green, red, nir, swir1, swir2)
-    numerator = blue + green + red - nir - swir1 - swir2
-    denominator = blue + green + red + nir + swir1 + swir2
-    zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
-    andwi[~zeros] = numerator[~zeros] / denominator[~zeros]
-    andwi[zeros] = nodata
-    andwi[mask] = nodata
-    andwi.mask = mask
-    return andwi
 
 def ndbi(swir1: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
     """(swir1 - nir) / (swir1 + nir)"""
