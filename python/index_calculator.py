@@ -2,7 +2,7 @@ import numpy as np
 
 FLOAT_PRECISION = 1e-6
 
-def map_to_8bit(array: np.ma.MaskedArray) -> np.ma.MaskedArray:
+def map_to_8bit(array: np.ma.MaskedArray) -> np.ma.MaskedArray[np.uint8]:
     """Fits 'array's values into [0; 255] range and returns a new masked array of uint8 type.
     If 'array's range is 0, i.e. array.min() == array.max(), all values are set to 0."""
 
@@ -45,7 +45,9 @@ def _otsu_threshold(array: np.ma.MaskedArray, nbins: int) -> float:
     
     return best_thresh
 
-def otsu_binarization(array: np.ma.MaskedArray, nodata: int, nbins: int=256) -> np.ma.MaskedArray:
+def otsu_binarization(array: np.ma.MaskedArray, nodata: int, nbins: int=256) -> np.ma.MaskedArray[np.uint8]:
+    """Divide 'array' daat into two classes usin Otsu method. Returns a new array where 1=foreground, 0=background."""
+
     ret = np.ma.empty(array.shape, dtype=np.uint8)
     mask = array.mask
     threshold = _otsu_threshold(array, nbins)
@@ -54,7 +56,7 @@ def otsu_binarization(array: np.ma.MaskedArray, nodata: int, nbins: int=256) -> 
     ret.mask = mask
     return ret
 
-def cloud_mask(array: np.ma.MaskedArray, bit_pos: int) -> np.ma.MaskedArray:
+def cloud_mask(array: np.ma.MaskedArray, bit_pos: int) -> np.ma.MaskedArray[np.bool]:
     """Returns a boolean array of bits at 'bit_pos'."""
 
     if bit_pos < 0 or bit_pos > 15:
@@ -74,7 +76,7 @@ def _full_mask(array: np.ma.MaskedArray, *arrays: np.ma.MaskedArray) -> np.typin
         mask |= a.mask
     return mask
 
-def landsat_l1_dn_to_toa_radiance(dn: np.ma.MaskedArray, radio_mult: float, radio_add: float, nodata: float | int) -> np.ma.MaskedArray:
+def landsat_l1_dn_to_toa_radiance(dn: np.ma.MaskedArray, radio_mult: float, radio_add: float, nodata: float | int) -> np.ma.MaskedArray[np.float32]:
     """Converts DN to TOA radiance."""
 
     toa_rad = np.ma.empty(dn.shape, dtype=np.float32)
@@ -84,7 +86,7 @@ def landsat_l1_dn_to_toa_radiance(dn: np.ma.MaskedArray, radio_mult: float, radi
     toa_rad.mask = mask
     return toa_rad
 
-def landsat_l1_dn_to_toa_reflectance(dn: np.ma.MaskedArray, radio_mult: float | int, radio_add: float | int, sun_elev: float | int, earth_sun_dist: float | int, rad_max: float | int, refl_max: float | int, nodata: float | int) -> np.ma.MaskedArray:
+def landsat_l1_dn_to_toa_reflectance(dn: np.ma.MaskedArray, radio_mult: float | int, radio_add: float | int, sun_elev: float | int, earth_sun_dist: float | int, rad_max: float | int, refl_max: float | int, nodata: float | int) -> np.ma.MaskedArray[np.float32]:
     """Converts DN to TOA reflectance. Negative reflectance is mapped to 1.01*FLOAT_PRECISION."""
 
     if np.isclose(refl_max, 0, atol=FLOAT_PRECISION):
@@ -100,11 +102,12 @@ def landsat_l1_dn_to_toa_reflectance(dn: np.ma.MaskedArray, radio_mult: float | 
     toa_rad = landsat_l1_dn_to_toa_radiance(dn, radio_mult, radio_add, nodata)
     toa_refl = toa_rad / sun_rad
     toa_refl[toa_refl < 0] = FLOAT_PRECISION * 1.01
+    toa_refl[np.isclose(toa_refl, 0, atol=FLOAT_PRECISION)] = FLOAT_PRECISION * 1.01
     toa_refl[mask] = nodata
     toa_refl.mask = mask
     return toa_refl
 
-def landsat_l1_dn_to_dos1_reflectance(dn: np.ma.MaskedArray, radio_mult: float | int, radio_add: float | int, sun_elev: float | int, earth_sun_dist: float | int, rad_max: float | int, refl_max: float | int, nodata: float | int) -> np.ma.MaskedArray:
+def landsat_l1_dn_to_dos1_reflectance(dn: np.ma.MaskedArray, radio_mult: float | int, radio_add: float | int, sun_elev: float | int, earth_sun_dist: float | int, rad_max: float | int, refl_max: float | int, nodata: float | int) -> np.ma.MaskedArray[np.float32]:
     """DOS1 algorithm to approximately account for atmosphere. Converts DN to LS reflectance. Negative reflectance is mapped to 1.01*FLOAT_PRECISION."""
 
     if np.isclose(refl_max, 0, atol=FLOAT_PRECISION):
@@ -132,11 +135,12 @@ def landsat_l1_dn_to_dos1_reflectance(dn: np.ma.MaskedArray, radio_mult: float |
     ls_rad = toa_rad - path_rad
     ls_refl = ls_rad / sun_rad
     ls_refl[ls_refl < 0] = FLOAT_PRECISION * 1.01
+    ls_refl[np.isclose(ls_refl, 0, atol=FLOAT_PRECISION)] = FLOAT_PRECISION * 1.01
     ls_refl[mask] = nodata
     ls_refl.mask = mask
     return ls_refl
 
-def landsat_l1_toa_radiance_to_toa_temperature(radiance: np.ma.MaskedArray, K1: float, K2: float, nodata: float | int, unit: str) -> np.ma.MaskedArray:
+def landsat_l1_toa_radiance_to_toa_temperature(radiance: np.ma.MaskedArray, K1: float, K2: float, nodata: float | int, unit: str) -> np.ma.MaskedArray[np.float32]:
     """'unit' is either 'K' or 'C'
     for unit='K': temperature_toa = K2 / ln(K1/radiance + 1)
     for unit='C': temperature_toa = K2 / ln(K1/radiance + 1) - 273,15"""
@@ -154,10 +158,10 @@ def landsat_l1_toa_radiance_to_toa_temperature(radiance: np.ma.MaskedArray, K1: 
         temperature_toa[~zeros] = K2 / denominator[~zeros] - 273.15
     temperature_toa[zeros] = nodata
     temperature_toa[mask] = nodata
-    temperature_toa.mask = mask
+    temperature_toa.mask = mask | zeros
     return temperature_toa
 
-def _test(array1: np.ma.MaskedArray, array2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
+def _test(array1: np.ma.MaskedArray, array2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """array1 / array2"""
     
     test = np.ma.empty(array1.shape, dtype=np.float32)
@@ -166,10 +170,10 @@ def _test(array1: np.ma.MaskedArray, array2: np.ma.MaskedArray, nodata: int | fl
     test[~zeros] = array1[~zeros] / array2[~zeros]
     test[zeros] = nodata
     test[mask] = nodata
-    test.mask = mask
+    test.mask = mask | zeros
     return test
 
-def wi2015(green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedArray, swir1: np.ma.MaskedArray, swir2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
+def wi2015(green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedArray, swir1: np.ma.MaskedArray, swir2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """1.7204 + 171*green + 3*red - 70*nir - 45*swir1 - 71*swir2"""
     
     wi2015 = np.ma.empty(green.shape, dtype=np.float32)
@@ -179,7 +183,7 @@ def wi2015(green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedAr
     wi2015.mask = mask
     return wi2015
 
-def andwi(blue: np.ma.MaskedArray, green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedArray, swir1: np.ma.MaskedArray, swir2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
+def andwi(blue: np.ma.MaskedArray, green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedArray, swir1: np.ma.MaskedArray, swir2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """(blue + green + red - nir - swir1 - swir2) / (blue + green + red + nir + swir1 + swir2)"""
     
     andwi = np.ma.empty(blue.shape, dtype=np.float32)
@@ -190,10 +194,10 @@ def andwi(blue: np.ma.MaskedArray, green: np.ma.MaskedArray, red: np.ma.MaskedAr
     andwi[~zeros] = numerator[~zeros] / denominator[~zeros]
     andwi[zeros] = nodata
     andwi[mask] = nodata
-    andwi.mask = mask
+    andwi.mask = mask | zeros
     return andwi
 
-def nsmi(red: np.ma.MaskedArray, green: np.ma.MaskedArray, blue: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
+def nsmi(red: np.ma.MaskedArray, green: np.ma.MaskedArray, blue: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """(red + green - blue) / (red + green + blue)"""
     
     nsmi = np.ma.empty(red.shape, dtype=np.float32)
@@ -204,10 +208,10 @@ def nsmi(red: np.ma.MaskedArray, green: np.ma.MaskedArray, blue: np.ma.MaskedArr
     nsmi[~zeros] = numerator[~zeros] / denominator[~zeros]
     nsmi[zeros] = nodata
     nsmi[mask] = nodata
-    nsmi.mask = mask
+    nsmi.mask = mask | zeros
     return nsmi
 
-def oc3(aerosol: np.ma.MaskedArray, blue: np.ma.MaskedArray, green: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
+def oc3(aerosol: np.ma.MaskedArray, blue: np.ma.MaskedArray, green: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """max(aerosol, blue) / green"""
 
     oc3 = np.ma.empty(aerosol.shape, dtype=np.float32)
@@ -216,10 +220,10 @@ def oc3(aerosol: np.ma.MaskedArray, blue: np.ma.MaskedArray, green: np.ma.Masked
     oc3[~zeros] = np.maximum(aerosol, blue)[~zeros] / green[~zeros]
     oc3[zeros] = nodata
     oc3[mask] = nodata
-    oc3.mask = mask
+    oc3.mask = mask | zeros
     return oc3
 
-def cdom_ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
+def cdom_ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """2119.5*ndwi^3 + 4559.1*ndwi^2 - 2760.4*ndwi + 603.6
     ndwi = (green - nir) / (green + nir)"""
 
@@ -234,10 +238,10 @@ def cdom_ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | fl
     cdom_ndwi[~zeros] = 2119.5*ndwi[~zeros]**3 + 4559.1*ndwi[~zeros]**2 - 2760.4*ndwi[~zeros] + 603.6
     cdom_ndwi[zeros] = nodata
     cdom_ndwi[mask] = nodata
-    cdom_ndwi.mask = mask
+    cdom_ndwi.mask = mask | zeros
     return cdom_ndwi
 
-def ndvi(nir: np.ma.MaskedArray, red: np.ma.MaskedArray, nodata: float | int) -> np.ma.MaskedArray:
+def ndvi(nir: np.ma.MaskedArray, red: np.ma.MaskedArray, nodata: float | int) -> np.ma.MaskedArray[np.float32]:
     """(nir - red) / (nir + red)"""
 
     ndvi = np.ma.empty(nir.shape, dtype=np.float32)
@@ -248,10 +252,10 @@ def ndvi(nir: np.ma.MaskedArray, red: np.ma.MaskedArray, nodata: float | int) ->
     ndvi[~zeros] = numerator[~zeros] / denominator[~zeros]
     ndvi[zeros] = nodata
     ndvi[mask] = nodata
-    ndvi.mask = mask
+    ndvi.mask = mask | zeros
     return ndvi
 
-def ndbi(swir1: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray:
+def ndbi(swir1: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """(swir1 - nir) / (swir1 + nir)"""
     
     ndbi = np.ma.empty(swir1.shape, dtype=np.float32)
@@ -262,5 +266,5 @@ def ndbi(swir1: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) 
     ndbi[~zeros] = numerator[~zeros] / denominator[~zeros]
     ndbi[zeros] = nodata
     ndbi[mask] = nodata
-    ndbi.mask = mask
+    ndbi.mask = mask | zeros
     return ndbi

@@ -327,7 +327,7 @@ class GdalExecutor:
             return None, (geotransform, projection, inputs)
 
         geotransform, projection = None, ''
-        data_type, nodata, ph_unit = gdal.GDT_Float32, -99999, '--'
+        data_type, nodata, ph_unit = gdal.GDT_Float32, float('nan'), '--'
         result = None
         if index == 'test':
             nodata = -99999.0
@@ -338,7 +338,6 @@ class GdalExecutor:
             geotransform, projection, inputs = res
             result = indcal._test(*inputs, nodata)
         if index == 'wi2015':
-            nodata = float('nan')
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('toa_refl', nodata, 3, 4, 5, 6, 7)
             if err is not None:
@@ -346,7 +345,6 @@ class GdalExecutor:
             geotransform, projection, inputs = res
             result = indcal.wi2015(*inputs, nodata)
         if index == 'andwi':
-            nodata = float('nan')
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('toa_refl', nodata, 2, 3, 4, 5, 6, 7)
             if err is not None:
@@ -354,7 +352,6 @@ class GdalExecutor:
             geotransform, projection, inputs = res
             result = indcal.andwi(*inputs, nodata)
         if index == 'nsmi':
-            nodata = float('nan')
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('toa_refl', nodata, 4, 3, 2)
             if err is not None:
@@ -362,7 +359,6 @@ class GdalExecutor:
             geotransform, projection, inputs = res
             result = indcal.nsmi(*inputs, nodata)
         if index == 'oc3':
-            nodata = float('nan')
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('toa_refl', nodata, 1, 2, 3)
             if err is not None:
@@ -370,7 +366,6 @@ class GdalExecutor:
             geotransform, projection, inputs = res
             result = indcal.oc3(*inputs, nodata)
         if index == 'cdom_ndwi':
-            nodata = float('nan')
             ph_unit = 'mg/L'
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('toa_refl', nodata, 3, 5)
@@ -381,7 +376,6 @@ class GdalExecutor:
         if index == 'temperature_landsat_toa':
             if not (self.satellite == 'Landsat 8/9' and self.proc_level == 'L1TP'):
                 return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} {self.proc_level}"), ()
-            nodata = float('nan')
             ph_unit = '°C'
             err, res = _prepare_inputs('toa_rad', nodata, 10)
             if err is not None:
@@ -392,7 +386,6 @@ class GdalExecutor:
         if index == 'temperature_landsat_lst':
             if self.satellite != 'Landsat 8/9':
                 return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} satellite"), ()
-            nodata = float('nan')
             ph_unit = '°C'
             if self.proc_level == 'L1TP':
                 err, res = self._index('temperature_landsat_toa')
@@ -410,7 +403,6 @@ class GdalExecutor:
                 result = indcal.landsat_temperature_toa(radiance, dataset.thermal_k1, dataset.thermal_k2, nodata, 'C')
             # if self.proc_level == 'L2SP':
         if index == 'ndbi':
-            nodata = float('nan')
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('ls_refl', nodata, 6, 5)
             if err is not None:
