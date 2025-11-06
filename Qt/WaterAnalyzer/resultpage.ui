@@ -17,7 +17,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>0</number>
+      <number>6</number>
      </property>
      <widget class="QWidget" name="tab_summary">
       <attribute name="title">
@@ -215,6 +215,13 @@
          </property>
          <property name="text">
           <string>Открыть</string>
+         </property>
+        </widget>
+       </item>
+       <item row="6" column="1" alignment="Qt::AlignmentFlag::AlignRight">
+        <widget class="QCheckBox" name="chk_ind_summary">
+         <property name="text">
+          <string>Маска воды</string>
          </property>
         </widget>
        </item>

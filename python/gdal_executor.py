@@ -272,7 +272,7 @@ class IndexErr:
 
 class GdalExecutor:
     VERSION = '1.0.0'
-    SUPPORTED_PROTOCOL_VERSIONS = ('3.0.3')
+    SUPPORTED_PROTOCOL_VERSIONS = ('3.1.0')
     SUPPORTED_INDICES = ('test', 'ndbi', 'wi2015', 'andwi', 'nsmi', 'oc3', 'cdom_ndwi', 'toa_temperature_landsat', 'ls_temperature_landsat')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
@@ -792,6 +792,28 @@ class GdalExecutor:
         
         return _response(-1, {"error": "how's this even possible?"})
 
+    def get_water_mask(self, index: str, width: int, height: int) -> np.ma.MaskedArray[np.bool] | None:
+        """Returns a boolean array of 'width'x'height' where True=water and False=non-water based on 'index'.
+        Returns None if 'index' is not calculated."""
+
+        if index not in self.SUPPORTED_INDICES:
+            raise ValueError(f'index "{index}" is not supported')
+        if index not in self.get_water_detection_indices():
+            raise ValueError(f'unable to create a water mask from "{index}" index')
+        id_ = self.ds_man.find(index)
+        if id_ is None:
+            return None
+
+        ds = self.ds_man.get(id_)
+        if height <= width:
+            res = height / ds.dataset.RasterYSize * 100
+        else:
+            res = width / ds.dataset.RasterXSize * 100
+        if index == 'wi2015':
+            return indcal.otsu_binarization(self.ds_man.read_band(id_, 1, resolution_percent=res), 0).astype(np.bool)
+        if index == 'andwi':
+            return indcal.otsu_binarization(self.ds_man.read_band(id_, 1, resolution_percent=res), 0).astype(np.bool)
+
     def get_version(self) -> str:
         return self.VERSION
 
@@ -800,6 +822,9 @@ class GdalExecutor:
 
     def get_supported_indices(self) -> tuple[str]:
         return self.SUPPORTED_INDICES
+
+    def get_water_detection_indices(self) -> tuple[str]:
+        return ('wi2015', 'andwi')
 
     def get_supported_operations(self) -> tuple[str]:
         return self.supported_operations

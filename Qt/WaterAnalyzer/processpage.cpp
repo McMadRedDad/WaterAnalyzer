@@ -47,11 +47,15 @@ void ProcessPage::fill_metadata(QStringList metadata) {
     tb->show();
 }
 
-void ProcessPage::hide_temperature_toa() {
-    for (int i = 0; i < ui->combo_temp->count(); i++) {
-        if (ui->combo_temp->itemText(i).contains("атмосферы")) {
-            ui->combo_temp->removeItem(i);
-            return;
+void ProcessPage::show_temperature_toa(bool yes) {
+    if (yes) {
+        ui->combo_temp->addItem("Поверхность атмосферы");
+    } else {
+        for (int i = 0; i < ui->combo_temp->count(); i++) {
+            if (ui->combo_temp->itemText(i).contains("атмосферы")) {
+                ui->combo_temp->removeItem(i);
+                return;
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 #include "jsonprotocol.hpp"
 
-const QString JsonProtocol::proto_version = "3.0.3";
+const QString JsonProtocol::proto_version = "3.1.0";
 
 JsonProtocol::JsonProtocol(QString server_version) {
     this->server_version = server_version;

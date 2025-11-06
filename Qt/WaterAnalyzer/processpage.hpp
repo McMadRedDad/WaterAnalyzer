@@ -18,7 +18,7 @@ public:
     void set_preview(QPixmap image);
     void clear_preview();
     void fill_metadata(QStringList metadata);
-    void hide_temperature_toa();
+    void show_temperature_toa(bool yes);
 
 private slots:
     void on_pb_refresh_clicked();

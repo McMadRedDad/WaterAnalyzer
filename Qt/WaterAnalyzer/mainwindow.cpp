@@ -68,7 +68,10 @@ void MainWindow::send_request(QString type, QJsonObject data, QMap<QString, QStr
             if (!options.contains("scalebar")) {
                 return;
             }
-            req.setUrl(req.url().toString() + "&sb=" + options.value("scalebar"));
+            if (!options.contains("mask")) {
+                return;
+            }
+            req.setUrl(req.url().toString() + "&sb=" + options.value("scalebar") + "&mask=" + options.value("mask"));
             req.setRawHeader("Accept", "image/png");
         } else if (type == "index") {
             req.setRawHeader("Accept", "image/tiff");
@@ -561,7 +564,7 @@ void MainWindow::change_page(PAGE to) {
     }
     case PAGE::SELECTION: {
         auto preview = [this](uint width, uint height) {
-            QMap<QString, QString> options = {{"preview_type", "color"}, {"scalebar", "0"}};
+            QMap<QString, QString> options = {{"preview_type", "color"}, {"scalebar", "0"}, {"mask", "0"}};
             send_request("command", proto.calc_preview("nat_col", width, height), options);
         };
         auto metadata = [this]() {
@@ -591,7 +594,9 @@ void MainWindow::change_page(PAGE to) {
         auto indices = [this](QStringList indices) {
             for (QString &index : indices) {
                 index = index.toLower();
-                QMap<QString, QString> options = {{"preview_type", get_type_by_index(index)}, {"scalebar", "1"}};
+                if (index != "andwi")
+                    continue;
+                QMap<QString, QString> options = {{"preview_type", get_type_by_index(index)}, {"scalebar", "1"}, {"mask", "0"}};
                 send_request("command", proto.calc_index(index), options);
             }
             change_page(PAGE::RESULT);
@@ -608,7 +613,9 @@ void MainWindow::change_page(PAGE to) {
         self.page = PAGE::SELECTION;
 
         if (self.proc_level == PROC_LEVEL::LANDSAT_L2SP) {
-            self.process_p->hide_temperature_toa();
+            self.process_p->show_temperature_toa(false);
+        } else if (self.proc_level == PROC_LEVEL::LANDSAT_L1TP) {
+            self.process_p->show_temperature_toa(true);
         }
         ui->pb_back->show();
         ui->widget_main->layout()->addWidget(self.process_p);
@@ -616,10 +623,10 @@ void MainWindow::change_page(PAGE to) {
         break;
     }
     case PAGE::RESULT: {
-        auto preview = [this]() {
+        auto preview = [this](QString mask) {
             uint                   width = self.result_p->get_preview_width();
             uint                   height = self.result_p->get_preview_height();
-            QMap<QString, QString> options = {{"preview_type", "summary"}, {"scalebar", "0"}};
+            QMap<QString, QString> options = {{"preview_type", "summary"}, {"scalebar", "0"}, {"mask", mask}};
             send_request("command", proto.calc_preview("nat_col", width, height), options);
         };
         auto refresh_previews = [this, preview]() {
@@ -627,11 +634,11 @@ void MainWindow::change_page(PAGE to) {
             uint height = self.result_p->get_preview_height();
             for (DATASET &ds : self.datasets) {
                 if (!ds.index.isEmpty()) {
-                    QMap<QString, QString> options = {{"preview_type", get_type_by_index(ds.index)}, {"scalebar", "1"}};
+                    QMap<QString, QString> options = {{"preview_type", get_type_by_index(ds.index)}, {"scalebar", "1"}, {"mask", "0"}};
                     send_request("command", proto.calc_preview(ds.index, width, height), options);
                 }
             }
-            preview();
+            preview("1");
         };
         auto export_index = [this](QString type) {
             QString index = get_index_by_type(type);
@@ -655,7 +662,7 @@ void MainWindow::change_page(PAGE to) {
         ui->pb_back->show();
         ui->widget_main->layout()->addWidget(self.result_p);
         self.result_p->show();
-        preview();
+        preview("0");
         break;
     }
     default:

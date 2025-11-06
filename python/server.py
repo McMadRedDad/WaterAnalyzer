@@ -215,12 +215,22 @@ def image_with_scalebar(src_image: Image, gap: int, values: np.ma.MaskedArray) -
 
     return ret
 
+def image_with_mask(src_image: Image, mask: np.ma.MaskedArray[np.bool], color: tuple[int]=(255, 0, 0, 165)) -> Image:
+    """Draws a mask overlay with 'color' onto 'src_image' according to 'mask' pixels."""
+
+    overlay = np.ma.zeros((mask.shape[0], mask.shape[1], 4), dtype=np.uint8)
+    overlay[mask] = color
+    overlay = Image.fromarray(overlay)
+    ret = src_image.copy()
+    ret.alpha_composite(overlay)
+    return ret
+
 @server.get('/resource/<res_type>')
 def handle_resource(res_type):
     if len(request.query_string) == 0:
         return _http_response(request, '', 400, Reason='Query string must be provided for resource requests.')
 
-    id_, scalebar = request.args.get('id'), request.args.get('sb')
+    id_, scalebar, mask = request.args.get('id'), request.args.get('sb'), request.args.get('mask')
     if id_ is None:
         return _http_response(request, '', 400, Reason='Query string must include "id" parameter for resource requests.')
     try:
@@ -236,10 +246,14 @@ def handle_resource(res_type):
     if res_type == 'preview':
         if scalebar is None:
             return _http_response(request, '', 400, Reason='Query string must include "sb" parameter for preview requests.')
-        if len(request.args) != 2:
-            return _http_response(request, '', 400, Reason='Query string must only include "id" and "sb" parameters for preview requests.')
-        if not (scalebar == '0' or scalebar == '1'):
+        if mask is None:
+            return _http_response(request, '', 400, Reason='Query string must include "mask" parameter for preview requests.')
+        if len(request.args) != 3:
+            return _http_response(request, '', 400, Reason='Unknown parameter in query string for preview request.')
+        if scalebar not in ('0', '1'):
             return _http_response(request, '', 400, Reason='"sb" parameter of the query string must be either 0 or 1.')
+        if mask not in ('0', '1'):
+            return _http_response(request, '', 400, Reason='"mask" parameter of the query string must be either 0 or 1.')
 
     if res_type == 'index':
         if len(request.args) != 1:
@@ -262,6 +276,14 @@ def handle_resource(res_type):
         if scalebar == '1':
             if rgba.index == 'nat_col':
                     return _http_response(request, '', 400, Reason='Unable to generate a scalebar for non-grayscale preview.')
+        if mask == '1':
+            water = None
+            for i in executor.get_water_detection_indices():
+                water = executor.get_water_mask(i, rgba.width, rgba.height)
+                if water is not None:
+                    break
+            if water is None:
+                return _http_response(request, '', 500, Reason='Unable to generate a water mask. Probably, water index was not created for the scene.')
 
         buf = BytesIO()
         img = Image.fromarray(rgba.array)
@@ -270,6 +292,8 @@ def handle_resource(res_type):
             img = image_with_scalebar(img, 10, executor.ds_man.get_as_array(id__))
         else:
             img = normalize_brightness(img)
+        if mask == '1':
+            img = image_with_mask(img, water)
         img.save(buf, format='PNG')
         buf.seek(0)
         
