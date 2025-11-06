@@ -273,7 +273,7 @@ class IndexErr:
 class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('3.0.3')
-    SUPPORTED_INDICES = ('test', 'ndbi', 'wi2015', 'andwi', 'nsmi', 'oc3', 'cdom_ndwi', 'temperature_landsat_toa', 'temperature_landsat_lst')
+    SUPPORTED_INDICES = ('test', 'ndbi', 'wi2015', 'andwi', 'nsmi', 'oc3', 'cdom_ndwi', 'toa_temperature_landsat', 'ls_temperature_landsat')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
     }
@@ -373,7 +373,7 @@ class GdalExecutor:
                 return err, ()
             geotransform, projection, inputs = res
             result = indcal.cdom_ndwi(*inputs, nodata)
-        if index == 'temperature_landsat_toa':
+        if index == 'toa_temperature_landsat':
             if not (self.satellite == 'Landsat 8/9' and self.proc_level == 'L1TP'):
                 return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} {self.proc_level}"), ()
             ph_unit = '°C'
@@ -383,25 +383,55 @@ class GdalExecutor:
             geotransform, projection, inputs = res
             ds = self.ds_man.get(self.ds_man.find("10"))
             result = indcal.landsat_l1_toa_radiance_to_toa_temperature(*inputs, ds.thermal_k1, ds.thermal_k2, nodata, 'C')
-        if index == 'temperature_landsat_lst':
+        if index == 'ls_temperature_landsat':
             if self.satellite != 'Landsat 8/9':
-                return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} satellite"), ()
+                return IndexErr(20501, f"index '{index}' is not supported for {self.satellite} {self.proc_level}"), ()
             ph_unit = '°C'
             if self.proc_level == 'L1TP':
-                err, res = self._index('temperature_landsat_toa')
-                if err is not None:
-                    return err, ()
-                geotransform, projection, temperature_toa, data_type, nodata, _ = res
-                id1, id2 = -1, -1
-                id1, id2 = self.ds_man.find("5"), self.ds_man.find("4")
-                if id1 is None or id2 is None:
-                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} bands number 10, 4 and 5 are needed"), ()
-                dataset = self.ds_man.get(id1)
-                nir = self.ds_man.read_band(id1, 1)
-                red = self.ds_man.read_band(id2, 1)
-                ndvi = indcal.ndvi(nir, red, nodata)
-                result = indcal.landsat_temperature_toa(radiance, dataset.thermal_k1, dataset.thermal_k2, nodata, 'C')
+                id_ = self.ds_man.find('toa_temperature_landsat')
+                if id_ is not None:
+                    temperature_toa = self.ds_man.get(id_)
+                    geotransform = temperature_toa.dataset.GetGeoTransform()
+                    projection = temperature_toa.dataset.GetProjection()
+                    data_type = temperature_toa.dataset.GetRasterBand(1).DataType
+                    nodata = temperature_toa.no_data
+                    temperature_toa = self.ds_man.read_band(id_, 1)
+                else:
+                    err, res = self._index('toa_temperature_landsat')
+                    if err is not None:
+                        return err, ()
+                    geotransform, projection, temperature_toa, data_type, nodata, _ = res
+                andwi = self.ds_man.find('andwi')
+                if andwi is not None:
+                    andwi = self.ds_man.read_band(andwi, 1)
+                else:
+                    err, res = self._index('andwi')
+                    _, _, andwi, _, _, _ = res
+                ndbi = self.ds_man.find('ndbi')
+                if ndbi is not None:
+                    ndbi = self.ds_man.read_band(ndbi, 1)
+                else:
+                    err, res = self._index('ndbi')
+                    _, _, ndbi, _, _, _ = res
+                ndvi = self.ds_man.find('ndvi')
+                if ndvi is not None:
+                    ndvi = self.ds_man.read_band(ndvi, 1)
+                else:
+                    err, res = self._index('ndvi')
+                    _, _, ndvi, _, _, _ = res
+                water = indcal.otsu_binarization(andwi, 2)
+                water = np.ma.array(water, dtype=np.bool)
+                built_up = np.ma.empty(ndbi.shape, dtype=np.bool)
+                built_up[~ndbi.mask] = np.ma.where(ndbi[~ndbi.mask] > 0.2, True, False)
+                result = indcal.landsat_l1_toa_temperature_to_ls_temperature(temperature_toa, ndvi, water, built_up, nodata)
             # if self.proc_level == 'L2SP':
+        if index == 'ndvi':
+            if self.satellite == 'Landsat 8/9':
+                err, res = _prepare_inputs('ls_refl', nodata, 5, 4)
+            if err is not None:
+                return err, ()
+            geotransform, projection, inputs = res
+            result = indcal.ndvi(*inputs, nodata)
         if index == 'ndbi':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('ls_refl', nodata, 6, 5)

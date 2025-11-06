@@ -67,9 +67,9 @@ void ProcessPage::on_pb_go_clicked() {
     indices.append(ui->combo_chloro->currentText());
     indices.append(ui->combo_cdom->currentText());
     if (ui->combo_temp->currentText().contains("Земли")) {
-        indices.append("temperature_landsat_lst");
+        indices.append("ls_temperature_landsat");
     } else {
-        indices.append("temperature_landsat_toa");
+        indices.append("toa_temperature_landsat");
     }
     emit this->indices(indices);
 }

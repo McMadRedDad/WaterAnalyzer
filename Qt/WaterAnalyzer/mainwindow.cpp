@@ -262,7 +262,7 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         append_log("info", "Сессия сброшена.");
         set_status_message(true, "Сессия сброшена");
     } else if (command == "import_metafile") {
-        if (result["loaded"].toInt() != self.datasets.length()) {
+        if (result["loaded"].toInt() != self.datasets.length() - 1) {
             if (curr_try < retries) {
                 QTimer::singleShot(500, [this]() {
                     send_request("command", proto.import_metafile(self.metadata_file));
@@ -298,7 +298,7 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
 
 QString MainWindow::get_type_by_index(QString index) {
     QString indx = index.toLower();
-    if (indx == "test" || indx == "wi2015") {
+    if (indx == "wi2015" || indx == "andwi") {
         return "water";
     } else if (indx == "nsmi") {
         return "tss";
@@ -306,7 +306,7 @@ QString MainWindow::get_type_by_index(QString index) {
         return "chloro";
     } else if (indx == "cdom_ndwi") {
         return "cdom";
-    } else if (indx == "temperature_landsat_toa" || indx == "temperature_landsat_lst") {
+    } else if (indx == "toa_temperature_landsat" || indx == "ls_temperature_landsat") {
         return "temp";
     } else {
         return "";
@@ -318,7 +318,7 @@ QString MainWindow::get_index_by_type(QString type) {
         return "";
     } else if (type == "water") {
         for (DATASET &ds : self.datasets) {
-            if (ds.index == "test" || ds.index == "wi2015") {
+            if (ds.index == "wi2015" || ds.index == "andwi") {
                 return ds.index;
             }
         }
@@ -346,7 +346,7 @@ QString MainWindow::get_index_by_type(QString type) {
         return "";
     } else if (type == "temp") {
         for (DATASET &ds : self.datasets) {
-            if (ds.index == "temperature_landsat_toa" || ds.index == "temperature_landsat_ls") {
+            if (ds.index == "toa_temperature_landsat" || ds.index == "ls_temperature_landsat") {
                 return ds.index;
             }
         }

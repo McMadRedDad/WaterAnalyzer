@@ -140,17 +140,17 @@ def landsat_l1_dn_to_dos1_reflectance(dn: np.ma.MaskedArray, radio_mult: float |
     ls_refl.mask = mask
     return ls_refl
 
-def landsat_l1_toa_radiance_to_toa_temperature(radiance: np.ma.MaskedArray, K1: float, K2: float, nodata: float | int, unit: str) -> np.ma.MaskedArray[np.float32]:
+def landsat_l1_toa_radiance_to_toa_temperature(toa_radiance: np.ma.MaskedArray, K1: float, K2: float, nodata: float | int, unit: str) -> np.ma.MaskedArray[np.float32]:
     """'unit' is either 'K' or 'C'
-    for unit='K': temperature_toa = K2 / ln(K1/radiance + 1)
-    for unit='C': temperature_toa = K2 / ln(K1/radiance + 1) - 273,15"""
+    for unit='K': temperature_toa = K2 / ln(K1/toa_radiance + 1)
+    for unit='C': temperature_toa = K2 / ln(K1/toa_radiance + 1) - 273,15"""
 
     if unit not in ('K', 'C'):
-        raise ValueError(f'invalid value "{unit}" passed as "unit" argument to "landsat_temperature_toa" function')
+        raise ValueError(f'invalid value "{unit}" passed as "unit" argument to "landsat_l1_toa_radiance_to_toa_temperature" function')
 
-    temperature_toa = np.ma.empty(radiance.shape, dtype=np.float32)
-    mask = radiance.mask
-    denominator = np.log1p(K1 / radiance)
+    temperature_toa = np.ma.empty(toa_radiance.shape, dtype=np.float32)
+    mask = toa_radiance.mask
+    denominator = np.log1p(K1 / toa_radiance)
     zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
     if unit == 'K':
         temperature_toa[~zeros] = K2 / denominator[~zeros]
@@ -160,6 +160,48 @@ def landsat_l1_toa_radiance_to_toa_temperature(radiance: np.ma.MaskedArray, K1: 
     temperature_toa[mask] = nodata
     temperature_toa.mask = mask | zeros
     return temperature_toa
+
+def landsat_l1_toa_temperature_to_ls_temperature(toa_temperature: np.ma.MaskedArray, ndvi: np.ma.MaskedArray, water_mask: np.ma.MaskedArray[np.bool], built_up_mask: np.ma.MaskedArray[np.bool], nodata: float | int) -> np.ma.MaskedArray[np.float32]:
+    """TOA temperature to LS temperature based on several surface emissivity assumptions:
+    water emissivity = 0.990,
+    built-up area emissivity = 0.945,
+    bare soil emissivity = 0.996,
+    pure vegetation emissivity = 0.973,
+    mixed soil & vegetation emissivity depends on NDVI."""
+
+    if np.isclose(ndvi.max(), ndvi.min(), atol=FLOAT_PRECISION):
+        raise ValueError('invalid NDVI passed to "landsat_l1_toa_temperature_to_ls_temperature" function: min=max')
+    
+    eps_water, eps_built, eps_soil, eps_veg, eps_mix = 0.990, 0.945, 0.996, 0.973, None
+    wavelength, rho, surf_rough = 10.895, 14388, 0.005
+    ls_temperature = np.ma.empty(toa_temperature.shape, dtype=np.float64)
+    mask = toa_temperature.mask
+
+    eps = np.ma.empty(toa_temperature.shape, dtype=np.float64)
+    veg = ~(water_mask | built_up_mask)
+    min_, max_, denominator = ndvi.min(), ndvi.max(), ndvi.max() - ndvi.min()
+    Pv = ((ndvi - min_) / denominator) ** 2
+    eps[veg] = np.ma.where(
+        ndvi[veg] < 0, eps_water, np.ma.where(
+            ndvi[veg] > 0.5, eps_veg, np.ma.where(
+                (np.isclose(ndvi[veg], 0, atol=FLOAT_PRECISION)) | ((ndvi[veg] > 0) & (ndvi[veg] < 0.2)), eps_soil,
+                eps_veg * Pv[veg] + eps_soil * (1 - Pv[veg]) + surf_rough
+            )
+        )
+    )
+    eps[built_up_mask] = eps_built
+    eps[water_mask] = eps_water
+
+    denominator = np.ma.empty(toa_temperature.shape, dtype=np.float64)
+    zeros = np.isclose(np.log(eps), 0, atol=FLOAT_PRECISION)
+    denominator[~zeros] = 1 + wavelength * toa_temperature[~zeros] / rho * np.log(eps[~zeros])
+    print(np.unique(denominator, return_counts=True))
+    zeros |= np.isclose(denominator, 0, atol=FLOAT_PRECISION)
+    ls_temperature[~zeros] = toa_temperature[~zeros] / denominator[~zeros]
+    ls_temperature[zeros] = nodata
+    ls_temperature[mask] = nodata
+    ls_temperature.mask = mask
+    return ls_temperature
 
 def _test(array1: np.ma.MaskedArray, array2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """array1 / array2"""

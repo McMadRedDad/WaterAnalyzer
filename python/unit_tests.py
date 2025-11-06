@@ -722,7 +722,7 @@ requests_json = {
         "id": 0,
         "operation": "calc_index",
         "parameters": {
-            "index": "temperature_landsat_toa"
+            "index": "toa_temperature_landsat"
         }
     },
     # calc_index 20503
@@ -926,7 +926,7 @@ class Test(unittest.TestCase):
         executor.execute(requests_json['import_gtiff_ok_mid3'])
         executor.execute(requests_json['import_gtiff_ok_smol2'])
         executor.execute(requests_json['import_gtiff_ok_nodata'])
-        print('sleeping...')
+        print('sleeping___')
         sleep(1)
         print('slept')
         executor.execute(requests_json['import_metafile_ok'])

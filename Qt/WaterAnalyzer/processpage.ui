@@ -113,47 +113,6 @@
      <property name="bottomMargin">
       <number>10</number>
      </property>
-     <item row="7" column="0" rowspan="2" colspan="3" alignment="Qt::AlignmentFlag::AlignHCenter">
-      <widget class="QPushButton" name="pb_go">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Рассчитать</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="0" colspan="2">
-      <widget class="QLabel" name="lbl_chloro">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Chlorophyll-a</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="2">
-      <widget class="QComboBox" name="combo_cdom">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <item>
-        <property name="text">
-         <string>CDOM_ndwi</string>
-        </property>
-       </item>
-      </widget>
-     </item>
      <item row="5" column="0" colspan="2">
       <widget class="QLabel" name="lbl_temp">
        <property name="sizePolicy">
@@ -165,34 +124,6 @@
        <property name="text">
         <string>Температура</string>
        </property>
-      </widget>
-     </item>
-     <item row="0" column="0" rowspan="2" colspan="2">
-      <widget class="QLabel" name="lbl_water">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Границы воды</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="2">
-      <widget class="QComboBox" name="combo_chloro">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <item>
-        <property name="text">
-         <string>OC3</string>
-        </property>
-       </item>
       </widget>
      </item>
      <item row="6" column="0" colspan="3">
@@ -207,6 +138,19 @@
         </size>
        </property>
       </spacer>
+     </item>
+     <item row="7" column="0" rowspan="2" colspan="3" alignment="Qt::AlignmentFlag::AlignHCenter">
+      <widget class="QPushButton" name="pb_go">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Рассчитать</string>
+       </property>
+      </widget>
      </item>
      <item row="4" column="0" colspan="2">
       <widget class="QLabel" name="lsl_cdom">
@@ -231,22 +175,14 @@
        </property>
        <item>
         <property name="text">
+         <string>ANDWI</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
          <string>WI2015</string>
         </property>
        </item>
-      </widget>
-     </item>
-     <item row="3" column="0" colspan="2">
-      <widget class="QLabel" name="lbl_tss">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>TSS</string>
-       </property>
       </widget>
      </item>
      <item row="3" column="2">
@@ -264,6 +200,32 @@
        </item>
       </widget>
      </item>
+     <item row="2" column="0" colspan="2">
+      <widget class="QLabel" name="lbl_chloro">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Chlorophyll-a</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0" colspan="2">
+      <widget class="QLabel" name="lbl_tss">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>TSS</string>
+       </property>
+      </widget>
+     </item>
      <item row="5" column="2">
       <widget class="QComboBox" name="combo_temp">
        <item>
@@ -276,6 +238,49 @@
          <string>Поверхность Земли</string>
         </property>
        </item>
+      </widget>
+     </item>
+     <item row="4" column="2">
+      <widget class="QComboBox" name="combo_cdom">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <item>
+        <property name="text">
+         <string>CDOM_ndwi</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="2" column="2">
+      <widget class="QComboBox" name="combo_chloro">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <item>
+        <property name="text">
+         <string>OC3</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="0" column="0" rowspan="2" colspan="2">
+      <widget class="QLabel" name="lbl_water">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Границы воды</string>
+       </property>
       </widget>
      </item>
     </layout>
