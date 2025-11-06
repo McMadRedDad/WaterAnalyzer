@@ -1,4 +1,4 @@
-**VERSION 3.0.3**
+**VERSION 3.1.0**
 
 Communication via HTTP messages. The payload is sent as a JSON document in message bodies.
 
@@ -523,7 +523,7 @@ All resource requests are constructed as HTTP/2 GET requests with an empty body,
 
 Upon recieving a "status: 0" response for `calc_preview` request, the client is free to construct a resource request to get the actual preview image:
 
-GET /resource/preview?id=`id`&sb=`0 | 1` HTTP/2
+GET /resource/preview?id=`id`&sb=`0|1`&mask=`0|1` HTTP/2
 Accept: image/png
 Protocol-Version: `this protocol's version`
 Request-ID: `id`
@@ -531,6 +531,7 @@ Request-ID: `id`
 
 Value for "id" parameter is taken from the server's response to the respective "calc_preview" request.
 The "sb" parameter stands for "scalebar" and defines whether a scalebar should be generated for the preview. It can be either '0' (no scalebar) or '1' (generate scalebar).
+The "mask" parameter defines whether a water mask overlay should be included for the preview. It can be either '0' (no mask) or '1' (include mask).
 
 The response follows:
 
@@ -548,12 +549,18 @@ Height: `height`
 Before processing the resource request, the server checks received query string for preview-specific parameters and in case of errors sends an HTTP 400 Bad Request with an empty body and one of the following "Reason" headers:
 
 Reason: Query string must include "sb" parameter for preview requests.
-Reason: Query string must only include "id" and "sb" parameters for preview requests.
+Reason: Query string must include "mask" parameter for preview requests.
+Reason: Unknown parameter in query string for preview request.
 Reason: "sb" parameter of the query string must be either 0 or 1.
+Reason: "mask" parameter of the query string must be either 0 or 1.
 
 If the preview with requested id is not grayscale and "sb" parameter equals to '1', an HTTP 400 Bad Request with an empty body and a "Reason" header is sent:
 
 Reason: Unable to generate a scalebar for a non-grayscale preview.
+
+If "mask" parameter equals to '1' and the water mask cannot be generated, an HTTP 500 Internal Server Error with an empty body and a "Reason" header is sent:
+
+Reason: Unable to generate a water mask. Probably, water index was not created for the scene.
 
 If there is no preview with requested URL, an HTTP 404 Not Found with an empty body and a "Reason" header is sent:
 
