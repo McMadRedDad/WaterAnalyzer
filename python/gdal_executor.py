@@ -321,7 +321,9 @@ class GdalExecutor:
                         if atm_correction == 'ls_refl':
                             sun_elev, es_dist = self.ds_man.get_sun_elevation(), self.ds_man.get_earth_sun_distance()
                             inp = indcal.landsat_l1_dn_to_dos1_reflectance(inp, ds.radio_mult, ds.radio_add, sun_elev, es_dist, ds.rad_max, ds.refl_max, nodata)
-                    # if self.proc_level == 'L2SP:'
+                    if self.proc_level == 'L2SP':
+                        if atm_correction == 'ls_refl':
+                            inp = indcal.landsat_l2_dn_to_ls_reflectance(inp, nodata)
                 # if self.satellite == 'Sentinel 2':
                 inputs.append(inp)
             return None, (geotransform, projection, inputs)
@@ -424,7 +426,16 @@ class GdalExecutor:
                 built_up = np.ma.empty(ndbi.shape, dtype=np.bool)
                 built_up[~ndbi.mask] = np.ma.where(ndbi[~ndbi.mask] > 0.2, True, False)
                 result = indcal.landsat_l1_toa_temperature_to_ls_temperature(temperature_toa, ndvi, water, built_up, nodata)
-            # if self.proc_level == 'L2SP':
+            if self.proc_level == 'L2SP':
+                ph_unit = '°C'
+                id_ = self.ds_man.find("10")
+                if id_ is None:
+                    return IndexErr(20502, f"unable to calculate index '{index}': {self.satellite} band number 10 is needed"), ()
+                ds = self.ds_man.get(id_)
+                geotransform = ds.dataset.GetGeoTransform()
+                projection = ds.dataset.GetProjection()
+                result = self.ds_man.read_band(id_, 1)
+                result = indcal.landsat_l2_dn_to_ls_temperature(result, nodata, 'C')
         if index == 'ndvi':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('ls_refl', nodata, 5, 4)

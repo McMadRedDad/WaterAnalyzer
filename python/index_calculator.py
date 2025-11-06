@@ -203,6 +203,35 @@ def landsat_l1_toa_temperature_to_ls_temperature(toa_temperature: np.ma.MaskedAr
     ls_temperature.mask = mask
     return ls_temperature
 
+def landsat_l2_dn_to_ls_reflectance(dn: np.ma.MaskedArray, nodata: float | int) -> np.ma.MaskedArray[np.float32]:
+    """Converts DN to LS reflectance."""
+
+    ls_refl = np.ma.empty(dn.shape, dtype=np.float32)
+    mask = dn.mask
+    ls_refl = 0.0000275 * dn - 0.2
+    ls_refl[mask] = nodata
+    ls_refl.mask = mask
+    return ls_refl
+
+def landsat_l2_dn_to_ls_temperature(dn: np.ma.MaskedArray, nodata: float | int, unit: str) -> np.ma.MaskedArray[np.float32]:
+    """Converts DN to LS temperature.
+    'unit' is either 'C' or 'K'.
+    for unit='K': temperature_toa = K2 / ln(K1/toa_radiance + 1)
+    for unit='C': temperature_toa = K2 / ln(K1/toa_radiance + 1) - 273,15"""
+
+    if unit not in ('C', 'K'):
+        raise ValueError(f'invalid argument "{unit}" passed as "unit" parameter for "landsat_l2_dn_to_ls_temperature" function')
+
+    ls_temperature = np.ma.empty(dn.shape, dtype=np.float32)
+    mask = dn.mask
+    if unit == 'K':
+        ls_temperature = 0.00341802 * dn + 149
+    if unit == 'C':
+        ls_temperature = 0.00341802 * dn - 124.15
+    ls_temperature[mask] = nodata
+    ls_temperature.mask = mask
+    return ls_temperature
+
 def _test(array1: np.ma.MaskedArray, array2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """array1 / array2"""
     

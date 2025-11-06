@@ -48,7 +48,12 @@ void ProcessPage::fill_metadata(QStringList metadata) {
 }
 
 void ProcessPage::hide_temperature_toa() {
-    ui->combo_temp->removeItem(0);
+    for (int i = 0; i < ui->combo_temp->count(); i++) {
+        if (ui->combo_temp->itemText(i).contains("атмосферы")) {
+            ui->combo_temp->removeItem(i);
+            return;
+        }
+    }
 }
 
 void ProcessPage::on_pb_refresh_clicked() {
