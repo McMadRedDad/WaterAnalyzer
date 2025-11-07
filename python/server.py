@@ -277,11 +277,7 @@ def handle_resource(res_type):
             if rgba.index == 'nat_col':
                     return _http_response(request, '', 400, Reason='Unable to generate a scalebar for non-grayscale preview.')
         if mask == '1':
-            water = None
-            for i in executor.get_water_detection_indices():
-                water = executor.get_water_mask(i, rgba.width, rgba.height)
-                if water is not None:
-                    break
+            water = executor.get_water_mask(rgba.width, rgba.height)
             if water is None:
                 return _http_response(request, '', 500, Reason='Unable to generate a water mask. Probably, water index was not created for the scene.')
 

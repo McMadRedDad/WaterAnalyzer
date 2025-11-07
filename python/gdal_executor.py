@@ -79,6 +79,7 @@ class DatasetManager:
     def __init__(self):
         self._datasets = {}
         self._cloud_mask = None
+        self._water_mask = None
         self._sun_elev = None
         self._earth_sun_dist = None
         self._counter = 0
@@ -125,8 +126,12 @@ class DatasetManager:
             return None
 
     def add_cloud_mask(self, cloud_mask: np.ma.MaskedArray) -> None:
-        """Save a cloud mask for future calculations."""
+        """Save the cloud mask for future calculations."""
         self._cloud_mask = cloud_mask
+
+    def add_water_mask(self, water_mask: np.ma.MaskedArray) -> None:
+        """Save the water mask."""
+        self._water_mask = water_mask
 
     def add_description(self, id_: int, full: bool, desc: str) -> None:
         """Adds 'desc' to index's description. 'full' sets whether 'desc' represents complete description of the index or not."""
@@ -163,6 +168,7 @@ class DatasetManager:
         for id_ in ids:
             self.close(id_)
         self._cloud_mask = None
+        self._water_mask = None
         self._sun_elev = None
         self._earth_sun_dist = None
 
@@ -182,6 +188,12 @@ class DatasetManager:
 
     def get_cloud_mask(self) -> np.ma.MaskedArray | None:
         return self._cloud_mask
+
+    def get_water_mask(self) -> np.ma.MaskedArray | None:
+        return self._water_mask
+
+    def remove_water_mask(self) -> None:
+        self._water_mask = None
 
     def get_sun_elevation(self) -> float | None:
         return self._sun_elev
@@ -284,8 +296,8 @@ class DatasetManager:
         clouds = self.get_cloud_mask()
         if clouds is not None:
             if resolution_percent != 100:
-                x = np.linspace(0, clouds.shape[0] - 1, data.shape[0]).astype(np.uint16)
-                y = np.linspace(0, clouds.shape[1] - 1, data.shape[1]).astype(np.uint16)
+                x = np.linspace(0, clouds.shape[0] - 1, data.shape[0]).astype(int)
+                y = np.linspace(0, clouds.shape[1] - 1, data.shape[1]).astype(int)
                 data.mask |= clouds[np.ix_(x, y)]
             else:
                 data.mask |= clouds
@@ -372,6 +384,8 @@ class GdalExecutor:
                 return err, ()
             geotransform, projection, inputs = res
             result = indcal.wi2015(*inputs, nodata)
+            self.ds_man.remove_water_mask()
+            self.ds_man.add_water_mask(indcal.otsu_binarization(result, 0))
         if index == 'andwi':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('toa_refl', nodata, 2, 3, 4, 5, 6, 7)
@@ -379,6 +393,8 @@ class GdalExecutor:
                 return err, ()
             geotransform, projection, inputs = res
             result = indcal.andwi(*inputs, nodata)
+            self.ds_man.remove_water_mask()
+            self.ds_man.add_water_mask(indcal.otsu_binarization(result, 0))
         if index == 'nsmi':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('toa_refl', nodata, 4, 3, 2)
@@ -835,27 +851,26 @@ class GdalExecutor:
         
         return _response(-1, {"error": "how's this even possible?"})
 
-    def get_water_mask(self, index: str, width: int, height: int) -> np.ma.MaskedArray[np.bool] | None:
-        """Returns a boolean array of 'width'x'height' where True=water and False=non-water based on 'index'.
-        Returns None if 'index' is not calculated."""
+    def get_water_mask(self, width: int, height: int) -> np.ma.MaskedArray[np.bool] | None:
+        """Returns a boolean array where True=water and False=non-water. Returns None if water mask was not created.
+        If 'width' > 'height', array size is [width, y], y < height, otherwise [x, height], x < width."""
 
-        if index not in self.SUPPORTED_INDICES:
-            raise ValueError(f'index "{index}" is not supported')
-        if index not in self.get_water_detection_indices():
-            raise ValueError(f'unable to create a water mask from "{index}" index')
-        id_ = self.ds_man.find(index)
-        if id_ is None:
+        mask = self.ds_man.get_water_mask()
+        if mask is None:
             return None
 
-        ds = self.ds_man.get(id_)
-        if height <= width:
-            res = height / ds.dataset.RasterYSize * 100
-        else:
-            res = width / ds.dataset.RasterXSize * 100
-        if index == 'wi2015':
-            return indcal.otsu_binarization(self.ds_man.read_band(id_, 1, resolution_percent=res), 0).astype(np.bool)
-        if index == 'andwi':
-            return indcal.otsu_binarization(self.ds_man.read_band(id_, 1, resolution_percent=res), 0).astype(np.bool)
+        if not (width == mask.shape[0] and height == mask.shape[1]):
+            rows, cols = 0, 0
+            if width >= height:
+                cols = width
+                rows = round(width * mask.shape[0] / mask.shape[1]) + 1
+            else:
+                cols = round(height * mask.shape[1] / mask.shape[0]) + 1
+                rows = height
+            x = np.linspace(0, mask.shape[1] - 1, cols).astype(int)
+            y = np.linspace(0, mask.shape[0] - 1, rows).astype(int)
+            return np.ma.array(mask[np.ix_(y, x)], dtype=np.bool)
+        return np.ma.array(mask, dtype=np.bool)
 
     def get_version(self) -> str:
         return self.VERSION
@@ -865,9 +880,6 @@ class GdalExecutor:
 
     def get_supported_indices(self) -> tuple[str]:
         return self.SUPPORTED_INDICES
-
-    def get_water_detection_indices(self) -> tuple[str]:
-        return ('wi2015', 'andwi')
 
     def get_supported_operations(self) -> tuple[str]:
         return self.supported_operations
