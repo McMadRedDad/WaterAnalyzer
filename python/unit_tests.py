@@ -941,6 +941,16 @@ requests_json = {
             "index": "test",
             "lang": "body"
         }
+    },
+    'generate_description_index_not_calced': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "generate_description",
+        "parameters": {
+            "index": "ndbi",
+            "lang": "body"
+        }
     }
 }
 
@@ -1352,6 +1362,7 @@ class Test(unittest.TestCase):
         self.assertEqual(10901, check_json(requests_json['generate_description_inv_lang_type']))
         self.assertEqual(20900, check_json(requests_json['generate_description_unsupported_index']))
         # self.assertEqual(20901, check_json(requests_json['generate_description_unsupported_lang']))
+        self.assertEqual(20902, check_json(requests_json['generate_description_index_not_calced']))
 
     ### BOTH ###
    
@@ -1505,6 +1516,7 @@ class Test(unittest.TestCase):
         self.assertEqual((400, 10901), _codes(POST('api/generate_description', http_headers['ok'], requests_json['generate_description_inv_lang_type'])))
         self.assertEqual((400, 20900), _codes(POST('api/generate_description', http_headers['ok'], requests_json['generate_description_unsupported_index'])))
         # self.assertEqual((400, 20901), _codes(POST('api/generate_description', http_headers['ok'], requests_json['generate_description_unsupported_lang'])))
+        self.assertEqual((500, 20902), _codes(POST('api/generate_description', http_headers['ok'], requests_json['generate_description_index_not_calced'])))
 
     ### DIFFERENT FILES ###
 

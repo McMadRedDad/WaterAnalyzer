@@ -552,18 +552,22 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 10900
     - `result` - { "error": "invalid '`index`' key: must be of string type" }
     -  HTTP 400 Bad Request
-2. Invalid language type:
+3. Invalid language type:
     - `status` - 10901
     - `result` - { "error": "invalid '`lang`' key: must be of string type" }
     -  HTTP 400 Bad Request
-3. Unknown/unsupported index:
+4. Unknown/unsupported index:
     - `status` - 20900
     - `result` - { "error": "index '`index`' is not supported or unknown" }
     -  HTTP 400 Bad Request
-3. Unsupported language:
+5. Unsupported language:
     - `status` - 20901
     - `result` - { "error": "language '`lang`' is not supported" }
     -  HTTP 400 Bad Request
+6. Index not calculated:
+    - `status` - 20902
+    - `result` - { "error": "index '`index`' is not calculated" }
+    -  HTTP 500 Internal Server Error
 
 ## HTTP and JSON cross-validation
 

@@ -62,7 +62,7 @@ class PreviewManager:
             return list(self._previews.values())
 
 class Dataset:
-    def __init__(self, dataset: gdal.Dataset, band: str=None, nodata: float | int=None, stats: dict=None):
+    def __init__(self, dataset: gdal.Dataset, band: str=None, nodata: float | int=None, stats: dict=None, description: dict=None):
         self.dataset = dataset
         self.band = band
         self.no_data = nodata
@@ -73,6 +73,7 @@ class Dataset:
         self.rad_max = None
         self.refl_max = None
         self.stats = stats
+        self.description = description
 
 class DatasetManager:
     def __init__(self):
@@ -90,21 +91,6 @@ class DatasetManager:
             self._datasets[self._counter] = Dataset(dataset, index, nodata, statistics)
             self._counter += 1
             return self._counter - 1
-
-    def add_cloud_mask(self, cloud_mask: np.ma.MaskedArray) -> None:
-        """Save a cloud mask for future calculations."""
-        self._cloud_mask = cloud_mask
-
-
-    def find(self, band_index: str) -> int | None:
-        """Tries to find a band by or a spectral index by its name.
-        If the band or the index is found, returns its id, otherwise returns None."""
-
-        with self._lock:
-            for id_, ds in self._datasets.items():
-                if ds.band == band_index:
-                    return id_
-            return None
 
     def open(self, filename: str, band: str, nodata: float | int) -> int:
         """Tries to open 'file' as a GDAL dataset, saves 'band' and 'nodata' and returns dataset's generated id.
@@ -127,6 +113,43 @@ class DatasetManager:
             self._datasets[self._counter] = Dataset(dataset, band, nodata)
             self._counter += 1
             return self._counter - 1
+
+    def find(self, band_index: str) -> int | None:
+        """Tries to find a band by or a spectral index by its name.
+        If the band or the index is found, returns its id, otherwise returns None."""
+
+        with self._lock:
+            for id_, ds in self._datasets.items():
+                if ds.band == band_index:
+                    return id_
+            return None
+
+    def add_cloud_mask(self, cloud_mask: np.ma.MaskedArray) -> None:
+        """Save a cloud mask for future calculations."""
+        self._cloud_mask = cloud_mask
+
+    def add_description(self, id_: int, full: bool, desc: str) -> None:
+        """Adds 'desc' to index's description. 'full' sets whether 'desc' represents complete description of the index or not."""
+
+        ds = self.get(id_)
+        with self._lock:
+            ds.description = {
+                'full': full,
+                'text': desc
+            }
+            
+    def append_description(self, id_: int, full: bool, desc: str) -> None:
+        """Appends 'desc' to index's description without rewriting the existing one. 'full' sets whether 'desc' represents complete description of the index or not."""
+
+        ds = self.get(id_)
+        with self._lock:
+            ds.description['full'] = full
+            ds.description['text'] += text
+
+    def remove_description(self, id_: int) -> None:
+        ds = self.get(id_)
+        with self._lock:
+            ds.description = None
 
     def close(self, id_: int) -> None:
         with self._lock:
@@ -165,6 +188,9 @@ class DatasetManager:
 
     def get_earth_sun_distance(self) -> float | None:
         return self._earth_sun_dist
+
+    def get_description(self, id_: int) -> dict | None:
+        return self.get(id_).description
 
     def set_sun_elevation(self, val: float) -> None:
         self._sun_elev = val
@@ -795,10 +821,16 @@ class GdalExecutor:
             if index not in self.SUPPORTED_INDICES:
                 return _response(20900, {"error": f"index '{index}' is not supported or unknown"})
             # error 20901
+            ds = self.ds_man.find(index)
+            if ds is None:
+                return _response(20902, {"error": f"index '{index}' is not calculated"})
+
+            ds = self.ds_man.get(ds)
+            # 
 
             return _response(0, {
                 "index": index,
-                "desc": "here comes a description"
+                "desc": ds.description['text'] if ds.description else ''
             })
         
         return _response(-1, {"error": "how's this even possible?"})
