@@ -281,26 +281,35 @@ Below are specifics for requests and responses for each supported command.
 - `operation`  - "import_gtiff"
 - `parameters` - {
     "file": "`/path/to/file.tif`",  **!!!no local paths for remote servers; fine for now!!!**
-    "band": `band name`             - [STRING] what spectral band the file represents
+    "band": `band name` [STRING]
 }
+`band` - what spectral band the file represents
 
 *RESPONSE*
 
 1. Success:
     - `status` - 0
     - `result` - {
-        "file": "`/path/to/loaded/file.tif`",           - [STRING] path of the file from the request  **!!!no local paths for remote servers; fine for now!!!**
-        "band": `band`,                                 - [INT] band of loaded GeoTiff image
-        "info": {                                       - [OBJECT] description of the GeoTiff image
-            "width": `width`,                           - [INT] width of the image in pixels
-            "height": `height`,                         - [INT] height of the image in pixels
-            "projection": `projection`,                 - [STRING] in format "`authority`:`code`" identifying projection used
-            "unit": `measure unit`,                     - [STRING] the unit used in the image
-            "origin": [`x`, `y`],                       - [ARRAY of DOUBLEs] coordinates of the origin of the image
-            "pixel_size": [`size on x`, `size on y`]    - [ARRAY of DOUBLEs] size of the image pixel in measurement units
+        "file": "`/path/to/loaded/file.tif`",  **!!!no local paths for remote servers; fine for now!!!**
+        "band": `band`                                  [INT],
+        "info": {
+            "width": `width`                            [INT],
+            "height": `height`                          [INT],
+            "projection": `projection`                  [STRING],
+            "unit": `measure unit`                      [STRING],
+            "origin": [`x`, `y`]                        [ARRAY of DOUBLEs],
+            "pixel_size": [`size on x`, `size on y`]    [ARRAY of DOUBLEs]
         }
     }
     -  HTTP 200 OK
+    `file`          - 
+    `band`          - band of loaded GeoTiff image
+    `width`         - width of the image in pixels
+    `height`        - height of the image in pixels
+    `projection`    - string in format "`authority`:`code`" identifying projection used
+    `unit`          - the unit used in the image
+    `origin`        - coordinates of the origin of the image
+    `pixel_size`    - size of the image pixel in measurement units
 2. Invalid band type:
     - `status` - 10300
     - `result` - { "error": "invalid '`band`' key: must be of string type" }
@@ -322,19 +331,23 @@ Below are specifics for requests and responses for each supported command.
 
 - `operation`  - "calc_preview"
 - `parameters` - {
-    "index": `index` or "nat_col"   - [STRING] what index to calculate preview for. "nat_col" refers to natural color visualization
-    "width": `needed width`,        - [INT] width of the preview that the client preffers, > 0
-    "height": `needed height`       - [INT] height of the preview that the client preffers, > 0
+    "index": `index` or "nat_col"   [STRING],
+    "width": `needed width`         [INT],
+    "height": `needed height`       [INT]
 }
+`index`     - what index to calculate preview for. "nat_col" refers to natural color visualization
+`width`     - width of the preview that the client preffers, > 0
+`height`    - height of the preview that the client preffers, > 0
 
 *RESPONSE*
 
 1. Success:
     - `status` - 0
-    - `result` - {                          - [OBJECT] data to be included in the HTTP GET request 
-        "url": "/resource/preview?id=`id`   - [STRING] url to be used for HTTP GET request
+    - `result` - {
+        "url": "/resource/preview?id=`id`   [STRING]
     }
     -  HTTP 200 OK
+    `url` - url to be used for HTTP GET request
 2. Invalid index type:
     - `status` - 10400
     - `result` - { "error": "invalid '`index`' key: must be of string type" }
@@ -368,31 +381,45 @@ Below are specifics for requests and responses for each supported command.
 
 - `operation`  - "calc_index"
 - `parameters` - {
-    "index": "`name of the index`"  - [STRING] name of the index/algorithm to calculate
+    "index": "`name of the index`"  [STRING]
 }
+`index` - name of the index/algorithm to calculate
 
 *RESPONSE*
 
 1. Success:
     - `status` - 0
     - `result` - {
-        "url": "/resource/index?id=`id`",               - [STRING] url to be used for HTTP GET request
+        "url": "/resource/index?id=`id`"                [STRING],
         "index": `name of the index`    **!!!to be reconsidered for RESTful in the future!!!**
-        "info": {                                       - [OBJECT] description of the GeoTiff image
-            "width": `width`,                           - [INT] width of the image in pixels
-            "height": `height`,                         - [INT] height of the image in pixels
-            "projection": `projection`,                 - [STRING] in format "`authority`:`code`" identifying projection used
-            "unit": `measure unit`,                     - [STRING] the unit used in the image
-            "origin": [`x`, `y`],                       - [ARRAY of DOUBLEs] coordinates of the origin of the image
-            "pixel_size": [`size on x`, `size on y`],   - [ARRAY of DOUBLEs] size of the image pixel in measurement units
-            "min": `min pixel value`,                   - [FLOAT] minimum pixel value
-            "max": `max pixel value`,                   - [FLOAT] maximum pixel value
-            "mean": `mean pixel value`,                 - [FLOAT] mean pixel value
-            "stdev": `standard deviation`,              - [FLOAT] standard deviation of pixel values
-            "ph_unit": `physical unit`                  - [STRING] physycal unit that pixel values represent, if any
+        "info": {
+            "width": `width`                            [INT],
+            "height": `height`                          [INT],
+            "projection": `projection`                  [STRING],
+            "unit": `measure unit`                      [STRING],
+            "origin": [`x`, `y`]                        [ARRAY of DOUBLEs],
+            "pixel_size": [`size on x`, `size on y`]    [ARRAY of DOUBLEs],
+            "min": `min pixel value`                    [FLOAT],
+            "max": `max pixel value`                    [FLOAT],
+            "mean": `mean pixel value`                  [FLOAT],
+            "stdev": `standard deviation`               [FLOAT],
+            "ph_unit": `physical unit                   [STRING],
         }
     }
     -  HTTP 200 OK
+    `url`           - url to used for HTTP GET request
+    `index`         - 
+    `width`         - width of the image in pixels
+    `height`        - height of the image in pixels
+    `projection`    - string in format "`authority`:`code`" identifying projection used
+    `unit`          - the unit used in the image
+    `origin`        - coordinates of the origin of the image
+    `pixel_size`    - size of the image pixel in measurement units
+    `min`           - minimum pixel value
+    `max`           - maximum pixel value
+    `mean`          - mean pixel value
+    `stdev`         - standard deviation of pixel values
+    `ph_unit`       - what physical unit pixel values represent, if any
 2. Invalid index type:
     - `status` - 10500
     - `result` - { "error": "invalid '`index`' key: must be of string type" }
@@ -420,9 +447,11 @@ Below are specifics for requests and responses for each supported command.
 
 - `operation`  - "set_satellite"
 - `parameters` - {
-    "satellite": "`satellite model`",   - [STRING] what satellite is used in the client's session
-    "proc_level": `processing level`    - [STRING] what processing level is used in the client's session
+    "satellite": "`satellite model`",   [STRING] what satellite is used in the client's session
+    "proc_level": `processing level`    [STRING] what processing level is used in the client's session
     }
+`satellite`     - what satellite is used in the client's session
+`proc_level`    - what processing level is used in the client's session
 
 *RESPONSE*
 
@@ -479,15 +508,17 @@ Below are specifics for requests and responses for each supported command.
 - `parameters` - {
     "file": "`/path/to/file`"  **!!!no local paths for remote servers; fine for now!!!**
 }
+`file`  - 
 
 *RESPONSE*
 
 1. Success:
     - `status` - 0
     - `result` - {
-        "loaded": `number`  - [INT] how many datasets the metadata was read for
+        "loaded": `number`  [INT]
     }
     -  HTTP 200 OK
+    `loaded` - how many datasets the metadata was read for
 2. Invalid/wrong file:
     - `status` - 20800
     - `result` - { "error": "metadata file '`filename`' is invalid, unsupported or does not contain calibration coefficients" }
