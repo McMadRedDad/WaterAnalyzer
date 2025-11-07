@@ -1,6 +1,6 @@
 class Protocol:
-    VERSION = '3.1.0'
-    SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index', 'set_satellite', 'end_session', 'import_metafile')
+    VERSION = '3.2.0'
+    SUPPORTED_OPERATIONS = ('PING', 'SHUTDOWN', 'import_gtiff', 'calc_preview', 'calc_index', 'set_satellite', 'end_session', 'import_metafile', 'generate_description')
 
     def __init__(self):
         print(f'Using protocol version {self.VERSION}')
@@ -45,8 +45,7 @@ class Protocol:
                 diff = set(correct_keys) - set(present_keys)
                 return _response(10007, {"error": f"keys '{diff}' are not specified in parameters for '{operation}' operation"})
             return {}
-
-        ### Common errors ###
+            
         keys = list(request.keys())
         correct_keys = ['proto_version', 'server_version', 'id', 'operation', 'parameters']
         present_keys = []
@@ -159,6 +158,17 @@ class Protocol:
             params_check = _check_param_keys('import_metafile', ['file'], list(parameters.keys()))
             if len(params_check) != 0:
                 return params_check
+            return _response(0, {})
+
+        if operation == 'generate_description':
+            params_check = _check_param_keys('generate_description', ['index', 'lang'], list(parameters.keys()))
+            if len(params_check) != 0:
+                return params_check
+            index, lang = parameters['index'], parameters['lang']
+            if type(index) is not str:
+                return _response(10900, {"error": "invalid 'index' key: must be of string type"})
+            if type(lang) is not str:
+                return _response(10901, {"error": "invalid 'lang' key: must be of string type"})
             return _response(0, {})
         
         return _response(-1, {"error": "how's this even possible?"})

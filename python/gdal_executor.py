@@ -272,7 +272,7 @@ class IndexErr:
 
 class GdalExecutor:
     VERSION = '1.0.0'
-    SUPPORTED_PROTOCOL_VERSIONS = ('3.1.0')
+    SUPPORTED_PROTOCOL_VERSIONS = ('3.2.0')
     SUPPORTED_INDICES = ('test', 'ndbi', 'wi2015', 'andwi', 'nsmi', 'oc3', 'cdom_ndwi', 'toa_temperature_landsat', 'ls_temperature_landsat')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
@@ -491,7 +491,7 @@ class GdalExecutor:
 
         if operation == 'import_gtiff':
             if self.satellite is None or self.proc_level is None:
-                return _response(20004, {"error": "request 'import_gtiff' was received before 'set_satellite' request"})
+                return _response(20003, {"error": "request 'import_gtiff' was received before 'set_satellite' request"})
             file, band, nodata = parameters['file'], parameters['band'], -1
             if self.satellite == 'Landsat 8/9':
                 nodata = 0
@@ -529,7 +529,7 @@ class GdalExecutor:
 
         if operation == 'calc_preview':
             if self.satellite is None or self.proc_level is None:
-                return _response(20004, {"error": "request 'calc_preview' was received before 'set_satellite' request"})
+                return _response(20003, {"error": "request 'calc_preview' was received before 'set_satellite' request"})
             index, width, height = parameters['index'], parameters['width'], parameters['height']
             if index not in self.SUPPORTED_INDICES and index != 'nat_col':
                 return _response(20400, {"error": f"index '{index}' is not supported or unknown"})
@@ -582,7 +582,7 @@ class GdalExecutor:
 
         if operation == 'calc_index':
             if self.satellite is None or self.proc_level is None:
-                return _response(20004, {"error": "request 'calc_index' was received before 'set_satellite' request"})
+                return _response(20003, {"error": "request 'calc_index' was received before 'set_satellite' request"})
             index = parameters['index']
             if index not in self.SUPPORTED_INDICES:
                 return _response(20500, {"error": f"index '{index}' is not supported or unknown"})
@@ -671,7 +671,7 @@ class GdalExecutor:
 
         if operation == 'import_metafile':
             if self.satellite is None or self.proc_level is None:
-                return _response(20004, {"error": "request 'import_metafile' was received before 'set_satellite' request"})
+                return _response(20003, {"error": "request 'import_metafile' was received before 'set_satellite' request"})
             filename, file = parameters['file'], 0
             try:
                 file = open(filename, 'r', encoding='utf-8')
@@ -788,6 +788,17 @@ class GdalExecutor:
                     return _response(20800, {"error": f"metadata file '{filename}' is either invalid or does not contain calibration coefficients"})
             return _response(0, {
                 "loaded": count_1_9 / 4 + count_10_11 / 5
+            })
+
+        if operation == 'generate_description':
+            index, lang = parameters['index'], parameters['lang']
+            if index not in self.SUPPORTED_INDICES:
+                return _response(20900, {"error": f"index '{index}' is not supported or unknown"})
+            # error 20901
+
+            return _response(0, {
+                "index": index,
+                "desc": "here comes a description"
             })
         
         return _response(-1, {"error": "how's this even possible?"})

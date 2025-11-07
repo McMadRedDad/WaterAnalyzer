@@ -873,6 +873,74 @@ requests_json = {
         "parameters": {
             "file": test_files['non_existent']
         }
+    },
+    'generate_description_ok': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "generate_description",
+        "parameters": {
+            "index": "test",
+            "lang": "ru"
+        }
+    },
+    'generate_description_no_index': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "generate_description",
+        "parameters": {
+            "lang": "ru"
+        }
+    },
+    'generate_description_no_lang': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "generate_description",
+        "parameters": {
+            "index": "test",
+        }
+    },
+    'generate_description_inv_index_type': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "generate_description",
+        "parameters": {
+            "index": 4206934,
+            "lang": "ru"
+        }
+    },
+    'generate_description_inv_lang_type': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "generate_description",
+        "parameters": {
+            "index": "test",
+            "lang": []
+        }
+    },
+    'generate_description_unsupported_index': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "generate_description",
+        "parameters": {
+            "index": "rule34",
+            "lang": "ru"
+        }
+    },
+    'generate_description_unsupported_lang': {
+        "proto_version": proto_version,
+        "server_version": server_version,
+        "id": 0,
+        "operation": "generate_description",
+        "parameters": {
+            "index": "test",
+            "lang": "body"
+        }
     }
 }
 
@@ -929,9 +997,9 @@ class Test(unittest.TestCase):
         executor.execute(requests_json['import_gtiff_ok_mid3'])
         executor.execute(requests_json['import_gtiff_ok_smol2'])
         executor.execute(requests_json['import_gtiff_ok_nodata'])
-        print('sleeping___')
-        sleep(1)
-        print('slept')
+        # print('sleeping')
+        # sleep(1)
+        # print('slept')
         executor.execute(requests_json['import_metafile_ok'])
         executor.execute(requests_json['calc_preview_ok'])
         executor.execute(requests_json['calc_index_ok1'])
@@ -943,11 +1011,11 @@ class Test(unittest.TestCase):
 
         print('RUNNING INITIAL TEST "test_000" that acts as a setup. If this test fails, others will too. Check this test first.')
 
-        print('Checking error 20004...')
-        self.assertEqual((500, 20004) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid'])))
-        self.assertEqual((500, 20004) , _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])))
-        self.assertEqual((500, 20004) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])))
-        self.assertEqual((500, 20004) , _codes(POST('/api/import_metafile', http_headers['ok'], requests_json['import_metafile_ok'])))
+        print('Checking error 20003...')
+        self.assertEqual((500, 20003) , _codes(POST('/api/import_gtiff', http_headers['ok'], requests_json['import_gtiff_ok_mid'])))
+        self.assertEqual((500, 20003) , _codes(POST('/api/calc_preview', http_headers['ok'], requests_json['calc_preview_ok'])))
+        self.assertEqual((500, 20003) , _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_ok1'])))
+        self.assertEqual((500, 20003) , _codes(POST('/api/import_metafile', http_headers['ok'], requests_json['import_metafile_ok'])))
         print('All good!')
 
         self.prepare()
@@ -979,6 +1047,7 @@ class Test(unittest.TestCase):
         self.assertEqual(200, POST('/api/end_session', http_headers['ok'], requests_json['end_session_ok']).status_code)
         self.prepare()
         self.assertEqual(200, POST('/api/import_metafile', http_headers['ok'], requests_json['import_metafile_ok']).status_code)
+        self.assertEqual(200, POST('/api/generate_description', http_headers['ok'], requests_json['generate_description_ok']).status_code)
         
         self.assertIsNone(POST('/api/PING', http_headers['ok'], requests_json['ping_ok']).headers.get('Reason'))
         # self.assertIsNone(POST('/api/SHUTDOWN', http_headers['ok'], requests_json['shutdown_ok']).headers.get('Reason'))
@@ -1001,6 +1070,7 @@ class Test(unittest.TestCase):
         self.assertIsNone(POST('/api/end_session', http_headers['ok'], requests_json['end_session_ok']).headers.get('Reason'))
         self.prepare()
         self.assertIsNone(POST('/api/import_metafile', http_headers['ok'], requests_json['import_metafile_ok']).headers.get('Reason'))
+        self.assertIsNone(POST('/api/generate_description', http_headers['ok'], requests_json['generate_description_ok']).headers.get('Reason'))
    
     def test_http_endpoint(self):
         self.assertEqual(400, POST('/api/unsupported', http_headers['ok'], '').status_code)
@@ -1152,6 +1222,7 @@ class Test(unittest.TestCase):
         self.assertEqual(0, check_json(requests_json['set_satellite_ok']))
         self.assertEqual(0, check_json(requests_json['end_session_ok']))
         self.prepare()
+        self.assertEqual(0, check_json(requests_json['generate_description_ok']))
    
     def test_json_unknown_key(self):
         self.assertEqual(10000, check_json(requests_json['unknown_key1']))
@@ -1273,6 +1344,14 @@ class Test(unittest.TestCase):
         self.assertEqual(20800, check_json(requests_json['import_metafile_not_float']))
         self.assertEqual(20800, check_json(requests_json['import_metafile_inv_band']))
         self.assertEqual(20801, check_json(requests_json['import_metafile_non_existent']))
+    
+    def test_json_generae_description(self):
+        self.assertEqual(10007, check_json(requests_json['generate_description_no_index']))
+        self.assertEqual(10007, check_json(requests_json['generate_description_no_lang']))
+        self.assertEqual(10900, check_json(requests_json['generate_description_inv_index_type']))
+        self.assertEqual(10901, check_json(requests_json['generate_description_inv_lang_type']))
+        self.assertEqual(20900, check_json(requests_json['generate_description_unsupported_index']))
+        # self.assertEqual(20901, check_json(requests_json['generate_description_unsupported_lang']))
 
     ### BOTH ###
    
@@ -1313,6 +1392,7 @@ class Test(unittest.TestCase):
         self.assertEqual((200, 0), _codes(POST('/api/end_session', http_headers['ok'], requests_json['end_session_ok'])))
         self.prepare()
         self.assertEqual((200, 0), _codes(POST('/api/import_metafile', http_headers['ok'], requests_json['import_metafile_ok'])))
+        self.assertEqual((200, 0), _codes(POST('/api/generate_description', http_headers['ok'], requests_json['generate_description_ok'])))
 
         self.assertEqual((400, 10000), _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key1'])))
         self.assertEqual((400, 10000), _codes(POST('/api/PING', http_headers['ok'], requests_json['unknown_key2'])))
@@ -1418,6 +1498,13 @@ class Test(unittest.TestCase):
         self.assertEqual((500, 20800), _codes(POST('api/import_metafile', http_headers['ok'], requests_json['import_metafile_not_float'])))
         self.assertEqual((500, 20800), _codes(POST('api/import_metafile', http_headers['ok'], requests_json['import_metafile_inv_band'])))
         self.assertEqual((500, 20801), _codes(POST('api/import_metafile', http_headers['ok'], requests_json['import_metafile_non_existent'])))
+
+        self.assertEqual((400, 10007), _codes(POST('api/generate_description', http_headers['ok'], requests_json['generate_description_no_index'])))
+        self.assertEqual((400, 10007), _codes(POST('api/generate_description', http_headers['ok'], requests_json['generate_description_no_lang'])))
+        self.assertEqual((400, 10900), _codes(POST('api/generate_description', http_headers['ok'], requests_json['generate_description_inv_index_type'])))
+        self.assertEqual((400, 10901), _codes(POST('api/generate_description', http_headers['ok'], requests_json['generate_description_inv_lang_type'])))
+        self.assertEqual((400, 20900), _codes(POST('api/generate_description', http_headers['ok'], requests_json['generate_description_unsupported_index'])))
+        # self.assertEqual((400, 20901), _codes(POST('api/generate_description', http_headers['ok'], requests_json['generate_description_unsupported_lang'])))
 
     ### DIFFERENT FILES ###
 

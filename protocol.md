@@ -1,4 +1,4 @@
-**VERSION 3.1.0**
+**VERSION 3.2.0**
 
 Communication via HTTP messages. The payload is sent as a JSON document in message bodies.
 
@@ -129,6 +129,7 @@ If the request passed body validation, it proceeds to the second layer of error 
 6. set_satellite    - save what satellite is used in the client's session
 7. end_session      - free resources occupied by the client. Indicates the end of the client's session
 8. import_metafile  - load a metadata file
+9. generate_description  - generate a textual description of an index
 
 ## Message structure
 
@@ -217,12 +218,8 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 20002
     - `result` - { "error": "unsupported operation '`unsupported operation`' requested. Supported operations are `supported operations`" }
     -  HTTP 500 Internal Server Error
-15. Too many requests:
-    - `status` - 20003
-    - `result` - { "error": "too many requests" }
-    -  HTTP 429 Too Many Requests
 16. No satellite set:
-    - `status` - 20004
+    - `status` - 20003
     - result - { "error": "request `received request` was received before 'set_satellite' request }
     - HTTP 500 Internal Server Error
 
@@ -527,6 +524,46 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 20801
     - `result` - { "error": "failed to open metadata file '`filename`'" }
     -  HTTP 500 Internal Server Error
+
+## generate description
+
+*REQUEST*
+
+- `operation`  - "generate_description"
+- `parameters` - {
+    "index": "`index`"          - [STRING],
+    "lang": "`language code`"   - [STRING]
+}
+`index` - name of the index to generate description for. "summary" for overall description across all calculated indices.
+`lang`  - what language to generate description in
+
+*RESPONSE*
+
+1. Success:
+    - `status` - 0
+    - `result` - {
+        "index": `index`                    - [STRING],
+        "desc": "`textual description`"     - [STRING]
+    }
+    -  HTTP 200 OK
+    `index` - name of the index
+    `desc`  - actual semantic interpretation of the index
+2. Invalid index type:
+    - `status` - 10900
+    - `result` - { "error": "invalid '`index`' key: must be of string type" }
+    -  HTTP 400 Bad Request
+2. Invalid language type:
+    - `status` - 10901
+    - `result` - { "error": "invalid '`lang`' key: must be of string type" }
+    -  HTTP 400 Bad Request
+3. Unknown/unsupported index:
+    - `status` - 20900
+    - `result` - { "error": "index '`index`' is not supported or unknown" }
+    -  HTTP 400 Bad Request
+3. Unsupported language:
+    - `status` - 20901
+    - `result` - { "error": "language '`lang`' is not supported" }
+    -  HTTP 400 Bad Request
 
 ## HTTP and JSON cross-validation
 
