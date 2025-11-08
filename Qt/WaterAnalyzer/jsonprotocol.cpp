@@ -1,6 +1,6 @@
 #include "jsonprotocol.hpp"
 
-const QString JsonProtocol::proto_version = "3.1.0";
+const QString JsonProtocol::proto_version = "3.2.0";
 
 JsonProtocol::JsonProtocol(QString server_version) {
     this->server_version = server_version;
@@ -37,6 +37,10 @@ QJsonObject JsonProtocol::end_session() {
 
 QJsonObject JsonProtocol::import_metafile(QString file) {
     return construct_json("import_metafile", QJsonObject{{"file", file}});
+}
+
+QJsonObject JsonProtocol::generate_description(QString index, QString lang) {
+    return construct_json("generate_description", QJsonObject{{"index", index}, {"lang", lang}});
 }
 
 void JsonProtocol::inc_counter() {

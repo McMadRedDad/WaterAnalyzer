@@ -116,7 +116,7 @@ void MainWindow::handle_error(QNetworkReply *response) {
     for (const auto &header : raw_header_pairs) {
         if (QString::fromUtf8(header.first).toLower() == "reason") {
             append_log("bad",
-                       QString("Некорректный HTTP-запрос к серверу: %1 %2, Reason: %3.")
+                       QString("Некорректный HTTP-запрос к серверу: %1 %2, Reason: %3")
                            .arg(response->attribute(QNetworkRequest::HttpStatusCodeAttribute).toString(),
                                 response->attribute(QNetworkRequest::HttpReasonPhraseAttribute).toString(),
                                 QString::fromUtf8(header.second)));
@@ -247,6 +247,8 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         uint width = self.result_p->get_preview_width();
         uint height = self.result_p->get_preview_height();
         send_request("command", proto.calc_preview(ds.index, width, height), options);
+        send_request("command", proto.generate_description(ds.index, "ru"));
+
         self.result_p->set_caption(get_type_by_index(ds.index), ds.index.toUpper());
         self.result_p->set_statistics(get_type_by_index(ds.index), ds.min, ds.max, ds.mean, ds.stdev, ds.ph_unit);
 
@@ -293,6 +295,9 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
                 set_status_message(false, "Нет растра оценки качества");
             }
         }
+    } else if (command == "generate_description") {
+        set_status_message(true, "Текстовое описание получено");
+        append_log("good", result["desc"].toString());
     } else {
         append_log("info", "Запрошена неизвестная команда, но сервер её обработал: " + command + ".");
         set_status_message(false, "Неизвестная команда");
@@ -301,7 +306,7 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
 
 QString MainWindow::get_type_by_index(QString index) {
     QString indx = index.toLower();
-    if (indx == "wi2015" || indx == "andwi") {
+    if (indx == "wi2015" || indx == "andwi" || indx == "ndwi") {
         return "water";
     } else if (indx == "nsmi") {
         return "tss";
@@ -321,7 +326,7 @@ QString MainWindow::get_index_by_type(QString type) {
         return "";
     } else if (type == "water") {
         for (DATASET &ds : self.datasets) {
-            if (ds.index == "wi2015" || ds.index == "andwi") {
+            if (ds.index == "wi2015" || ds.index == "andwi" || ds.index == "ndwi") {
                 return ds.index;
             }
         }
@@ -594,8 +599,6 @@ void MainWindow::change_page(PAGE to) {
         auto indices = [this](QStringList indices) {
             for (QString &index : indices) {
                 index = index.toLower();
-                if (index != "andwi")
-                    continue;
                 QMap<QString, QString> options = {{"preview_type", get_type_by_index(index)}, {"scalebar", "1"}, {"mask", "0"}};
                 send_request("command", proto.calc_index(index), options);
             }

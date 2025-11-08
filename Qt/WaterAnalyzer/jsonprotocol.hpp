@@ -21,6 +21,7 @@ public:
     QJsonObject set_satellite(QString satellite, QString proc_level);
     QJsonObject end_session();
     QJsonObject import_metafile(QString file);
+    QJsonObject generate_description(QString index, QString lang);
 
     void    inc_counter();
     QString get_proto_version();

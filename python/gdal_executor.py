@@ -313,7 +313,7 @@ class IndexErr:
 class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('3.2.0')
-    SUPPORTED_INDICES = ('test', 'ndbi', 'wi2015', 'andwi', 'nsmi', 'oc3', 'cdom_ndwi', 'toa_temperature_landsat', 'ls_temperature_landsat')
+    SUPPORTED_INDICES = ('test', 'ndbi', 'wi2015', 'andwi', 'ndwi', 'nsmi', 'oc3', 'cdom_ndwi', 'toa_temperature_landsat', 'ls_temperature_landsat')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
     }
@@ -358,16 +358,16 @@ class GdalExecutor:
                         if atm_correction == 'toa_refl':
                             sun_elev, es_dist = self.ds_man.get_sun_elevation(), self.ds_man.get_earth_sun_distance()
                             inp = indcal.landsat_l1_dn_to_toa_reflectance(inp, ds.radio_mult, ds.radio_add, sun_elev, es_dist, ds.rad_max, ds.refl_max, nodata)
-                            notes = 'Рассчитано по отражающей способности верхнего слоя атмосферы.'
+                            notes = 'Рассчитано по отражательной способности верхнего слоя атмосферы.'
                         # if atm_correction == 'ls_rad':
                         if atm_correction == 'ls_refl':
                             sun_elev, es_dist = self.ds_man.get_sun_elevation(), self.ds_man.get_earth_sun_distance()
                             inp = indcal.landsat_l1_dn_to_dos1_reflectance(inp, ds.radio_mult, ds.radio_add, sun_elev, es_dist, ds.rad_max, ds.refl_max, nodata)
-                            notes = 'Рассчитано по отражающей способности поверхности Земли.'
+                            notes = 'Рассчитано по отражательной способности поверхности Земли, корректировка атмосферного влияния методом DOS1.'
                     if self.proc_level == 'L2SP':
                         if atm_correction == 'ls_refl':
                             inp = indcal.landsat_l2_dn_to_ls_reflectance(inp, nodata)
-                            notes = 'Рассчитано по отражающей способности поверхности Земли.'
+                            notes = 'Рассчитано по отражательной способности поверхности Земли.'
                 # if self.satellite == 'Sentinel 2':
                 inputs.append(inp)
             return None, (geotransform, projection, notes, inputs)
@@ -375,17 +375,22 @@ class GdalExecutor:
         geotransform, projection, notes = None, '', ''
         data_type, nodata, ph_unit = gdal.GDT_Float32, float('nan'), '--'
         result = None
+        if self.satellite == 'Landsat 8/9':
+            if self.proc_level == 'L1TP':
+                conv = 'toa_refl'
+            else:
+                conv = 'ls_refl'
         if index == 'test':
             nodata = -99999.0
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs('toa_refl', nodata, 2, 4)
+                err, res = _prepare_inputs(conv, nodata, 2, 4)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
             result = indcal._test(*inputs, nodata)
         if index == 'wi2015':
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs('toa_refl', nodata, 3, 4, 5, 6, 7)
+                err, res = _prepare_inputs(conv, nodata, 3, 4, 5, 6, 7)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
@@ -396,7 +401,7 @@ class GdalExecutor:
             notes += '\n' + f'Классификация выполнена методом Оцу, пороговое значение {thresh}.'
         if index == 'andwi':
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs('toa_refl', nodata, 2, 3, 4, 5, 6, 7)
+                err, res = _prepare_inputs(conv, nodata, 2, 3, 4, 5, 6, 7)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
@@ -405,16 +410,27 @@ class GdalExecutor:
             self.ds_man.remove_water_mask()
             self.ds_man.add_water_mask(water)
             notes += '\n' + f'Классификация выполнена методом Оцу, пороговое значение {thresh}.'
+        if index == 'ndwi':
+            if self.satellite == 'Landsat 8/9':
+                err, res = _prepare_inputs(conv, nodata, 3, 5)
+            if err is not None:
+                return err, ()
+            geotransform, projection, notes, inputs = res
+            result = indcal.ndwi(*inputs, nodata)
+            water = np.ma.array(result > 0.01, dtype=np.bool)
+            self.ds_man.remove_water_mask()
+            self.ds_man.add_water_mask(water)
+            notes += '\n' + 'Классификация выполнена по пороговому значению 0.01.'
         if index == 'nsmi':
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs('toa_refl', nodata, 4, 3, 2)
+                err, res = _prepare_inputs(conv, nodata, 4, 3, 2)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
             result = indcal.nsmi(*inputs, nodata)
         if index == 'oc3':
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs('toa_refl', nodata, 1, 2, 3)
+                err, res = _prepare_inputs(conv, nodata, 1, 2, 3)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
@@ -422,7 +438,7 @@ class GdalExecutor:
         if index == 'cdom_ndwi':
             ph_unit = 'mg/L'
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs('toa_refl', nodata, 3, 5)
+                err, res = _prepare_inputs(conv, nodata, 3, 5)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res

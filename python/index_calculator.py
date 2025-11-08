@@ -174,10 +174,10 @@ def landsat_l1_toa_temperature_to_ls_temperature(toa_temperature: np.ma.MaskedAr
     
     eps_water, eps_built, eps_soil, eps_veg, eps_mix = 0.990, 0.945, 0.996, 0.973, None
     wavelength, rho, surf_rough = 10.895, 14388, 0.005
-    ls_temperature = np.ma.empty(toa_temperature.shape, dtype=np.float64)
+    ls_temperature = np.ma.empty(toa_temperature.shape, dtype=np.float32)
     mask = toa_temperature.mask
 
-    eps = np.ma.empty(toa_temperature.shape, dtype=np.float64)
+    eps = np.ma.empty(toa_temperature.shape, dtype=np.float32)
     veg = ~(water_mask | built_up_mask)
     min_, max_, denominator = ndvi.min(), ndvi.max(), ndvi.max() - ndvi.min()
     Pv = ((ndvi - min_) / denominator) ** 2
@@ -192,7 +192,7 @@ def landsat_l1_toa_temperature_to_ls_temperature(toa_temperature: np.ma.MaskedAr
     eps[built_up_mask] = eps_built
     eps[water_mask] = eps_water
 
-    denominator = np.ma.empty(toa_temperature.shape, dtype=np.float64)
+    denominator = np.ma.empty(toa_temperature.shape, dtype=np.float32)
     zeros = np.isclose(np.log(eps), 0, atol=FLOAT_PRECISION)
     denominator[~zeros] = 1 + wavelength * toa_temperature[~zeros] / rho * np.log(eps[~zeros])
     print(np.unique(denominator, return_counts=True))
@@ -267,6 +267,20 @@ def andwi(blue: np.ma.MaskedArray, green: np.ma.MaskedArray, red: np.ma.MaskedAr
     andwi[mask] = nodata
     andwi.mask = mask | zeros
     return andwi
+
+def ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
+    """(green - nir) / (green + nir)"""
+    
+    ndwi = np.ma.empty(green.shape, dtype=np.float32)
+    mask = _full_mask(green, nir)
+    numerator = green - nir
+    denominator = green + nir
+    zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
+    ndwi[~zeros] = numerator[~zeros] / denominator[~zeros]
+    ndwi[zeros] = nodata
+    ndwi[mask] = nodata
+    ndwi.mask = mask | zeros
+    return ndwi
 
 def nsmi(red: np.ma.MaskedArray, green: np.ma.MaskedArray, blue: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """(red + green - blue) / (red + green + blue)"""
