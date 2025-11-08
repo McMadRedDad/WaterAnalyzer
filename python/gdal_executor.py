@@ -79,7 +79,6 @@ class DatasetManager:
     def __init__(self):
         self._datasets = {}
         self._cloud_mask = None
-        self._water_mask = None
         self._sun_elev = None
         self._earth_sun_dist = None
         self._counter = 0
@@ -129,10 +128,6 @@ class DatasetManager:
         """Save the cloud mask for future calculations."""
         self._cloud_mask = cloud_mask
 
-    def add_water_mask(self, water_mask: np.ma.MaskedArray) -> None:
-        """Save the water mask."""
-        self._water_mask = water_mask
-
     def add_description(self, id_: int, notes: str=None, desc: str=None) -> None:
         """Adds 'notes' and 'desc' to index's description."""
 
@@ -170,7 +165,6 @@ class DatasetManager:
         for id_ in ids:
             self.close(id_)
         self._cloud_mask = None
-        self._water_mask = None
         self._sun_elev = None
         self._earth_sun_dist = None
 
@@ -190,12 +184,6 @@ class DatasetManager:
 
     def get_cloud_mask(self) -> np.ma.MaskedArray | None:
         return self._cloud_mask
-
-    def get_water_mask(self) -> np.ma.MaskedArray | None:
-        return self._water_mask
-
-    def remove_water_mask(self) -> None:
-        self._water_mask = None
 
     def get_sun_elevation(self) -> float | None:
         return self._sun_elev
@@ -312,8 +300,8 @@ class IndexErr:
 
 class GdalExecutor:
     VERSION = '1.0.0'
-    SUPPORTED_PROTOCOL_VERSIONS = ('3.2.0')
-    SUPPORTED_INDICES = ('test', 'ndbi', 'wi2015', 'andwi', 'ndwi', 'nsmi', 'oc3', 'cdom_ndwi', 'toa_temperature_landsat', 'ls_temperature_landsat')
+    SUPPORTED_PROTOCOL_VERSIONS = ('3.2.1')
+    SUPPORTED_INDICES = ('test', 'water_mask', 'ndbi', 'wi2015', 'andwi', 'ndwi', 'nsmi', 'oc3', 'cdom_ndwi', 'toa_temperature_landsat', 'ls_temperature_landsat')
     WATER_EXTRACTION_INDICES = ('wi2105', 'andwi', 'ndwi')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
@@ -373,7 +361,7 @@ class GdalExecutor:
                 inputs.append(inp)
             return None, (geotransform, projection, notes, inputs)
 
-        geotransform, projection, notes = None, '', ''
+        geotransform, projection, notes = [], '', ''
         data_type, nodata, ph_unit = gdal.GDT_Float32, float('nan'), '--'
         result = None
         if self.satellite == 'Landsat 8/9':
@@ -389,6 +377,28 @@ class GdalExecutor:
                 return err, ()
             geotransform, projection, notes, inputs = res
             result = indcal._test(*inputs, nodata)
+        if index == 'water_mask':
+            id_ = -1
+            for i in self.get_water_extraction_indices():
+                id_ = self.ds_man.find(i)
+                if id_ is not None:
+                    break
+            if id_ is None:
+                return IndexErr(20503, 'unable to create water mask: water extraction index is not calculated'), ()
+            ds = self.ds_man.get(id_)
+            geotransform, projection = ds.dataset.GetGeoTransform(), ds.dataset.GetProjection()
+            data_type, nodata = gdal.GDT_Byte, 0
+            if ds.band == 'wi2015':
+                result, thresh = indcal.otsu_binarization(self.ds_man.read_band(id_, 1), nodata)
+                result = result.astype(np.bool)
+                notes += '\n' + f'Классификация выполнена методом Оцу, пороговое значение {thresh}.'
+            if ds.band == 'andwi':
+                result, thresh = indcal.otsu_binarization(self.ds_man.read_band(id_, 1), nodata)
+                result = result.astype(np.bool)
+                notes += '\n' + f'Классификация выполнена методом Оцу, пороговое значение {thresh}.'
+            if ds.band == 'ndwi':
+                result = np.ma.array(result > 0.01, dtype=np.bool)
+                notes += '\n' + 'Классификация выполнена по пороговому значению 0.01.'
         if index == 'wi2015':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs(conv, nodata, 3, 4, 5, 6, 7)
@@ -396,10 +406,6 @@ class GdalExecutor:
                 return err, ()
             geotransform, projection, notes, inputs = res
             result = indcal.wi2015(*inputs, nodata)
-            water, thresh = indcal.otsu_binarization(result, 0)
-            self.ds_man.remove_water_mask()
-            self.ds_man.add_water_mask(water)
-            notes += '\n' + f'Классификация выполнена методом Оцу, пороговое значение {thresh}.'
         if index == 'andwi':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs(conv, nodata, 2, 3, 4, 5, 6, 7)
@@ -407,10 +413,6 @@ class GdalExecutor:
                 return err, ()
             geotransform, projection, notes, inputs = res
             result = indcal.andwi(*inputs, nodata)
-            water, thresh = indcal.otsu_binarization(result, 0)
-            self.ds_man.remove_water_mask()
-            self.ds_man.add_water_mask(water)
-            notes += '\n' + f'Классификация выполнена методом Оцу, пороговое значение {thresh}.'
         if index == 'ndwi':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs(conv, nodata, 3, 5)
@@ -418,10 +420,6 @@ class GdalExecutor:
                 return err, ()
             geotransform, projection, notes, inputs = res
             result = indcal.ndwi(*inputs, nodata)
-            water = np.ma.array(result > 0.01, dtype=np.bool)
-            self.ds_man.remove_water_mask()
-            self.ds_man.add_water_mask(water)
-            notes += '\n' + 'Классификация выполнена по пороговому значению 0.01.'
         if index == 'nsmi':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs(conv, nodata, 4, 3, 2)
@@ -867,10 +865,7 @@ class GdalExecutor:
             # error 20901
             ds, desc = None, ''
             if index == 'summary':
-                for i in self.get_water_extraction_indices():
-                    ds = self.ds_man.find(i)
-                    if ds is not None:
-                        break
+                ds = self.ds_man.find('water_mask')
             else:
                 ds = self.ds_man.find(index)
             if ds is None:
@@ -897,21 +892,18 @@ class GdalExecutor:
         """Returns a boolean array where True=water and False=non-water. Returns None if water mask was not created.
         If 'width' > 'height', array size is [width, y], y < height, otherwise [x, height], x < width."""
 
-        mask = self.ds_man.get_water_mask()
-        if mask is None:
+        id_ = self.ds_man.find('water_mask')
+        if id_ is None:
             return None
 
-        if not (width == mask.shape[0] and height == mask.shape[1]):
-            rows, cols = 0, 0
-            if width >= height:
-                cols = width
-                rows = round(width * mask.shape[0] / mask.shape[1]) + 1
+        mask = self.ds_man.get(id_)
+        res = 100
+        if not (width == mask.dataset.RasterXSize and height == mask.dataset.RasterYSize):
+            if height <= width:
+                res = height / mask.dataset.RasterYSize * 100
             else:
-                cols = round(height * mask.shape[1] / mask.shape[0]) + 1
-                rows = height
-            x = np.linspace(0, mask.shape[1] - 1, cols).astype(int)
-            y = np.linspace(0, mask.shape[0] - 1, rows).astype(int)
-            return np.ma.array(mask[np.ix_(y, x)], dtype=np.bool)
+                res = width / mask.dataset.RasterXSize * 100
+        mask = self.ds_man.read_band(id_, 1, resolution_percent=res)
         return np.ma.array(mask, dtype=np.bool)
 
     def get_version(self) -> str:

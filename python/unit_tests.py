@@ -728,7 +728,7 @@ requests_json = {
             "index": "toa_temperature_landsat"
         }
     },
-    # calc_index 20503
+    # calc_index 20504
     'set_satellite_ok': {
         "proto_version": proto_version,
         "server_version": server_version,
@@ -1334,7 +1334,7 @@ class Test(unittest.TestCase):
         executor.satellite = 'Sentinel 2'
         self.assertEqual(20501, check_json(requests_json['calc_index_unsupported_index_by_satellite']))
         executor.satellite = 'Landsat 8/9'
-        # 20503
+        # 20504
 
     def test_json_set_satellite(self):
         self.assertEqual(10007, check_json(requests_json['set_satellite_no_satellite']))
@@ -1492,7 +1492,7 @@ class Test(unittest.TestCase):
         executor.satellite = 'Sentinel 2'
         self.assertEqual((500, 20501), _codes(POST('/api/calc_index', http_headers['ok'], requests_json['calc_index_unsupported_index_by_satellite'])))
         executor.satellite = 'Landsat 8/9'
-        # 20503
+        # 20504
 
         self.assertEqual((400, 10007), _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_no_satellite'])))
         self.assertEqual((400, 10007), _codes(POST('/api/set_satellite', http_headers['ok'], requests_json['set_satellite_no_proc_level'])))

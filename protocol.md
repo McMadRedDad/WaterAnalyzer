@@ -1,4 +1,4 @@
-**VERSION 3.2.0**
+**VERSION 3.2.1**
 
 Communication via HTTP messages. The payload is sent as a JSON document in message bodies.
 
@@ -380,7 +380,7 @@ Below are specifics for requests and responses for each supported command.
 - `parameters` - {
     "index": "`name of the index`"  [STRING]
 }
-`index` - name of the index/algorithm to calculate
+`index` - name of the index/algorithm to calculate. "water_mask" for binary water classification raster.
 
 *RESPONSE*
 
@@ -433,8 +433,12 @@ Below are specifics for requests and responses for each supported command.
     - `status` - 20502
     - `result` - { "error": "unable to calculate index '`index`': `satellite model` bands number `needed bands` are needed" }
     -  HTTP 500 Internal Server Error
-6. Unknown error:
+6. Unable to create water mask:
     - `status` - 20503
+    - `result` - { "error": "unable to create water mask: water extraction index is not calculated" }
+    -  HTTP 500 Internal Server Error
+7. Unknown error:
+    - `status` - 20504
     - `result` - { "error": "unknown error" }
     -  HTTP 500 Internal Server Error
 

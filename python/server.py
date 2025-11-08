@@ -150,7 +150,7 @@ def generate_http_response(request: request, response_json: dict) -> 'Response':
         code == 20201 or
         code in range(20300, 20301+1) or
         code in range(20401, 20402+1) or
-        code in range(20501, 20503+1) or
+        code in range(20501, 20504+1) or
         code == 20600 or
         code in range (20800, 20801+1) or
         code == 20902
