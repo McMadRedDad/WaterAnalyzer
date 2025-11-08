@@ -259,10 +259,15 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         ds.ph_unit = info["ph_unit"].toString();
         self.datasets.append(ds);
 
-        uint width = self.result_p->get_preview_width();
-        uint height = self.result_p->get_preview_height();
-        send_request("command", proto.calc_preview(ds.index, width, height), options);
-        send_request("command", proto.generate_description(ds.index, "ru"));
+        if (get_type_by_index(result["index"].toString()) == "water") {
+            send_request("command", proto.calc_index("water_mask"));
+        }
+        if (result["index"].toString() != "water_mask") {
+            uint width = self.result_p->get_preview_width();
+            uint height = self.result_p->get_preview_height();
+            send_request("command", proto.calc_preview(ds.index, width, height), options);
+            send_request("command", proto.generate_description(ds.index, "ru"));
+        }
 
         self.result_p->set_caption(get_type_by_index(ds.index), ds.index.toUpper());
         self.result_p->set_statistics(get_type_by_index(ds.index), ds.min, ds.max, ds.mean, ds.stdev, ds.ph_unit);
@@ -329,6 +334,8 @@ QString MainWindow::get_type_by_index(QString index) {
     QString indx = index.toLower();
     if (indx == "wi2015" || indx == "andwi" || indx == "ndwi") {
         return "water";
+    } else if (indx == "water_mask") {
+        return "";
     } else if (indx == "nsmi") {
         return "tss";
     } else if (indx == "oc3") {
@@ -344,7 +351,7 @@ QString MainWindow::get_type_by_index(QString index) {
 
 QString MainWindow::get_index_by_type(QString type) {
     if (type == "summary") {
-        return "";
+        return "water_mask";
     } else if (type == "water") {
         for (DATASET &ds : self.datasets) {
             if (ds.index == "wi2015" || ds.index == "andwi" || ds.index == "ndwi") {

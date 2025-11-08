@@ -39,7 +39,6 @@ ResultPage::ResultPage(QWidget *parent)
     ui->tab_cdom->layout()->addWidget(cdom);
     ui->tab_temp->layout()->addWidget(temp);
     summary->set_caption("Итог");
-    summary->hide_export_button("index");
     summary->hide_stats();
 }
 
