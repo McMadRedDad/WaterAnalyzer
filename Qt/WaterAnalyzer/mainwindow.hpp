@@ -1,14 +1,15 @@
 #ifndef MAINWINDOW_HPP
 #define MAINWINDOW_HPP
 
+#include <QMainWindow>
+#include <QMessageBox>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QTimer>
 #include "importpage.hpp"
 #include "jsonprotocol.hpp"
 #include "processpage.hpp"
 #include "resultpage.hpp"
-#include <QMainWindow>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {

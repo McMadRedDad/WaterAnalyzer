@@ -738,4 +738,26 @@ void MainWindow::on_pb_show_log_clicked() {
     }
 }
 
-void MainWindow::closeEvent(QCloseEvent *e) {}
+void MainWindow::closeEvent(QCloseEvent *e) {
+    if (self.page != PAGE::IMPORT) {
+        QMessageBox *msg = new QMessageBox(this);
+        QPushButton *y = new QPushButton("Да");
+        msg->setWindowTitle("Вы уверены?");
+        msg->setText("Выйти из программы?");
+        msg->addButton(y, QMessageBox::YesRole);
+        msg->addButton("Нет", QMessageBox::NoRole);
+        msg->exec();
+        if (msg->clickedButton() == y) {
+            send_request("command", proto.end_session());
+            // send_request -> finish server
+            e->accept();
+        } else {
+            e->ignore();
+        }
+        y->deleteLater();
+        msg->deleteLater();
+    } else {
+        send_request("command", proto.end_session());
+        // send_request -> finish server
+    }
+}
