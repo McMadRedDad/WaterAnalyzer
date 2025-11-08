@@ -41,7 +41,7 @@ struct STATE {
     QDir           dir;
     QString        metadata_file;
     PROC_LEVEL     proc_level;
-    uint           curr_req_id;
+    QList<uint>    req_ids;
     QList<DATASET> datasets;
 };
 
@@ -82,7 +82,7 @@ private:
     void append_log(QString type, QString line);
     bool parse_filenames(QStringList filenames);
     void change_page(PAGE to);
-    void lock_interface(bool on);
+    void lock_interface();
     void closeEvent(QCloseEvent *e) override;
 };
 #endif // MAINWINDOW_HPP
