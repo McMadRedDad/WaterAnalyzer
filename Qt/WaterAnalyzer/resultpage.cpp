@@ -108,3 +108,19 @@ void ResultPage::set_statistics(QString page, double min, double max, double mea
         temp->set_statistics(min, max, mean, stdev, ph_unit);
     }
 }
+
+void ResultPage::set_description(QString page, QString text) {
+    if (page == "summary") {
+        summary->set_description(text);
+    } else if (page == "water") {
+        water->set_description(text);
+    } else if (page == "chloro") {
+        chloro->set_description(text);
+    } else if (page == "tss") {
+        tss->set_description(text);
+    } else if (page == "cdom") {
+        cdom->set_description(text);
+    } else if (page == "temp") {
+        temp->set_description(text);
+    }
+}

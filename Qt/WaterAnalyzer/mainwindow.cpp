@@ -183,8 +183,8 @@ void MainWindow::process_get(QUrl endpoint, QHttpHeaders headers, QByteArray bod
             append_log("bad", "Не удалось записать файл " + path + " целиком. Скорее всего, файл повреждён.");
             set_status_message(false, "Не удалось записать файл");
         } else {
-            append_log("good", "Файл " + path + " успешно сохранён.");
-            set_status_message(true, "Файл успешно сохранён");
+            append_log("good", "Файл " + path + " сохранён.");
+            set_status_message(true, "Файл сохранён");
         }
     } else {
         append_log("info", "Запрошена неизвестный тип ресурса, но сервер его обработал: " + type + ".");
@@ -220,8 +220,8 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
                 break;
             }
         }
-        append_log("info", "Файл " + result["file"].toString() + " успешно загружен.");
-        set_status_message(true, "Файл успешно загружен");
+        append_log("info", "Файл " + result["file"].toString() + " загружен.");
+        set_status_message(true, "Файл загружен");
     } else if (command == "calc_preview") {
         send_request("resource", QJsonDocument::fromJson(body).object(), options);
     } else if (command == "calc_index") {
@@ -252,8 +252,8 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         self.result_p->set_caption(get_type_by_index(ds.index), ds.index.toUpper());
         self.result_p->set_statistics(get_type_by_index(ds.index), ds.min, ds.max, ds.mean, ds.stdev, ds.ph_unit);
 
-        append_log("info", "Индекс " + result["index"].toString() + " успешно рассчитан.");
-        set_status_message(true, "Индекс успешно рассчитан");
+        append_log("info", "Индекс " + result["index"].toString() + " рассчитан.");
+        set_status_message(true, "Индекс рассчитан");
     } else if (command == "set_satellite") {
         for (DATASET &ds : self.datasets) {
             send_request("command", proto.import_gtiff(ds.filename, ds.band));
@@ -296,8 +296,14 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
             }
         }
     } else if (command == "generate_description") {
-        set_status_message(true, "Текстовое описание получено");
-        append_log("good", result["desc"].toString());
+        QString index = result["index"].toString(), desc = result["desc"].toString();
+        if (index == "summary") {
+            self.result_p->set_description("summary", desc);
+        } else {
+            self.result_p->set_description(get_type_by_index(index), desc);
+        }
+        append_log("info", QString("Текстовое описание индекса %1 создано.").arg(index));
+        set_status_message(true, "Текстовое описание создано");
     } else {
         append_log("info", "Запрошена неизвестная команда, но сервер её обработал: " + command + ".");
         set_status_message(false, "Неизвестная команда");
@@ -599,6 +605,8 @@ void MainWindow::change_page(PAGE to) {
         auto indices = [this](QStringList indices) {
             for (QString &index : indices) {
                 index = index.toLower();
+                // if (!(index == "ndwi" || index == "andwi" || index == "wi2015"))
+                //     continue;
                 QMap<QString, QString> options = {{"preview_type", get_type_by_index(index)}, {"scalebar", "1"}, {"mask", "0"}};
                 send_request("command", proto.calc_index(index), options);
             }
@@ -641,6 +649,7 @@ void MainWindow::change_page(PAGE to) {
                     send_request("command", proto.calc_preview(ds.index, width, height), options);
                 }
             }
+            send_request("command", proto.generate_description("summary", "ru"));
             preview("1");
         };
         auto export_index = [this](QString type) {

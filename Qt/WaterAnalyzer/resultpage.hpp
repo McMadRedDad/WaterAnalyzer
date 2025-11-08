@@ -20,6 +20,7 @@ public:
     uint get_preview_height();
     void set_caption(QString page, QString caption);
     void set_statistics(QString page, double min, double max, double mean, double stdev, QString ph_unit);
+    void set_description(QString page, QString text);
 
 signals:
     void update_all_previews();

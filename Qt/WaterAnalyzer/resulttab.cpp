@@ -38,6 +38,10 @@ void ResultTab::set_statistics(double min, double max, double mean, double stdev
     }
 }
 
+void ResultTab::set_description(QString text) {
+    ui->lbl_description->setText(text);
+}
+
 void ResultTab::hide_export_button(QString type) {
     if (type == "index") {
         QGridLayout *lyt = qobject_cast<QGridLayout *>(layout());

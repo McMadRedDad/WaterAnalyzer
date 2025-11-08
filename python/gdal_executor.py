@@ -314,6 +314,7 @@ class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('3.2.0')
     SUPPORTED_INDICES = ('test', 'ndbi', 'wi2015', 'andwi', 'ndwi', 'nsmi', 'oc3', 'cdom_ndwi', 'toa_temperature_landsat', 'ls_temperature_landsat')
+    WATER_EXTRACTION_INDICES = ('wi2105', 'andwi', 'ndwi')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
     }
@@ -861,19 +862,33 @@ class GdalExecutor:
 
         if operation == 'generate_description':
             index, lang = parameters['index'], parameters['lang']
-            if index not in self.SUPPORTED_INDICES:
+            if not (index in self.SUPPORTED_INDICES or index == 'summary'):
                 return _response(20900, {"error": f"index '{index}' is not supported or unknown"})
             # error 20901
-            ds = self.ds_man.find(index)
+            ds, desc = None, ''
+            if index == 'summary':
+                for i in self.get_water_extraction_indices():
+                    ds = self.ds_man.find(i)
+                    if ds is not None:
+                        break
+            else:
+                ds = self.ds_man.find(index)
             if ds is None:
                 return _response(20902, {"error": f"index '{index}' is not calculated"})
 
-            ds = self.ds_man.get(ds)
-            # 
+            # request to external service here
+            desc = self.ds_man.get_description(ds)
+            if desc is None:
+                desc = ''
+            else:
+                if index == 'summary':
+                    desc = desc['notes']
+                else:
+                    desc = desc['notes'] + '\n' + desc['text']
 
             return _response(0, {
                 "index": index,
-                "desc": ds.description['notes'] + '\n' + ds.description['text'] if ds.description else ''
+                "desc": desc
             })
         
         return _response(-1, {"error": "how's this even possible?"})
@@ -907,6 +922,9 @@ class GdalExecutor:
 
     def get_supported_indices(self) -> tuple[str]:
         return self.SUPPORTED_INDICES
+
+    def get_water_extraction_indices(self) -> tuple[str]:
+        return self.WATER_EXTRACTION_INDICES
 
     def get_supported_operations(self) -> tuple[str]:
         return self.supported_operations

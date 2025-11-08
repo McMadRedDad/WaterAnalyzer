@@ -19,6 +19,7 @@ public:
     uint get_preview_height();
     void set_caption(QString caption);
     void set_statistics(double min, double max, double mean, double stdev, QString ph_unit);
+    void set_description(QString text);
     void hide_export_button(QString type);
     void hide_stats();
 
