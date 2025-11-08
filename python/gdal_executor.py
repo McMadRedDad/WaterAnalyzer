@@ -133,23 +133,25 @@ class DatasetManager:
         """Save the water mask."""
         self._water_mask = water_mask
 
-    def add_description(self, id_: int, full: bool, desc: str) -> None:
-        """Adds 'desc' to index's description. 'full' sets whether 'desc' represents complete description of the index or not."""
+    def add_description(self, id_: int, notes: str=None, desc: str=None) -> None:
+        """Adds 'notes' and 'desc' to index's description."""
 
         ds = self.get(id_)
         with self._lock:
             ds.description = {
-                'full': full,
-                'text': desc
+                'notes': notes if notes is not None else '',
+                'text': desc if desc is not None else ''
             }
             
-    def append_description(self, id_: int, full: bool, desc: str) -> None:
-        """Appends 'desc' to index's description without rewriting the existing one. 'full' sets whether 'desc' represents complete description of the index or not."""
+    def append_description(self, id_: int, notes: str=None, desc: str=None) -> None:
+        """Appends 'notes' and 'desc' to index's description without rewriting the existing one."""
 
         ds = self.get(id_)
         with self._lock:
-            ds.description['full'] = full
-            ds.description['text'] += text
+            if notes is not None:
+                ds.description['notes'] += notes
+            if desc is not None:
+                ds.description['text'] += text
 
     def remove_description(self, id_: int) -> None:
         ds = self.get(id_)
@@ -330,15 +332,15 @@ class GdalExecutor:
         self.proc_level = None
         print(f'Server running version {self.VERSION}')
 
-    def _index(self, index: str) -> (IndexErr, (tuple[float], str, np.ma.MaskedArray, gdal.GDT_Float32, float | int, str)):
+    def _index(self, index: str) -> (IndexErr, (tuple[float], str, np.ma.MaskedArray, gdal.GDT_Float32, float | int, str, str)):
         """Returns (None, (...)) on success and (err, ()) on failure."""
 
-        def _prepare_inputs(atm_correction: str, nodata: float | int, *bands: int) -> (IndexErr, (tuple[float], str, tuple[np.ma.MaskedArray])):
+        def _prepare_inputs(atm_correction: str, nodata: float | int, *bands: int) -> (IndexErr, (tuple[float], str, tuple[np.ma.MaskedArray], str)):
             if atm_correction not in ('toa_rad', 'toa_refl', 'ls_rad', 'ls_refl'):
                 raise ValueError(f'invalid argument "{atm_correction}"')
 
             inputs = []
-            geotransform, projection = None, ''
+            geotransform, projection, notes = None, '', ''
             for i in bands:
                 id_ = self.ds_man.find(str(i))
                 if id_ is None:
@@ -352,21 +354,25 @@ class GdalExecutor:
                     if self.proc_level == 'L1TP':
                         if atm_correction =='toa_rad':
                             inp = indcal.landsat_l1_dn_to_toa_radiance(inp, ds.radio_mult, ds.radio_add, nodata)
+                            notes = 'Рассчитано по излучению верхнего слоя атмосферы.'
                         if atm_correction == 'toa_refl':
                             sun_elev, es_dist = self.ds_man.get_sun_elevation(), self.ds_man.get_earth_sun_distance()
                             inp = indcal.landsat_l1_dn_to_toa_reflectance(inp, ds.radio_mult, ds.radio_add, sun_elev, es_dist, ds.rad_max, ds.refl_max, nodata)
+                            notes = 'Рассчитано по отражающей способности верхнего слоя атмосферы.'
                         # if atm_correction == 'ls_rad':
                         if atm_correction == 'ls_refl':
                             sun_elev, es_dist = self.ds_man.get_sun_elevation(), self.ds_man.get_earth_sun_distance()
                             inp = indcal.landsat_l1_dn_to_dos1_reflectance(inp, ds.radio_mult, ds.radio_add, sun_elev, es_dist, ds.rad_max, ds.refl_max, nodata)
+                            notes = 'Рассчитано по отражающей способности поверхности Земли.'
                     if self.proc_level == 'L2SP':
                         if atm_correction == 'ls_refl':
                             inp = indcal.landsat_l2_dn_to_ls_reflectance(inp, nodata)
+                            notes = 'Рассчитано по отражающей способности поверхности Земли.'
                 # if self.satellite == 'Sentinel 2':
                 inputs.append(inp)
-            return None, (geotransform, projection, inputs)
+            return None, (geotransform, projection, notes, inputs)
 
-        geotransform, projection = None, ''
+        geotransform, projection, notes = None, '', ''
         data_type, nodata, ph_unit = gdal.GDT_Float32, float('nan'), '--'
         result = None
         if index == 'test':
@@ -375,39 +381,43 @@ class GdalExecutor:
                 err, res = _prepare_inputs('toa_refl', nodata, 2, 4)
             if err is not None:
                 return err, ()
-            geotransform, projection, inputs = res
+            geotransform, projection, notes, inputs = res
             result = indcal._test(*inputs, nodata)
         if index == 'wi2015':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('toa_refl', nodata, 3, 4, 5, 6, 7)
             if err is not None:
                 return err, ()
-            geotransform, projection, inputs = res
+            geotransform, projection, notes, inputs = res
             result = indcal.wi2015(*inputs, nodata)
+            water, thresh = indcal.otsu_binarization(result, 0)
             self.ds_man.remove_water_mask()
-            self.ds_man.add_water_mask(indcal.otsu_binarization(result, 0))
+            self.ds_man.add_water_mask(water)
+            notes += '\n' + f'Классификация выполнена методом Оцу, пороговое значение {thresh}.'
         if index == 'andwi':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('toa_refl', nodata, 2, 3, 4, 5, 6, 7)
             if err is not None:
                 return err, ()
-            geotransform, projection, inputs = res
+            geotransform, projection, notes, inputs = res
             result = indcal.andwi(*inputs, nodata)
+            water, thresh = indcal.otsu_binarization(result, 0)
             self.ds_man.remove_water_mask()
-            self.ds_man.add_water_mask(indcal.otsu_binarization(result, 0))
+            self.ds_man.add_water_mask(water)
+            notes += '\n' + f'Классификация выполнена методом Оцу, пороговое значение {thresh}.'
         if index == 'nsmi':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('toa_refl', nodata, 4, 3, 2)
             if err is not None:
                 return err, ()
-            geotransform, projection, inputs = res
+            geotransform, projection, notes, inputs = res
             result = indcal.nsmi(*inputs, nodata)
         if index == 'oc3':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('toa_refl', nodata, 1, 2, 3)
             if err is not None:
                 return err, ()
-            geotransform, projection, inputs = res
+            geotransform, projection, notes, inputs = res
             result = indcal.oc3(*inputs, nodata)
         if index == 'cdom_ndwi':
             ph_unit = 'mg/L'
@@ -415,7 +425,7 @@ class GdalExecutor:
                 err, res = _prepare_inputs('toa_refl', nodata, 3, 5)
             if err is not None:
                 return err, ()
-            geotransform, projection, inputs = res
+            geotransform, projection, notes, inputs = res
             result = indcal.cdom_ndwi(*inputs, nodata)
         if index == 'toa_temperature_landsat':
             if not (self.satellite == 'Landsat 8/9' and self.proc_level == 'L1TP'):
@@ -424,7 +434,7 @@ class GdalExecutor:
             err, res = _prepare_inputs('toa_rad', nodata, 10)
             if err is not None:
                 return err, ()
-            geotransform, projection, inputs = res
+            geotransform, projection, _, inputs = res
             ds = self.ds_man.get(self.ds_man.find("10"))
             result = indcal.landsat_l1_toa_radiance_to_toa_temperature(*inputs, ds.thermal_k1, ds.thermal_k2, nodata, 'C')
         if index == 'ls_temperature_landsat':
@@ -444,26 +454,26 @@ class GdalExecutor:
                     err, res = self._index('toa_temperature_landsat')
                     if err is not None:
                         return err, ()
-                    geotransform, projection, temperature_toa, data_type, nodata, _ = res
+                    geotransform, projection, temperature_toa, data_type, nodata, _, _ = res
                 andwi = self.ds_man.find('andwi')
                 if andwi is not None:
                     andwi = self.ds_man.read_band(andwi, 1)
                 else:
                     err, res = self._index('andwi')
-                    _, _, andwi, _, _, _ = res
+                    _, _, andwi, _, _, _, _ = res
                 ndbi = self.ds_man.find('ndbi')
                 if ndbi is not None:
                     ndbi = self.ds_man.read_band(ndbi, 1)
                 else:
                     err, res = self._index('ndbi')
-                    _, _, ndbi, _, _, _ = res
+                    _, _, ndbi, _, _, _, _ = res
                 ndvi = self.ds_man.find('ndvi')
                 if ndvi is not None:
                     ndvi = self.ds_man.read_band(ndvi, 1)
                 else:
                     err, res = self._index('ndvi')
-                    _, _, ndvi, _, _, _ = res
-                water = indcal.otsu_binarization(andwi, 2)
+                    _, _, ndvi, _, _, _, _ = res
+                water, _ = indcal.otsu_binarization(andwi, 2)
                 water = np.ma.array(water, dtype=np.bool)
                 built_up = np.ma.empty(ndbi.shape, dtype=np.bool)
                 built_up[~ndbi.mask] = np.ma.where(ndbi[~ndbi.mask] > 0.2, True, False)
@@ -483,16 +493,16 @@ class GdalExecutor:
                 err, res = _prepare_inputs('ls_refl', nodata, 5, 4)
             if err is not None:
                 return err, ()
-            geotransform, projection, inputs = res
+            geotransform, projection, notes, inputs = res
             result = indcal.ndvi(*inputs, nodata)
         if index == 'ndbi':
             if self.satellite == 'Landsat 8/9':
                 err, res = _prepare_inputs('ls_refl', nodata, 6, 5)
             if err is not None:
                 return err, ()
-            geotransform, projection, inputs = res
+            geotransform, projection, notes, inputs = res
             result = indcal.ndbi(*inputs, nodata)
-        return None, (geotransform, projection, result, data_type, nodata, ph_unit)
+        return None, (geotransform, projection, result, data_type, nodata, ph_unit, notes)
 
     def execute(self, request: dict) -> dict:
         """Processes the request and returns a dictionary to be used by Protocol.send method.
@@ -657,7 +667,7 @@ class GdalExecutor:
             if err is not None:
                 return _response(err.code, {"error": err.msg})
             else:
-                geotransform, projection, result, data_type, nodata, ph_unit = res
+                geotransform, projection, result, data_type, nodata, ph_unit, notes_ = res
 
             res_ds = gdal.GetDriverByName('MEM').Create('', result.shape[1], result.shape[0], 1, data_type)
             res_ds.SetGeoTransform(geotransform)
@@ -672,6 +682,7 @@ class GdalExecutor:
                 'ph_unit': ph_unit
             }
             dataset_id = self.ds_man.add_index(res_ds, index, nodata, stats)
+            self.ds_man.add_description(dataset_id, notes=notes_)
 
             result = {
                 'url': dataset_id,
@@ -846,7 +857,7 @@ class GdalExecutor:
 
             return _response(0, {
                 "index": index,
-                "desc": ds.description['text'] if ds.description else ''
+                "desc": ds.description['notes'] + '\n' + ds.description['text'] if ds.description else ''
             })
         
         return _response(-1, {"error": "how's this even possible?"})

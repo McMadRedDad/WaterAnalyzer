@@ -45,8 +45,8 @@ def _otsu_threshold(array: np.ma.MaskedArray, nbins: int) -> float:
     
     return best_thresh
 
-def otsu_binarization(array: np.ma.MaskedArray, nodata: int, nbins: int=256) -> np.ma.MaskedArray[np.uint8]:
-    """Divide 'array' daat into two classes usin Otsu method. Returns a new array where 1=foreground, 0=background."""
+def otsu_binarization(array: np.ma.MaskedArray, nodata: int, nbins: int=256) -> (np.ma.MaskedArray[np.uint8], float):
+    """Divide 'array' daat into two classes usin Otsu method. Returns a new array where 1=foreground, 0=background and calculated threshold."""
 
     ret = np.ma.empty(array.shape, dtype=np.uint8)
     mask = array.mask
@@ -54,7 +54,7 @@ def otsu_binarization(array: np.ma.MaskedArray, nodata: int, nbins: int=256) -> 
     ret[~mask] = np.ma.where(array[~mask] > threshold, 1, 0)
     ret[mask] = nodata
     ret.mask = mask
-    return ret
+    return ret, threshold
 
 def cloud_mask(array: np.ma.MaskedArray, bit_pos: int) -> np.ma.MaskedArray[np.bool]:
     """Returns a boolean array of bits at 'bit_pos'."""
