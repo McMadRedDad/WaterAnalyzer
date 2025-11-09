@@ -302,7 +302,7 @@ class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('3.2.1')
     SUPPORTED_INDICES = ('test', 'water_mask', 'ndbi', 'wi2015', 'andwi', 'ndwi', 'nsmi', 'oc3', 'cdom_ndwi', 'toa_temperature_landsat', 'ls_temperature_landsat')
-    WATER_EXTRACTION_INDICES = ('wi2105', 'andwi', 'ndwi')
+    WATER_EXTRACTION_INDICES = ('wi2015', 'andwi', 'ndwi')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
     }

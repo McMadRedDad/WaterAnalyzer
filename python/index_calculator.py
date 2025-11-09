@@ -249,103 +249,103 @@ def _test(array1: np.ma.MaskedArray, array2: np.ma.MaskedArray, nodata: int | fl
 def wi2015(green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedArray, swir1: np.ma.MaskedArray, swir2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """1.7204 + 171*green + 3*red - 70*nir - 45*swir1 - 71*swir2"""
     
-    wi2015 = np.ma.empty(green.shape, dtype=np.float32)
+    ret = np.ma.empty(green.shape, dtype=np.float32)
     mask = _full_mask(green, red, nir, swir1, swir2)
-    wi2015 = 1.7204 + 171*green + 3*red - 70*nir - 45*swir1 - 71*swir2
-    wi2015[mask] = nodata
-    wi2015.mask = mask
-    return wi2015
+    ret = 1.7204 + 171*green + 3*red - 70*nir - 45*swir1 - 71*swir2
+    ret[mask] = nodata
+    ret.mask = mask
+    return ret
 
 def andwi(blue: np.ma.MaskedArray, green: np.ma.MaskedArray, red: np.ma.MaskedArray, nir: np.ma.MaskedArray, swir1: np.ma.MaskedArray, swir2: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """(blue + green + red - nir - swir1 - swir2) / (blue + green + red + nir + swir1 + swir2)"""
     
-    andwi = np.ma.empty(blue.shape, dtype=np.float32)
+    ret = np.ma.empty(blue.shape, dtype=np.float32)
     mask = _full_mask(blue, green, red, nir, swir1, swir2)
     numerator = blue + green + red - nir - swir1 - swir2
     denominator = blue + green + red + nir + swir1 + swir2
     zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
-    andwi[~zeros] = numerator[~zeros] / denominator[~zeros]
-    andwi[zeros] = nodata
-    andwi[mask] = nodata
-    andwi.mask = mask | zeros
-    return andwi
+    ret[~zeros] = numerator[~zeros] / denominator[~zeros]
+    ret[zeros] = nodata
+    ret[mask] = nodata
+    ret.mask = mask | zeros
+    return ret
 
 def ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """(green - nir) / (green + nir)"""
     
-    ndwi = np.ma.empty(green.shape, dtype=np.float32)
+    ret = np.ma.empty(green.shape, dtype=np.float32)
     mask = _full_mask(green, nir)
     numerator = green - nir
     denominator = green + nir
     zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
-    ndwi[~zeros] = numerator[~zeros] / denominator[~zeros]
-    ndwi[zeros] = nodata
-    ndwi[mask] = nodata
-    ndwi.mask = mask | zeros
-    return ndwi
+    ret[~zeros] = numerator[~zeros] / denominator[~zeros]
+    ret[zeros] = nodata
+    ret[mask] = nodata
+    ret.mask = mask | zeros
+    return ret
 
 def nsmi(red: np.ma.MaskedArray, green: np.ma.MaskedArray, blue: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """(red + green - blue) / (red + green + blue)"""
     
-    nsmi = np.ma.empty(red.shape, dtype=np.float32)
+    ret = np.ma.empty(red.shape, dtype=np.float32)
     mask = _full_mask(red, green, blue)
     numerator = red + green - blue
     denominator = red + green + blue
     zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
-    nsmi[~zeros] = numerator[~zeros] / denominator[~zeros]
-    nsmi[zeros] = nodata
-    nsmi[mask] = nodata
-    nsmi.mask = mask | zeros
-    return nsmi
+    ret[~zeros] = numerator[~zeros] / denominator[~zeros]
+    ret[zeros] = nodata
+    ret[mask] = nodata
+    ret.mask = mask | zeros
+    return ret
 
 def oc3(aerosol: np.ma.MaskedArray, blue: np.ma.MaskedArray, green: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """max(aerosol, blue) / green"""
 
-    oc3 = np.ma.empty(aerosol.shape, dtype=np.float32)
+    ret = np.ma.empty(aerosol.shape, dtype=np.float32)
     mask = _full_mask(aerosol, blue, green)
     zeros = np.isclose(green, 0, atol=FLOAT_PRECISION)
-    oc3[~zeros] = np.maximum(aerosol, blue)[~zeros] / green[~zeros]
-    oc3[zeros] = nodata
-    oc3[mask] = nodata
-    oc3.mask = mask | zeros
-    return oc3
+    ret[~zeros] = np.maximum(aerosol, blue)[~zeros] / green[~zeros]
+    ret[zeros] = nodata
+    ret[mask] = nodata
+    ret.mask = mask | zeros
+    return ret
 
 def cdom_ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """2119.5*ndwi^3 + 4559.1*ndwi^2 - 2760.4*ndwi + 603.6
     ndwi = (green - nir) / (green + nir)"""
 
-    cdom_ndwi = np.ma.empty(green.shape, dtype=np.float32)
+    ret = np.ma.empty(green.shape, dtype=np.float32)
     ndwi_ = ndwi(green, nir, nodata)
     mask = ndwi_.mask
-    cdom_ndwi = 2119.5*ndwi_**3 + 4559.1*ndwi_**2 - 2760.4*ndwi_ + 603.6
-    cdom_ndwi[mask] = nodata
-    cdom_ndwi.mask = mask
-    return cdom_ndwi
+    ret = 2119.5*ndwi_**3 + 4559.1*ndwi_**2 - 2760.4*ndwi_ + 603.6
+    ret[mask] = nodata
+    ret.mask = mask
+    return ret
 
 def ndvi(nir: np.ma.MaskedArray, red: np.ma.MaskedArray, nodata: float | int) -> np.ma.MaskedArray[np.float32]:
     """(nir - red) / (nir + red)"""
 
-    ndvi = np.ma.empty(nir.shape, dtype=np.float32)
+    ret = np.ma.empty(nir.shape, dtype=np.float32)
     mask = _full_mask(nir, red)
     numerator = nir - red
     denominator = nir + red
     zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
-    ndvi[~zeros] = numerator[~zeros] / denominator[~zeros]
-    ndvi[zeros] = nodata
-    ndvi[mask] = nodata
-    ndvi.mask = mask | zeros
-    return ndvi
+    ret[~zeros] = numerator[~zeros] / denominator[~zeros]
+    ret[zeros] = nodata
+    ret[mask] = nodata
+    ret.mask = mask | zeros
+    return ret
 
 def ndbi(swir1: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """(swir1 - nir) / (swir1 + nir)"""
     
-    ndbi = np.ma.empty(swir1.shape, dtype=np.float32)
+    ret = np.ma.empty(swir1.shape, dtype=np.float32)
     mask = _full_mask(swir1, nir)
     numerator = swir1 - nir
     denominator = swir1 + nir
     zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
-    ndbi[~zeros] = numerator[~zeros] / denominator[~zeros]
-    ndbi[zeros] = nodata
-    ndbi[mask] = nodata
-    ndbi.mask = mask | zeros
-    return ndbi
+    ret[~zeros] = numerator[~zeros] / denominator[~zeros]
+    ret[zeros] = nodata
+    ret[mask] = nodata
+    ret.mask = mask | zeros
+    return ret
