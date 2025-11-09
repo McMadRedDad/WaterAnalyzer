@@ -209,6 +209,8 @@ def landsat_l2_dn_to_ls_reflectance(dn: np.ma.MaskedArray, nodata: float | int) 
     ls_refl = np.ma.empty(dn.shape, dtype=np.float32)
     mask = dn.mask
     ls_refl = 0.0000275 * dn - 0.2
+    ls_refl[ls_refl < 0] = FLOAT_PRECISION * 1.01
+    ls_refl[np.isclose(ls_refl, 0, atol=FLOAT_PRECISION)] = FLOAT_PRECISION * 1.01
     ls_refl[mask] = nodata
     ls_refl.mask = mask
     return ls_refl
@@ -313,17 +315,11 @@ def cdom_ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | fl
     ndwi = (green - nir) / (green + nir)"""
 
     cdom_ndwi = np.ma.empty(green.shape, dtype=np.float32)
-    ndwi = np.ma.empty(green.shape, dtype=np.float32)
-    mask = _full_mask(green, nir)
-    numerator = green - nir
-    denominator = green + nir
-    zeros = np.isclose(denominator, 0, atol=FLOAT_PRECISION)
-    ndwi[~zeros] = numerator[~zeros] / denominator[~zeros]
-    ndwi[zeros] = nodata
-    cdom_ndwi[~zeros] = 2119.5*ndwi[~zeros]**3 + 4559.1*ndwi[~zeros]**2 - 2760.4*ndwi[~zeros] + 603.6
-    cdom_ndwi[zeros] = nodata
+    ndwi_ = ndwi(green, nir, nodata)
+    mask = ndwi_.mask
+    cdom_ndwi = 2119.5*ndwi_**3 + 4559.1*ndwi_**2 - 2760.4*ndwi_ + 603.6
     cdom_ndwi[mask] = nodata
-    cdom_ndwi.mask = mask | zeros
+    cdom_ndwi.mask = mask
     return cdom_ndwi
 
 def ndvi(nir: np.ma.MaskedArray, red: np.ma.MaskedArray, nodata: float | int) -> np.ma.MaskedArray[np.float32]:

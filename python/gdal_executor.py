@@ -324,9 +324,9 @@ class GdalExecutor:
     def _index(self, index: str) -> (IndexErr, (tuple[float], str, np.ma.MaskedArray, gdal.GDT_Float32, float | int, str, str)):
         """Returns (None, (...)) on success and (err, ()) on failure."""
 
-        def _prepare_inputs(atm_correction: str, nodata: float | int, *bands: int) -> (IndexErr, (tuple[float], str, tuple[np.ma.MaskedArray], str)):
-            if atm_correction not in ('toa_rad', 'toa_refl', 'ls_rad', 'ls_refl'):
-                raise ValueError(f'invalid argument "{atm_correction}"')
+        def _prepare_inputs(convert_to: str, nodata: float | int, *bands: int) -> (IndexErr, (tuple[float], str, tuple[np.ma.MaskedArray], str)):
+            if convert_to not in ('toa_rad', 'toa_refl', 'ls_rad', 'ls_refl'):
+                raise ValueError(f'invalid argument "{convert_to}"')
 
             inputs = []
             geotransform, projection, notes = None, '', ''
@@ -341,20 +341,20 @@ class GdalExecutor:
                     projection = ds.dataset.GetProjection()
                 if self.satellite == 'Landsat 8/9':
                     if self.proc_level == 'L1TP':
-                        if atm_correction =='toa_rad':
+                        if convert_to =='toa_rad':
                             inp = indcal.landsat_l1_dn_to_toa_radiance(inp, ds.radio_mult, ds.radio_add, nodata)
                             notes = 'Рассчитано по излучению верхнего слоя атмосферы.'
-                        if atm_correction == 'toa_refl':
+                        if convert_to == 'toa_refl':
                             sun_elev, es_dist = self.ds_man.get_sun_elevation(), self.ds_man.get_earth_sun_distance()
                             inp = indcal.landsat_l1_dn_to_toa_reflectance(inp, ds.radio_mult, ds.radio_add, sun_elev, es_dist, ds.rad_max, ds.refl_max, nodata)
                             notes = 'Рассчитано по отражательной способности верхнего слоя атмосферы.'
-                        # if atm_correction == 'ls_rad':
-                        if atm_correction == 'ls_refl':
+                        # if convert_to == 'ls_rad':
+                        if convert_to == 'ls_refl':
                             sun_elev, es_dist = self.ds_man.get_sun_elevation(), self.ds_man.get_earth_sun_distance()
                             inp = indcal.landsat_l1_dn_to_dos1_reflectance(inp, ds.radio_mult, ds.radio_add, sun_elev, es_dist, ds.rad_max, ds.refl_max, nodata)
-                            notes = 'Рассчитано по отражательной способности поверхности Земли, корректировка атмосферного влияния методом DOS1.'
+                            notes = 'Рассчитано по отражательной способности поверхности Земли, корректировка влияния атмосферы методом DOS1.'
                     if self.proc_level == 'L2SP':
-                        if atm_correction == 'ls_refl':
+                        if convert_to == 'ls_refl':
                             inp = indcal.landsat_l2_dn_to_ls_reflectance(inp, nodata)
                             notes = 'Рассчитано по отражательной способности поверхности Земли.'
                 # if self.satellite == 'Sentinel 2':
@@ -364,15 +364,17 @@ class GdalExecutor:
         geotransform, projection, notes = [], '', ''
         data_type, nodata, ph_unit = gdal.GDT_Float32, float('nan'), '--'
         result = None
+        conversion = ''
         if self.satellite == 'Landsat 8/9':
             if self.proc_level == 'L1TP':
-                conv = 'toa_refl'
+                conversion = 'toa_refl'
             else:
-                conv = 'ls_refl'
+                conversion = 'ls_refl'
+
         if index == 'test':
             nodata = -99999.0
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs(conv, nodata, 2, 4)
+                err, res = _prepare_inputs(conversion, nodata, 2, 4)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
@@ -397,39 +399,39 @@ class GdalExecutor:
                 result = result.astype(np.bool)
                 notes += '\n' + f'Классификация выполнена методом Оцу, пороговое значение {thresh}.'
             if ds.band == 'ndwi':
-                result = np.ma.array(result > 0.01, dtype=np.bool)
+                result = np.ma.array(self.ds_man.read_band(id_, 1) > 0.01, dtype=np.bool)
                 notes += '\n' + 'Классификация выполнена по пороговому значению 0.01.'
         if index == 'wi2015':
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs(conv, nodata, 3, 4, 5, 6, 7)
+                err, res = _prepare_inputs(conversion, nodata, 3, 4, 5, 6, 7)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
             result = indcal.wi2015(*inputs, nodata)
         if index == 'andwi':
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs(conv, nodata, 2, 3, 4, 5, 6, 7)
+                err, res = _prepare_inputs(conversion, nodata, 2, 3, 4, 5, 6, 7)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
             result = indcal.andwi(*inputs, nodata)
         if index == 'ndwi':
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs(conv, nodata, 3, 5)
+                err, res = _prepare_inputs(conversion, nodata, 3, 5)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
             result = indcal.ndwi(*inputs, nodata)
         if index == 'nsmi':
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs(conv, nodata, 4, 3, 2)
+                err, res = _prepare_inputs(conversion, nodata, 4, 3, 2)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
             result = indcal.nsmi(*inputs, nodata)
         if index == 'oc3':
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs(conv, nodata, 1, 2, 3)
+                err, res = _prepare_inputs(conversion, nodata, 1, 2, 3)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
@@ -437,7 +439,7 @@ class GdalExecutor:
         if index == 'cdom_ndwi':
             ph_unit = 'mg/L'
             if self.satellite == 'Landsat 8/9':
-                err, res = _prepare_inputs(conv, nodata, 3, 5)
+                err, res = _prepare_inputs(conversion, nodata, 3, 5)
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
