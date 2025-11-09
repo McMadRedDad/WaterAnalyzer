@@ -180,12 +180,12 @@
        </item>
        <item>
         <property name="text">
-         <string>WI2015</string>
+         <string>NDWI</string>
         </property>
        </item>
        <item>
         <property name="text">
-         <string>NDWI</string>
+         <string>WI2015</string>
         </property>
        </item>
       </widget>

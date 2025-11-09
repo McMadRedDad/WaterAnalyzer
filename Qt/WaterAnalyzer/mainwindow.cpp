@@ -104,30 +104,24 @@ void MainWindow::handle_error(QNetworkReply *response) {
         return;
     }
 
-    auto raw_header_pairs = response->rawHeaderPairs();
-    for (const auto &header : raw_header_pairs) {
-        if (QString::fromUtf8(header.first).toLower() == "request-id") {
-            size_t l = self.req_ids.length();
-            for (size_t i = 0; i < l; ++i) {
-                if (self.req_ids[i] == header.second.toUInt()) {
-                    self.req_ids.remove(i);
-                    lock_interface();
-                    break;
-                }
-            }
+    size_t l = self.req_ids.length();
+    uint   id = response->request().rawHeader("request-id").toUInt();
+    for (size_t i = 0; i < l; i++) {
+        if (self.req_ids[i] == id) {
+            self.req_ids.remove(i);
+            lock_interface();
             break;
         }
     }
-    for (const auto &header : raw_header_pairs) {
-        if (QString::fromUtf8(header.first).toLower() == "reason") {
-            append_log("bad",
-                       QString("Некорректный HTTP-запрос к серверу: %1 %2, Reason: %3")
-                           .arg(response->attribute(QNetworkRequest::HttpStatusCodeAttribute).toString(),
-                                response->attribute(QNetworkRequest::HttpReasonPhraseAttribute).toString(),
-                                QString::fromUtf8(header.second)));
-            set_status_message(false, "Некорректный HTTP-запрос");
-            return;
-        }
+
+    if (response->hasRawHeader("reason")) {
+        append_log("bad",
+                   QString("Некорректный HTTP-запрос к серверу: %1 %2, Reason: %3")
+                       .arg(response->attribute(QNetworkRequest::HttpStatusCodeAttribute).toString(),
+                            response->attribute(QNetworkRequest::HttpReasonPhraseAttribute).toString(),
+                            QString::fromUtf8(response->rawHeader("reason"))));
+        set_status_message(false, "Некорректный HTTP-запрос");
+        return;
     }
 
     QJsonDocument jdoc = QJsonDocument::fromJson(response->readAll());
@@ -149,8 +143,8 @@ void MainWindow::handle_error(QNetworkReply *response) {
 
 void MainWindow::process_get(QUrl endpoint, QHttpHeaders headers, QByteArray body, QMap<QString, QString> options) {
     size_t l = self.req_ids.length();
-    uint   id = headers.value("Request-ID").toUInt();
-    for (size_t i = 0; i < l; ++i) {
+    uint   id = headers.value("request-id").toUInt();
+    for (size_t i = 0; i < l; i++) {
         if (self.req_ids[i] == id) {
             self.req_ids.remove(i);
             lock_interface();
@@ -203,8 +197,8 @@ void MainWindow::process_get(QUrl endpoint, QHttpHeaders headers, QByteArray bod
 
 void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray body, QMap<QString, QString> options) {
     size_t l = self.req_ids.length();
-    uint   id = headers.value("Request-ID").toUInt();
-    for (size_t i = 0; i < l; ++i) {
+    uint   id = headers.value("request-id").toUInt();
+    for (size_t i = 0; i < l; i++) {
         if (self.req_ids[i] == id) {
             self.req_ids.remove(i);
             lock_interface();
@@ -259,10 +253,10 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
         ds.ph_unit = info["ph_unit"].toString();
         self.datasets.append(ds);
 
-        if (get_type_by_index(result["index"].toString()) == "water") {
+        if (get_type_by_index(ds.index) == "water") {
             send_request("command", proto.calc_index("water_mask"));
         }
-        if (result["index"].toString() != "water_mask") {
+        if (ds.index != "water_mask") {
             uint width = self.result_p->get_preview_width();
             uint height = self.result_p->get_preview_height();
             send_request("command", proto.calc_preview(ds.index, width, height), options);
@@ -627,8 +621,9 @@ void MainWindow::change_page(PAGE to) {
         auto indices = [this](QStringList indices) {
             for (QString &index : indices) {
                 index = index.toLower();
-                // if (!(index == "ndwi" || index == "andwi" || index == "wi2015"))
-                //     continue;
+                if (!(index == "ndwi" || index == "andwi" || index == "wi2015"))
+                    // if (index != "cdom_ndwi")
+                    continue;
                 QMap<QString, QString> options = {{"preview_type", get_type_by_index(index)}, {"scalebar", "1"}, {"mask", "0"}};
                 send_request("command", proto.calc_index(index), options);
             }
@@ -748,20 +743,21 @@ void MainWindow::on_pb_show_log_clicked() {
 void MainWindow::closeEvent(QCloseEvent *e) {
     if (self.page != PAGE::IMPORT) {
         QMessageBox *msg = new QMessageBox(this);
-        QPushButton *y = new QPushButton("Да");
+        QPushButton *n = new QPushButton("Нет");
         msg->setWindowTitle("Вы уверены?");
         msg->setText("Выйти из программы?");
-        msg->addButton(y, QMessageBox::YesRole);
-        msg->addButton("Нет", QMessageBox::NoRole);
+        msg->addButton("Да", QMessageBox::YesRole);
+        msg->addButton(n, QMessageBox::NoRole);
+        msg->setDefaultButton(n);
         msg->exec();
-        if (msg->clickedButton() == y) {
+        if (msg->clickedButton() == n) {
+            e->ignore();
+        } else {
             send_request("command", proto.end_session());
             // send_request -> finish server
             e->accept();
-        } else {
-            e->ignore();
         }
-        y->deleteLater();
+        n->deleteLater();
         msg->deleteLater();
     } else {
         send_request("command", proto.end_session());

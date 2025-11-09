@@ -49,6 +49,11 @@ void ProcessPage::fill_metadata(QStringList metadata) {
 
 void ProcessPage::show_temperature_toa(bool yes) {
     if (yes) {
+        for (int i = 0; i < ui->combo_temp->count(); i++) {
+            if (ui->combo_temp->itemText(i).contains("атмосферы")) {
+                return;
+            }
+        }
         ui->combo_temp->addItem("Поверхность атмосферы");
     } else {
         for (int i = 0; i < ui->combo_temp->count(); i++) {
