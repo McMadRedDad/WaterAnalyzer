@@ -301,7 +301,7 @@ class IndexErr:
 class GdalExecutor:
     VERSION = '1.0.0'
     SUPPORTED_PROTOCOL_VERSIONS = ('3.2.1')
-    SUPPORTED_INDICES = ('test', 'water_mask', 'ndbi', 'wi2015', 'andwi', 'ndwi', 'nsmi', 'oc3', 'cdom_ndwi', 'toa_temperature_landsat', 'ls_temperature_landsat')
+    SUPPORTED_INDICES = ('test', 'water_mask', 'ndbi', 'wi2015', 'andwi', 'ndwi', 'nsmi', 'oc3', 'oc3_concentration', 'cdom_ndwi', 'toa_temperature_landsat', 'ls_temperature_landsat')
     WATER_EXTRACTION_INDICES = ('wi2015', 'andwi', 'ndwi')
     SUPPORTED_SATELLITES = {
         'Landsat 8/9': ('L1TP', 'L2SP')
@@ -436,6 +436,15 @@ class GdalExecutor:
                 return err, ()
             geotransform, projection, notes, inputs = res
             result = indcal.oc3(*inputs, nodata)
+        if index == 'oc3_concentration':
+            ph_unit = 'mg/m^3'
+            if self.satellite == 'Landsat 8/9':
+                err, res = _prepare_inputs(conversion, nodata, 1, 2, 3)
+            if err is not None:
+                return err, ()
+            geotransform, projection, notes, inputs = res
+            notes += ' Концентрация хлорофилла рассчитана с помощью эмпирического полинома. Результат требует валидации.'
+            result = indcal.oc3_concentration(*inputs, nodata)
         if index == 'cdom_ndwi':
             ph_unit = 'mg/L'
             if self.satellite == 'Landsat 8/9':

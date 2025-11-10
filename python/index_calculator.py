@@ -310,6 +310,21 @@ def oc3(aerosol: np.ma.MaskedArray, blue: np.ma.MaskedArray, green: np.ma.Masked
     ret.mask = mask | zeros
     return ret
 
+def oc3_concentration(aerosol: np.ma.MaskedArray, blue: np.ma.MaskedArray, green: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
+    """OC3 = max(aerosol, blue) / green
+    OC = log10(OC3)
+    concentration = 0.30963 -2.40052 * OC + 1.28932 * OC^2 + 0.52802 * OC^3 -1.33825 * OC^4"""
+
+    ret = np.ma.empty(aerosol.shape, dtype=np.float32)
+    oc3_ = oc3(aerosol, blue, green, nodata)
+    mask = oc3_.mask
+    oc = np.log10(oc3_)
+    ret = 0.30963 - 2.40052*oc + 1.28932*oc**2 + 0.52802*oc**3 - 1.33825*oc**4
+    ret[ret < 0] = 0
+    ret[mask] = nodata
+    ret.mask = mask
+    return ret
+
 def cdom_ndwi(green: np.ma.MaskedArray, nir: np.ma.MaskedArray, nodata: int | float) -> np.ma.MaskedArray[np.float32]:
     """2119.5*ndwi^3 + 4559.1*ndwi^2 - 2760.4*ndwi + 603.6
     ndwi = (green - nir) / (green + nir)"""
