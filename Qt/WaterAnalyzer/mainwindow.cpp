@@ -257,15 +257,11 @@ void MainWindow::process_post(QUrl endpoint, QHttpHeaders headers, QByteArray bo
             send_request("command", proto.calc_index("water_mask"));
         }
         if (ds.index != "water_mask") {
-            uint width = self.result_p->get_preview_width();
-            uint height = self.result_p->get_preview_height();
-            send_request("command", proto.calc_preview(ds.index, width, height), options);
             send_request("command", proto.generate_description(ds.index, "ru"));
         }
 
         self.result_p->set_caption(get_type_by_index(ds.index), ds.index.toUpper());
         self.result_p->set_statistics(get_type_by_index(ds.index), ds.min, ds.max, ds.mean, ds.stdev, ds.ph_unit);
-
         append_log("info", "Индекс " + result["index"].toString() + " рассчитан.");
         set_status_message(true, "Индекс рассчитан");
     } else if (command == "set_satellite") {
@@ -332,7 +328,7 @@ QString MainWindow::get_type_by_index(QString index) {
         return "";
     } else if (indx == "nsmi") {
         return "tss";
-    } else if (indx == "oc3") {
+    } else if (indx == "oc3" || indx == "oc3_concentration") {
         return "chloro";
     } else if (indx == "cdom_ndwi") {
         return "cdom";
@@ -362,7 +358,7 @@ QString MainWindow::get_index_by_type(QString type) {
         return "";
     } else if (type == "chloro") {
         for (DATASET &ds : self.datasets) {
-            if (ds.index == "oc3") {
+            if (ds.index == "oc3" || ds.index == "oc3_concentration") {
                 return ds.index;
             }
         }
@@ -621,9 +617,9 @@ void MainWindow::change_page(PAGE to) {
         auto indices = [this](QStringList indices) {
             for (QString &index : indices) {
                 index = index.toLower();
-                if (!(index == "ndwi" || index == "andwi" || index == "wi2015"))
-                    // if (index != "cdom_ndwi")
-                    continue;
+                // if (!(index == "ndwi" || index == "andwi" || index == "wi2015"))
+                //     // if (index != "cdom_ndwi")
+                //     continue;
                 QMap<QString, QString> options = {{"preview_type", get_type_by_index(index)}, {"scalebar", "1"}, {"mask", "0"}};
                 send_request("command", proto.calc_index(index), options);
             }
@@ -651,13 +647,7 @@ void MainWindow::change_page(PAGE to) {
         break;
     }
     case PAGE::RESULT: {
-        auto preview = [this](QString mask) {
-            uint                   width = self.result_p->get_preview_width();
-            uint                   height = self.result_p->get_preview_height();
-            QMap<QString, QString> options = {{"preview_type", "summary"}, {"scalebar", "0"}, {"mask", mask}};
-            send_request("command", proto.calc_preview("nat_col", width, height), options);
-        };
-        auto refresh_previews = [this, preview]() {
+        auto refresh_previews = [this]() {
             uint width = self.result_p->get_preview_width();
             uint height = self.result_p->get_preview_height();
             for (DATASET &ds : self.datasets) {
@@ -666,8 +656,9 @@ void MainWindow::change_page(PAGE to) {
                     send_request("command", proto.calc_preview(ds.index, width, height), options);
                 }
             }
+            QMap<QString, QString> options = {{"preview_type", "summary"}, {"scalebar", "0"}, {"mask", "1"}};
+            send_request("command", proto.calc_preview("nat_col", width, height), options);
             send_request("command", proto.generate_description("summary", "ru"));
-            preview("1");
         };
         auto export_index = [this](QString type) {
             QString index = get_index_by_type(type);
@@ -688,10 +679,10 @@ void MainWindow::change_page(PAGE to) {
 
         self.page = PAGE::RESULT;
 
+        self.result_p->clear_previews();
         ui->pb_back->show();
         ui->widget_main->layout()->addWidget(self.result_p);
         self.result_p->show();
-        preview("0");
         break;
     }
     default:

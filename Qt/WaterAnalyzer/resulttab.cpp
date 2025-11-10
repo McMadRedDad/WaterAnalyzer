@@ -24,6 +24,10 @@ uint ResultTab::get_preview_height() {
     return ui->lbl_preview->height() - 2;
 }
 
+void ResultTab::clear_preview() {
+    ui->lbl_preview->clear();
+}
+
 void ResultTab::set_caption(QString caption) {
     ui->lbl_caption->setText(caption);
 }

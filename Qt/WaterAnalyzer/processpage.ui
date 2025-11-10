@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>818</width>
-    <height>547</height>
+    <width>928</width>
+    <height>544</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -126,7 +126,59 @@
        </property>
       </widget>
      </item>
-     <item row="6" column="0" colspan="3">
+     <item row="5" column="3">
+      <widget class="QComboBox" name="combo_temp">
+       <item>
+        <property name="text">
+         <string>Атмосфера</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Земля</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="4" column="0" colspan="2">
+      <widget class="QLabel" name="lsl_cdom">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Растворённые орг. частицы</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="3" rowspan="2">
+      <widget class="QComboBox" name="combo_water">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <item>
+        <property name="text">
+         <string>NDWI</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>ANDWI</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>WI2015</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="6" column="0" colspan="4">
       <spacer name="verticalSpacer">
        <property name="orientation">
         <enum>Qt::Orientation::Vertical</enum>
@@ -139,58 +191,7 @@
        </property>
       </spacer>
      </item>
-     <item row="7" column="0" rowspan="2" colspan="3" alignment="Qt::AlignmentFlag::AlignHCenter">
-      <widget class="QPushButton" name="pb_go">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Рассчитать</string>
-       </property>
-      </widget>
-     </item>
-     <item row="4" column="0" colspan="2">
-      <widget class="QLabel" name="lsl_cdom">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>CDOM</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="2" rowspan="2">
-      <widget class="QComboBox" name="combo_water">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <item>
-        <property name="text">
-         <string>ANDWI</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>NDWI</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>WI2015</string>
-        </property>
-       </item>
-      </widget>
-     </item>
-     <item row="3" column="2">
+     <item row="3" column="3">
       <widget class="QComboBox" name="combo_tss">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -205,47 +206,7 @@
        </item>
       </widget>
      </item>
-     <item row="2" column="0" colspan="2">
-      <widget class="QLabel" name="lbl_chloro">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Chlorophyll-a</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="0" colspan="2">
-      <widget class="QLabel" name="lbl_tss">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>TSS</string>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="2">
-      <widget class="QComboBox" name="combo_temp">
-       <item>
-        <property name="text">
-         <string>Поверхность атмосферы</string>
-        </property>
-       </item>
-       <item>
-        <property name="text">
-         <string>Поверхность Земли</string>
-        </property>
-       </item>
-      </widget>
-     </item>
-     <item row="4" column="2">
+     <item row="4" column="3">
       <widget class="QComboBox" name="combo_cdom">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -260,7 +221,7 @@
        </item>
       </widget>
      </item>
-     <item row="2" column="2">
+     <item row="2" column="3">
       <widget class="QComboBox" name="combo_chloro">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -273,6 +234,24 @@
          <string>OC3</string>
         </property>
        </item>
+       <item>
+        <property name="text">
+         <string>OC3_concentration</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="2" column="0" colspan="2">
+      <widget class="QLabel" name="lbl_chloro">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Хлорофилл</string>
+       </property>
       </widget>
      </item>
      <item row="0" column="0" rowspan="2" colspan="2">
@@ -285,6 +264,75 @@
        </property>
        <property name="text">
         <string>Границы воды</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0" colspan="2">
+      <widget class="QLabel" name="lbl_tss">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Взвешенные частицы</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0" rowspan="2" colspan="4" alignment="Qt::AlignmentFlag::AlignHCenter">
+      <widget class="QPushButton" name="pb_go">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Рассчитать</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="2" rowspan="2">
+      <widget class="QLabel" name="lbl_warn_water">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+        </font>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="scaledContents">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="2">
+      <widget class="QLabel" name="lbl_warn_chloro">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="QLabel" name="lbl_warn_tss">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="2">
+      <widget class="QLabel" name="lbl_warn_cdom">
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="2">
+      <widget class="QLabel" name="lbl_warn_temp">
+       <property name="text">
+        <string/>
        </property>
       </widget>
      </item>

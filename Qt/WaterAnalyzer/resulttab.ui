@@ -39,6 +39,9 @@
         <property name="frameShape">
          <enum>QFrame::Shape::NoFrame</enum>
         </property>
+        <property name="editTriggers">
+         <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+        </property>
         <property name="sortingEnabled">
          <bool>false</bool>
         </property>

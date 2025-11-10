@@ -18,6 +18,7 @@ public:
     void set_preview(QString page, QPixmap image);
     uint get_preview_width();
     uint get_preview_height();
+    void clear_previews();
     void set_caption(QString page, QString caption);
     void set_statistics(QString page, double min, double max, double mean, double stdev, QString ph_unit);
     void set_description(QString page, QString text);

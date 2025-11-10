@@ -452,6 +452,7 @@ class GdalExecutor:
             if err is not None:
                 return err, ()
             geotransform, projection, notes, inputs = res
+            notes += ' Концентрация цветных органических частиц рассчитана с помощью эмпирического полинома. Результат требует валидации.'
             result = indcal.cdom_ndwi(*inputs, nodata)
         if index == 'toa_temperature_landsat':
             if not (self.satellite == 'Landsat 8/9' and self.proc_level == 'L1TP'):

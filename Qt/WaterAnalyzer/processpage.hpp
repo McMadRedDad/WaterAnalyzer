@@ -24,6 +24,11 @@ private slots:
     void on_pb_refresh_clicked();
     void on_pb_meta_clicked();
     void on_pb_go_clicked();
+    void on_combo_water_currentTextChanged(const QString &arg1);
+    void on_combo_chloro_currentTextChanged(const QString &arg1);
+    void on_combo_tss_currentTextChanged(const QString &arg1);
+    void on_combo_cdom_currentTextChanged(const QString &arg1);
+    void on_combo_temp_currentTextChanged(const QString &arg1);
 
 signals:
     void preview(uint w, uint h);

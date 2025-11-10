@@ -76,6 +76,15 @@ uint ResultPage::get_preview_height() {
     return water->get_preview_height();
 }
 
+void ResultPage::clear_previews() {
+    summary->clear_preview();
+    water->clear_preview();
+    chloro->clear_preview();
+    tss->clear_preview();
+    cdom->clear_preview();
+    temp->clear_preview();
+}
+
 void ResultPage::set_caption(QString page, QString caption) {
     if (page == "summary") {
         summary->set_caption(caption);
