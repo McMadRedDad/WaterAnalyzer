@@ -285,7 +285,12 @@ def handle_resource(res_type):
         img = Image.fromarray(rgba.array)
         if scalebar == '1':
             id__ = executor.ds_man.find(rgba.index)
-            img = image_with_scalebar(img, 10, executor.ds_man.get_as_array(id__))
+            ds = executor.ds_man.get(id__).dataset
+            if rgba.height <= rgba.width:
+                res = rgba.height / ds.RasterYSize * 100
+            else:
+                res = rgba.width / ds.RasterXSize * 100
+            img = image_with_scalebar(img, 10, executor.ds_man.read_band(id__, 1, resolution_percent=res))
         else:
             img = normalize_brightness(img)
         if mask == '1':

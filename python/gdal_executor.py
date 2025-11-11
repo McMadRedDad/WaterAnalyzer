@@ -175,9 +175,6 @@ class DatasetManager:
             except KeyError:
                 raise KeyError(f'Dataset {id_} is not opened but "get" method called')
 
-    def get_as_array(self, id_: int) -> np.ma.MaskedArray:
-        return self.read_band(id_, 1)
-
     def get_all(self) -> list[Dataset]:
         with self._lock:
             return self._datasets.values()
