@@ -172,7 +172,7 @@ def landsat_l1_toa_temperature_to_ls_temperature(toa_temperature: np.ma.MaskedAr
     if np.isclose(ndvi.max(), ndvi.min(), atol=FLOAT_PRECISION):
         raise ValueError('invalid NDVI passed to "landsat_l1_toa_temperature_to_ls_temperature" function: min=max')
     
-    eps_water, eps_built, eps_soil, eps_veg, eps_mix = 0.990, 0.945, 0.996, 0.973, None
+    eps_water, eps_built, eps_soil, eps_veg = 0.990, 0.945, 0.996, 0.973
     wavelength, rho, surf_rough = 10.895, 14388, 0.005
     ls_temperature = np.ma.empty(toa_temperature.shape, dtype=np.float32)
     mask = toa_temperature.mask
@@ -195,7 +195,6 @@ def landsat_l1_toa_temperature_to_ls_temperature(toa_temperature: np.ma.MaskedAr
     denominator = np.ma.empty(toa_temperature.shape, dtype=np.float32)
     zeros = np.isclose(np.log(eps), 0, atol=FLOAT_PRECISION)
     denominator[~zeros] = 1 + wavelength * toa_temperature[~zeros] / rho * np.log(eps[~zeros])
-    print(np.unique(denominator, return_counts=True))
     zeros |= np.isclose(denominator, 0, atol=FLOAT_PRECISION)
     ls_temperature[~zeros] = toa_temperature[~zeros] / denominator[~zeros]
     ls_temperature[zeros] = nodata
