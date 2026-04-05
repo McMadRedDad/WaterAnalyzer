@@ -3,7 +3,7 @@
 Communication via HTTP messages. The payload is sent as a JSON document in message bodies.
 
 Requests for command execution are sent as POST HTTP/1.1 to /api/`command` endpoint.
-Requests for particular resources (image preview, spatial index image, etc.) are sent as GET HTTP/2 to /resource/`type` endpoint with query string id=`id`.
+Requests for particular resources (image preview, spectral index image, etc.) are sent as GET HTTP/2 to /resource/`type` endpoint with query string id=`id`.
 
 There are two layers of error checking.
 Firstly, overall request validity on the HTTP level is checked. This includes correct set of headers, valid JSON body, etc. If any error is caught, a response is sent immediately with an empty body and a "Reason" header containing a description of the error. Otherwise, the protocol proceeds to the next layer.
@@ -121,15 +121,15 @@ If the request passed body validation, it proceeds to the second layer of error 
 # Command execution requests
 ## Supported commands
 
-1. PING             - check connection and get a "PONG" piece of data
-2. SHUTDOWN         - turn the server off
-3. import_gtiff     - load a GeoTiff file to the server and cache it
-4. calc_preview     - request the server to calculate an image preview from cached GeoTiffs
-5. calc_index       - create a spectral index and cache it
-6. set_satellite    - save what satellite is used in the client's session
-7. end_session      - free resources occupied by the client. Indicates the end of the client's session
-8. import_metafile  - load a metadata file
-9. generate_description  - generate a textual description of an index
+1. PING                 - check connection and get a "PONG" piece of data
+2. SHUTDOWN             - turn the server off
+3. import_gtiff         - load a GeoTiff file to the server and cache it
+4. calc_preview         - request the server to calculate an image preview from cached GeoTiffs
+5. calc_index           - create a spectral index and cache it
+6. set_satellite        - save what satellite is used in the client's session
+7. end_session          - free resources occupied by the client. Indicates the end of the client's session
+8. import_metafile      - load a metadata file
+9. generate_description - generate a textual description of an index
 
 ## Message structure
 
@@ -271,7 +271,7 @@ Below are specifics for requests and responses for each supported command.
 
 ## import gtiff
 
-**Must** be sent only after 'set_satellite' request.
+**Must** be sent only after success to 'set_satellite' request.
 
 *REQUEST*
 
@@ -322,7 +322,7 @@ Below are specifics for requests and responses for each supported command.
 
 ## calculate preview
 
-**Must** be sent only after 'set_satellite' request.
+**Must** be sent only after success to 'set_satellite' request.
 
 *REQUEST*
 
@@ -363,7 +363,7 @@ Below are specifics for requests and responses for each supported command.
     -  HTTP 400 Bad Request
 6. Index not calculated:
     - `status` - 20401
-    - `result` - { "error": "`index or satellite model band` '`index name or band number`' is not `calculated or loaded` but needed for preview generation" }
+    - `result` - { "error": "`index or satellite-model band` '`index-name or band-number`' is not `calculated or loaded` but needed for preview generation" }
     -  HTTP 500 Internal Server Error
 7. Unknown error:
     - `status` - 20402
@@ -372,7 +372,7 @@ Below are specifics for requests and responses for each supported command.
 
 ## calculate index
 
-**Must** be sent only after 'set_satellite' request.
+**Must** be sent only after success to 'set_satellite' request.
 
 *REQUEST*
 
@@ -387,20 +387,20 @@ Below are specifics for requests and responses for each supported command.
 1. Success:
     - `status` - 0
     - `result` - {
-        "url": "/resource/index?id=`id`"                [STRING],
+        "url": "/resource/index?id=`id`"                 [STRING],
         "index": `name of the index`    **!!!to be reconsidered for RESTful in the future!!!**
         "info": {
-            "width": `width`                            [INT],
-            "height": `height`                          [INT],
-            "projection": `projection`                  [STRING],
-            "unit": `measure unit`                      [STRING],
-            "origin": [`x`, `y`]                        [ARRAY of DOUBLEs],
-            "pixel_size": [`size on x`, `size on y`]    [ARRAY of DOUBLEs],
-            "min": `min pixel value`                    [FLOAT],
-            "max": `max pixel value`                    [FLOAT],
-            "mean": `mean pixel value`                  [FLOAT],
-            "stdev": `standard deviation`               [FLOAT],
-            "ph_unit": `physical unit                   [STRING],
+            "width": `width`                             [INT],
+            "height": `height`                           [INT],
+            "projection": `projection`                   [STRING],
+            "unit": `measure unit`                       [STRING],
+            "origin": [`x`, `y`]                         [ARRAY of DOUBLEs],
+            "pixel_size": [`size on x`, `size on y`]     [ARRAY of DOUBLEs],
+            "min": `min pixel value`                     [FLOAT],
+            "max": `max pixel value`                     [FLOAT],
+            "mean": `mean pixel value`                   [FLOAT],
+            "stdev": `standard deviation`                [FLOAT],
+            "ph_unit": `physical unit`                   [STRING],
         }
     }
     -  HTTP 200 OK
@@ -501,7 +501,7 @@ Below are specifics for requests and responses for each supported command.
 
 ## import metadata
 
-**Must** be sent only after 'set_satellite' request.
+**Must** be sent only after success to 'set_satellite' request.
 
 *REQUEST*
 
@@ -673,46 +673,44 @@ Reason: Requested index "`request url`" does not exist.
 
 # Examples
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-TODO GET requests
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 **Check for connection after start up**
 
 *REQUEST*
 
 POST /api/PING HTTP/1.1
 Content-Type: application/json; charset=utf-8
-Content-Length: 88
 Accept: application/json; charset=utf-8
-Protocol-Version: 2.0.0
-Request-ID: 152
+Protocol-Version: 3.2.1
+Request-Id: 13
+Content-Length: 125
+Connection: Keep-Alive
+User-Agent: Mozilla/5.0
 
 {
-    "proto_version": "2.0.0",
-    "server_version": "1.0.0",
-    "id": 152,
+    "id": 13,
     "operation": "PING",
-    "parameters": {}
+    "parameters": {},
+    "proto_version": "3.2.1",
+    "server_version": "1.0.0"
 }
 
 *RESPONSE*
 
-HTTP/2 200 OK
-Server: nginx
+HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
-Content-Length: 104
-Protocol-Version: 2.0.0
-Request-ID: 152
+Content-Length: 125
+Protocol-Version: 3.2.1
+Request-ID: 13
+Server: nginx
 
 {
-    "proto_version": "2.0.0",
-    "server_version": "1.0.0",
-    "id": 152,
-    "status": 0,
-    "result": {
-        "data": "PONG"
-    }
+  "id": 13,
+  "proto_version": "3.2.1",
+  "result": {
+    "data": "PONG"
+  },
+  "server_version": "1.0.0",
+  "status": 0
 }
 
 **Turn the server off**
@@ -721,205 +719,438 @@ Request-ID: 152
 
 POST /api/SHUTDOWN HTTP/1.1
 Content-Type: application/json; charset=utf-8
-Content-Length: 92
 Accept: application/json; charset=utf-8
-Protocol-Version: 2.0.0
-Request-ID: 152
+Protocol-Version: 3.2.1
+Request-Id: 13
+Content-Length: 129
 
 {
-    "proto_version": "2.0.0",
-    "server_version": "1.0.0",
-    "id": 152,
+    "id": 13,
     "operation": "SHUTDOWN",
-    "parameters": {}
+    "parameters": {},
+    "proto_version": "3.2.1",
+    "server_version": "1.0.0"
 }
 
 *RESPONSE*
 
-HTTP/2 200 OK
-Server: nginx
+HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
-Content-Length: 76
-Protocol-Version: 2.0.0
-Request-ID: 152
+Content-Length: 103
+Protocol-Version: 3.2.1
+Request-ID: 13
+Server: nginx
 
 {
-    "proto_version": "2.0.0",
-    "server_version": "1.0.0",
-    "id": 152,
-    "status": 0,
-    "result": {}
+  "id": 13,
+  "proto_version": "3.2.1",
+  "result": {},
+  "server_version": "1.0.0",
+  "status": 0
 }
 
-**Load Sentinel image**
+**Set satellite model**
+
+*REQUEST*
+
+POST /api/set_satellite HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Accept: application/json; charset=utf-8
+Protocol-Version: 3.2.1
+Request-Id: 13
+Content-Length: 204
+
+{
+    "id": 13,
+    "operation": "set_satellite",
+    "parameters": {
+        "proc_level": "L1TP",
+        "satellite": "Landsat 8/9"
+    },
+    "proto_version": "3.2.1",
+    "server_version": "1.0.0"
+}
+
+*RESPONSE*
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Content-Length: 103
+Protocol-Version: 3.2.1
+Request-ID: 13
+Server: nginx
+
+{
+  "id": 13,
+  "proto_version": "3.2.1",
+  "result": {},
+  "server_version": "1.0.0",
+  "status": 0
+}
+
+**Load Landsat image**
 
 *REQUEST*
 
 POST /api/import_gtiff HTTP/1.1
 Content-Type: application/json; charset=utf-8
-Content-Length: 150
 Accept: application/json; charset=utf-8
-Protocol-Version: 2.0.0
-Request-ID: 152
+Protocol-Version: 3.2.1
+Request-Id: 21
+Content-Length: 287
 
 {
-    "proto_version": "2.0.0",
-    "server_version": "1.0.0",
-    "id": 152,
+    "id": 21,
     "operation": "import_gtiff",
     "parameters": {
-        "file": "/home/user/gis/sentinel/b2.tif"
-    }
+        "band": "6",
+        "file": "/home/user/Test data/LC08_L1TP_108031_20240821_20240830_02_T1/LC08_L1TP_108031_20240821_20240830_02_T1_B6.TIF"
+    },
+    "proto_version": "3.2.1",
+    "server_version": "1.0.0"
 }
 
 *RESPONSE*
 
-HTTP/2 200 OK
-Server: nginx
+HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
-Content-Length: 564
-Protocol-Version: 2.0.0
-Request-ID: 152
+Content-Length: 489
+Protocol-Version: 3.2.1
+Request-ID: 21
+Server: nginx
 
 {
-    "proto_version": "2.0.0",
-    "server_version": "1.0.0",
-    "id": 152,
-    "status": 0,
-    "result": {
-        "id": 1,
-        "metadata": {
-            ...
-        }
+  "id": 21,
+  "proto_version": "3.2.1",
+  "result": {
+    "band": "6",
+    "file": "/home/user/Test data/LC08_L1TP_108031_20240821_20240830_02_T1/LC08_L1TP_108031_20240821_20240830_02_T1_B6.TIF",
+    "info": {
+      "height": 7921,
+      "origin": [
+        328485.0,
+        4741515.0
+      ],
+      "pixel_size": [
+        30.0,
+        -30.0
+      ],
+      "projection": "EPSG:32654",
+      "unit": "metre",
+      "width": 7801
     }
+  },
+  "server_version": "1.0.0",
+  "status": 0
 }
 
-**Export a spectral index**
+**Load metadata file**
 
 *REQUEST*
 
-POST /api/export_gtiff HTTP/1.1
+POST /api/import_metafile HTTP/1.1
 Content-Type: application/json; charset=utf-8
-Content-Length: 176
 Accept: application/json; charset=utf-8
-Protocol-Version: 2.0.0
-Request-ID: 152
+Protocol-Version: 3.2.1
+Request-Id: 26
+Content-Length: 270
 
 {
-    "proto_version": "2.0.0",
-    "server_version": "1.0.0",
-    "id": 152,
-    "operation": "export_gtiff",
+    "id": 26,
+    "operation": "import_metafile",
     "parameters": {
-        "id": 4,
-        "file": "/home/user/gis/landsat/indices/ndci.tif"
-    }
+        "file": "/home/user/Test data/LC08_L1TP_108031_20240821_20240830_02_T1/LC08_L1TP_108031_20240821_20240830_02_T1_MTL.txt"
+    },
+    "proto_version": "3.2.1",
+    "server_version": "1.0.0"
 }
 
 *RESPONSE*
 
-HTTP/2 200 OK
-Server: nginx
+HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
-Content-Length: 76
-Protocol-Version: 2.0.0
-Request-ID: 152
+Content-Length: 125
+Protocol-Version: 3.2.1
+Request-ID: 26
+Server: nginx
 
 {
-    "proto_version": "2.0.0",
-    "server_version": "1.0.0",
-    "id": 152,
-    "status": 0,
-    "result": {}
+  "id": 26,
+  "proto_version": "3.2.1",
+  "result": {
+    "loaded": 11.0
+  },
+  "server_version": "1.0.0",
+  "status": 0
 }
 
-**Generate a grayscale preview using the same band for r, g and b**
+**Calculate color preview**
 
 *REQUEST*
 
 POST /api/calc_preview HTTP/1.1
 Content-Type: application/json; charset=utf-8
-Content-Length: 126
 Accept: application/json; charset=utf-8
-Protocol-Version: 2.0.0
-Request-ID: 152
+Protocol-Version: 3.2.1
+Request-Id: 28
+Content-Length: 210
 
 {
-    "proto_version": "2.0.0",
-    "server_version": "1.0.0",
-    "id": 152,
+    "id": 28,
     "operation": "calc_preview",
     "parameters": {
-        "ids": [7, 7, 7]
-    }
+        "height": 265,
+        "index": "nat_col",
+        "width": 319
+    },
+    "proto_version": "3.2.1",
+    "server_version": "1.0.0"
 }
 
 *RESPONSE*
 
-HTTP/2 200 OK
-Server: nginx
+HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
-Content-Length: 259
-Protocol-Version: 2.0.0
-Request-ID: 152
+Content-Length: 142
+Protocol-Version: 3.2.1
+Request-ID: 28
+Server: nginx
 
 {
-    "proto_version": "2.0.0",
-    "server_version": "1.0.0",
-    "id": 152,
-    "status": 0,
-    "result": {
-        "preview_id": 69,
-        "size": 3864,
-        "hash": "268cd85c83ef066c232d831af0ce6362bf9091b8d9000ac279fbd620df8ce5c2",
-        "width": 1024,
-        "height": 1024
-    }
+  "id": 28,
+  "proto_version": "3.2.1",
+  "result": {
+    "url": "/resource/preview?id=1"
+  },
+  "server_version": "1.0.0",
+  "status": 0
 }
 
-**Create NDCI index**
+**Calculate grayscale preview of NSMI index**
+
+*REQUEST*
+
+POST /api/calc_preview HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Accept: application/json; charset=utf-8
+Protocol-Version: 3.2.1
+Request-Id: 41
+Content-Length: 207
+
+{
+    "id": 41,
+    "operation": "calc_preview",
+    "parameters": {
+        "height": 206,
+        "index": "nsmi",
+        "width": 459
+    },
+    "proto_version": "3.2.1",
+    "server_version": "1.0.0"
+}
+
+*RESPONSE*
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Content-Length: 142
+Protocol-Version: 3.2.1
+Request-ID: 41
+Server: nginx
+
+{
+  "id": 41,
+  "proto_version": "3.2.1",
+  "result": {
+    "url": "/resource/preview?id=2"
+  },
+  "server_version": "1.0.0",
+  "status": 0
+}
+
+**Calculate NSMI index**
 
 *REQUEST*
 
 POST /api/calc_index HTTP/1.1
 Content-Type: application/json; charset=utf-8
-Content-Length: 146
 Accept: application/json; charset=utf-8
-Protocol-Version: 2.0.0
-Request-ID: 152
+Protocol-Version: 3.2.1
+Request-Id: 31
+Content-Length: 160
 
 {
-    "proto_version": "2.0.0",
-    "server_version": "1.0.0",
-    "id": 152,
+    "id": 31,
     "operation": "calc_index",
     "parameters": {
-        "ids": [3, 4],
-        "index": "ndci"
-    }
+        "index": "nsmi"
+    },
+    "proto_version": "3.2.1",
+    "server_version": "1.0.0"
 }
 
 *RESPONSE*
 
-HTTP/2 200 OK
-Server: nginx
+HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
-Content-Length: 431
-Protocol-Version: 2.0.0
-Request-ID: 152
+Content-Length: 567
+Protocol-Version: 3.2.1
+Request-ID: 31
+Server: nginx
 
 {
-    "proto_version": "2.0.0",
-    "server_version": "1.0.0",
-    "id": 152,
-    "status": 0,
-    "result": {
-        "id": 6,
-        "metadata": {
-            ...
-        }
-    }
+  "id": 31,
+  "proto_version": "3.2.1",
+  "result": {
+    "index": "nsmi",
+    "info": {
+      "height": 7921,
+      "max": 0.7617611289024353,
+      "mean": 0.007320965174585581,
+      "min": -0.42250141501426697,
+      "origin": [
+        328485.0,
+        4741515.0
+      ],
+      "ph_unit": "--",
+      "pixel_size": [
+        30.0,
+        -30.0
+      ],
+      "projection": "EPSG:32654",
+      "stdev": 0.09729105234146118,
+      "unit": "metre",
+      "width": 7801
+    },
+    "url": "/resource/index?id=21"
+  },
+  "server_version": "1.0.0",
+  "status": 0
 }
+
+**Generate description of NSMI index in Russian**
+
+*REQUEST*
+
+POST /api/generate_description HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Accept: application/json; charset=utf-8
+Protocol-Version: 3.2.1
+Request-Id: 35
+Content-Length: 192
+
+{
+    "id": 35,
+    "operation": "generate_description",
+    "parameters": {
+        "index": "nsmi",
+        "lang": "ru"
+    },
+    "proto_version": "3.2.1",
+    "server_version": "1.0.0"
+}
+
+*RESPONSE*
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Content-Length: 493
+Protocol-Version: 3.2.1
+Request-ID: 35
+Server: nginx
+
+{
+  "id": 35,
+  "proto_version": "3.2.1",
+  "result": {
+    "desc": "\u0420\u0430\u0441\u0441\u0447\u0438\u0442\u0430\u043d\u043e \u043f\u043e \u043e\u0442\u0440\u0430\u0436\u0430\u0442\u0435\u043b\u044c\u043d\u043e\u0439 \u0441\u043f\u043e\u0441\u043e\u0431\u043d\u043e\u0441\u0442\u0438 \u0432\u0435\u0440\u0445\u043d\u0435\u0433\u043e \u0441\u043b\u043e\u044f \u0430\u0442\u043c\u043e\u0441\u0444\u0435\u0440\u044b.\n",
+    "index": "nsmi"
+  },
+  "server_version": "1.0.0",
+  "status": 0
+}
+
+**End client session**
+
+*REQUEST*
+
+POST /api/end_session HTTP/1.1
+Content-Type: application/json; charset=utf-8
+Accept: application/json; charset=utf-8
+Protocol-Version: 3.2.1
+Request-Id: 72
+Content-Length: 137
+
+{
+    "id": 72,
+    "operation": "end_session",
+    "parameters": {
+    },
+    "proto_version": "3.2.1",
+    "server_version": "1.0.0"
+}
+
+*RESPONSE*
+
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Content-Length: 103
+Protocol-Version: 3.2.1
+Request-ID: 72
+Server: nginx
+
+{
+  "id": 72,
+  "proto_version": "3.2.1",
+  "result": {},
+  "server_version": "1.0.0",
+  "status": 0
+}
+
+**Get preview**
+
+*REQUEST*
+
+GET /resource/preview?id=4&sb=1&mask=0 HTTP/2
+Protocol-Version: 3.2.1
+Request-Id: 71
+Accept: image/png
+
+
+
+*RESPONSE*
+
+HTTP/2 200 OK
+Protocol-Version: 3.2.1
+Request-ID: 71
+Content-Type: image/png
+Width: 203
+Height: 206
+Server: nginx
+
+`binary representation`
+
+**Get index**
+
+*REQUEST*
+
+GET /resource/index?id=25 HTTP/2
+Protocol-Version: 3.2.1
+Request-Id: 56
+Accept: image/tiff
+
+
+
+*RESPONSE*
+
+HTTP/2 200 OK
+Protocol-Version: 3.2.1
+Request-ID: 56
+Content-Type: image/tiff
+Content-Length: 61839619
+Server: nginx
+
+`binary representation`
 
 **Invalid request**
 
@@ -927,13 +1158,13 @@ Request-ID: 152
 
 POST /api/export_gtiff HTTP/1.1
 Content-Type: application/json; charset=utf-8
-Content-Length: 180
+Content-Length: 218
 Accept: application/json; charset=utf-8
-Protocol-Version: 2.0.0
+Protocol-Version: 3.2.1
 Request-ID: 152
 
 {
-    "proto_version": "2.0.0",
+    "proto_version": "3.2.1",
     "server_version": "1.0.0",
     "id": 152,
     "operation": "export_geotiff",
@@ -948,15 +1179,15 @@ Request-ID: 152
 HTTP/2 400 Bad Request
 Server: nginx
 Content-Type: application/json; charset=utf-8
-Content-Length: 149
-Protocol-Version: 2.0.0
+Content-Length: 187
+Protocol-Version: 3.2.1
 Request-ID: 152
 
 {
-    "proto_version": "2.0.0",
+    "proto_version": "3.2.1",
     "server_version": "1.0.0",
     "id": 152,
-    "status": 10003,
+    "status": 10005,
     "result": {
         "error": "unknown operation 'export_geotiff' requested"
     }
@@ -966,20 +1197,17 @@ Request-ID: 152
 
 *REQUEST*
 
-POST /api/export_gtiff HTTP/1.1
+POST /api/PING HTTP/1.1
 Accept: application/json; charset=utf-8
-Protocol-Version: 2.0.0
+Protocol-Version: 3.2.1
 Request-ID: 152
 
 {
-    "proto_version": "2.0.0",
+    "proto_version": "3.2.1",
     "server_version": "1.0.0",
     "id": 152,
-    "operation": "export_gtiff",
-    "parameters": {
-        "id": "4",
-        "file": "/home/user/gis/landsat/indices/ndci.tif"
-    }
+    "operation": "PING",
+    "parameters": {}
 }
 
 *RESPONSE*
@@ -988,6 +1216,28 @@ HTTP/2 400 Bad Request
 Server: nginx
 Content-Type: application/json; charset=utf-8
 Content-Length: 0
-Protocol-Version: 2.0.0
+Protocol-Version: 3.2.1
 Request-ID: 152
 Reason: Invalid HTTP Request. Headers "Content-Type, Content-Length" are missing in the request.
+
+**Invalid request**
+
+*REQUEST*
+
+GET /resource/index HTTP/1.1
+Protocol-Version: 3.2.1
+Request-Id: 56
+Accept: image/tiff
+
+
+
+*RESPONSE*
+
+HTTP/1.1 400 Bad Request
+Protocol-Version: 3.2.1
+Request-ID: 56
+Content-Type: image/tiff
+Content-Length: 61839619
+Server: nginx
+Reason: Query string must be provided for resource requests.
+
