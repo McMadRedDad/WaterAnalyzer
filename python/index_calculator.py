@@ -46,7 +46,7 @@ def _otsu_threshold(array: np.ma.MaskedArray, nbins: int) -> float:
     return best_thresh
 
 def otsu_binarization(array: np.ma.MaskedArray, nodata: int, nbins: int=256) -> (np.ma.MaskedArray[np.uint8], float):
-    """Divide 'array' daat into two classes usin Otsu method. Returns a new array where 1=foreground, 0=background and calculated threshold."""
+    """Divide 'array' data into two classes using Otsu method. Returns a new array where 1=foreground, 0=background and calculated threshold."""
 
     ret = np.ma.empty(array.shape, dtype=np.uint8)
     mask = array.mask

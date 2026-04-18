@@ -385,18 +385,35 @@ class GdalExecutor:
             if id_ is None:
                 return IndexErr(20503, 'unable to create water mask: water extraction index is not calculated'), ()
             ds = self.ds_man.get(id_)
+            band = self.ds_man.read_band(id_, 1)
+            mask = band.mask
             geotransform, projection = ds.dataset.GetGeoTransform(), ds.dataset.GetProjection()
             data_type, nodata = gdal.GDT_Byte, 0
             if ds.band == 'wi2015':
-                result, thresh = indcal.otsu_binarization(self.ds_man.read_band(id_, 1), nodata)
-                result = result.astype(np.bool)
+                result, thresh = indcal.otsu_binarization(band, 69)
+                result[~mask] = np.ma.where(result[~mask] == 1, 2,
+                    np.ma.where(result[~mask] == 0, 1,
+                        nodata
+                    )
+                )
+                result[mask] = nodata
+                result.mask = mask
                 notes += '\n' + f'Классификация выполнена методом Оцу, пороговое значение {thresh}.'
             if ds.band == 'andwi':
-                result, thresh = indcal.otsu_binarization(self.ds_man.read_band(id_, 1), nodata)
-                result = result.astype(np.bool)
+                result, thresh = indcal.otsu_binarization(band, 69)
+                result[~mask] = np.ma.where(result[~mask] == 1, 2,
+                    np.ma.where(result[~mask] == 0, 1,
+                        nodata
+                    )
+                )
+                result[mask] = nodata
+                result.mask = mask
                 notes += '\n' + f'Классификация выполнена методом Оцу, пороговое значение {thresh}.'
             if ds.band == 'ndwi':
-                result = np.ma.array(self.ds_man.read_band(id_, 1) > 0.01, dtype=np.bool)
+                result = np.ma.empty(band.shape, dtype=np.uint8)
+                result[~mask] = np.ma.where(band[~mask] > 0.01, 2, 1)
+                result[mask] = nodata
+                result.mask = mask
                 notes += '\n' + 'Классификация выполнена по пороговому значению 0.01.'
         if index == 'wi2015':
             if self.satellite == 'Landsat 8/9':
@@ -913,7 +930,13 @@ class GdalExecutor:
             else:
                 res = width / mask.dataset.RasterXSize * 100
         mask = self.ds_man.read_band(id_, 1, resolution_percent=res)
-        return np.ma.array(mask, dtype=np.bool)
+        ret = np.ma.where(mask == 2, True,
+            np.ma.where(mask == 1, False,
+                np.ma.masked
+            )
+        ).astype(np.bool)
+        return ret
+        # return np.ma.array(mask, dtype=np.bool)
 
     def get_version(self) -> str:
         return self.VERSION
